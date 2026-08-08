@@ -190,7 +190,14 @@ const clientData = {
     {/* Color selector */}
     <fieldset class="mt-7">
       <legend class="text-sm font-semibold text-neutral-900">Color</legend>
-      <div id="pdp-colors" class="mt-2.5 flex flex-wrap gap-2">
+      {
+        /*
+        A fixed two-column grid rather than wrapping flex: with four colors of
+        differing name length, flex packed three onto one row and stranded the
+        fourth. Equal-width cells keep the block square whatever the labels say.
+      */
+      }
+      <div id="pdp-colors" class="mt-2.5 grid grid-cols-2 gap-2">
         {
           variants.map((variant, i) => (
             <button
@@ -199,17 +206,23 @@ const clientData = {
               aria-pressed={i === activeIndex ? 'true' : 'false'}
               disabled={!variant.inStock}
               class:list={[
-                'group inline-flex items-center gap-2 rounded-lg border-2 px-3 py-2 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-40',
+                'group flex w-full items-center gap-2 rounded-lg border-2 px-3 py-2 text-left text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-40',
                 i === activeIndex
                   ? 'border-maroon-700 bg-maroon-50 text-maroon-900'
                   : 'border-neutral-200 text-neutral-700 hover:border-neutral-400',
               ]}
             >
               <span
-                class="h-4 w-4 rounded-full border border-neutral-300 shadow-inner"
+                class="h-4 w-4 shrink-0 rounded-full border border-neutral-300 shadow-inner"
                 style={`background:${variant.hex}`}
               />
-              {variant.name}
+              {/*
+                Wraps rather than truncating: at phone widths a two-column cell
+                is too narrow for "Fluorescent Orange", and a clipped colour
+                name is worse than a taller button. Grid rows stretch together,
+                so a wrapped label keeps the pair the same height.
+              */}
+              <span class="min-w-0 leading-tight">{variant.name}</span>
             </button>
           ))
         }
