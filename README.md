@@ -525,10 +525,47 @@ Behaviour worth knowing:
   for it.
 - **Enter sends, Shift+Enter is a newline,** and composition events are checked
   so an IME candidate accepted with Enter does not fire the question.
-- **The composer opts out of dictation** via `data-no-dictation`. `VoiceInput`
-  attaches to every textarea on its page, and it is only on two pages — without
-  the opt-out the chat box would sprout a Speak button on the contact and
-  wholesale pages and nowhere else.
+- **The composer has its own microphone**, so questions can be spoken. See
+  below.
+
+### Dictating a question
+
+The chat composer carries a microphone beside the send button, so a visitor can
+talk to the assistant instead of typing — useful for exactly the people this is
+built for, who are often on a dock with gloves on.
+
+The recording itself is `src/assets/scripts/dictation.ts`, shared with
+`VoiceInput`. That module owns everything with a sharp edge — MediaRecorder's
+per-browser containers, the WAV normalisation, the two-minute auto-stop, and
+releasing the device on every exit path — and owns no markup. A caller passes
+callbacks and gets a controller back, which is what lets a microphone tucked
+into the corner of a tall form field and a button in a chat composer's button
+row share one implementation.
+
+The composer still sets `data-no-dictation`, which keeps `VoiceInput` off it.
+That component positions its microphone _inside_ the field, which is right for a
+tall textarea and wrong for a one-line composer, and it is only on two pages
+while the widget is on all of them.
+
+Behaviour worth knowing:
+
+- **The microphone is rendered only where a transcription key is configured**
+  (`SHAW_ELEVENLABS`, or `ELEVENLABS_API_KEY` as fallback) and unhidden only
+  where the browser can actually record. Both halves matter: without the key
+  every recording returns an error, and without the APIs the button does
+  nothing.
+- **A transcript is inserted, never sent.** Mishearing "eleven inch" as "seven
+  inch" would otherwise spend a question and return a confidently wrong answer
+  the visitor never saw asked. They read it, fix it, and press send.
+- **Send is disabled while recording _and_ while transcribing.** Sending
+  mid-upload would fire the question a moment before its own text arrived.
+- **Closing the panel stops the recording.** A microphone left open behind a
+  dismissed panel keeps the browser's recording indicator lit for something the
+  visitor believes they closed.
+- **One writer owns the send button's disabled state.** Three things want to
+  disable it — an answer in flight, a rate-limit cooldown, a recording — and
+  when each set the flag directly, whichever finished last won, so ending a
+  recording could re-enable send mid-cooldown.
 
 ## Product images
 

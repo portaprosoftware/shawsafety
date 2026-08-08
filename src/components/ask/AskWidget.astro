@@ -26,6 +26,18 @@ import { ragIndex } from '@utils/rag';
 const enabled = Boolean(readEnv('OPENAI_API_KEY')) && Boolean(ragIndex);
 
 /**
+ * Whether to offer dictation in the composer.
+ *
+ * Same rule again, for the microphone this time: with no transcription key
+ * every recording comes back as an error, so the button is not rendered at
+ * all. The variable names match /api/transcribe, which prefers SHAW_ELEVENLABS
+ * and falls back to ELEVENLABS_API_KEY.
+ */
+const dictationConfigured = Boolean(
+  readEnv('SHAW_ELEVENLABS') || readEnv('ELEVENLABS_API_KEY')
+);
+
+/**
  * Openers for the empty state.
  *
  * Chosen to advertise the range of the corpus rather than to be the most
@@ -108,8 +120,14 @@ const suggestions = [
           <form id="ask-form" class="flex items-end gap-2">
             {/*
               A textarea rather than an input, so a terminal's seal spec can be
-              pasted in whole. Dictation is opted out explicitly — see the note
-              in VoiceInput.astro.
+              pasted in whole.
+
+              `data-no-dictation` keeps VoiceInput off this field. That
+              component attaches to every textarea on its page and positions
+              its microphone inside the box, which is right for a tall form
+              field and wrong for a one-line composer — and it is only on two
+              pages, while this widget is on all of them. The composer has its
+              own microphone below instead, sharing the same recording code.
             */}
             <textarea
               id="ask-input"
@@ -122,6 +140,31 @@ const suggestions = [
               aria-label="Your question"
               class="focus:border-maroon-700 focus:ring-maroon-700 max-h-32 min-h-11 flex-1 resize-none rounded-lg border-neutral-300 py-2.5 text-sm"
             />
+            {
+              /*
+              Rendered only where a key is configured, and unhidden by the
+              script only where the browser can actually record. Both halves
+              matter: without the key every recording comes back as an error,
+              and without the APIs the button does nothing at all.
+            */
+              dictationConfigured && (
+                <button
+                  type="button"
+                  id="ask-mic"
+                  aria-pressed="false"
+                  aria-controls="ask-input"
+                  aria-label="Dictate your question"
+                  class="focus-visible:ring-maroon-700 hidden h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-neutral-300 bg-white text-neutral-600 transition hover:border-neutral-400 hover:text-neutral-900 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <span data-mic-idle class="contents">
+                    <Icon name="microphone" class="h-4 w-4" strokeWidth={2} />
+                  </span>
+                  <span data-mic-recording class="contents hidden">
+                    <Icon name="stop" class="h-4 w-4 text-red-600" />
+                  </span>
+                </button>
+              )
+            }
             <button
               type="submit"
               id="ask-send"
@@ -131,6 +174,19 @@ const suggestions = [
               <Icon name="send" class="h-4 w-4" />
             </button>
           </form>
+          {/*
+            Dictation status: the recording clock, "Transcribing…", or why the
+            microphone could not be used. aria-live so the state change is
+            announced rather than only drawn. Empty and hidden until there is
+            something to say, so it costs no space in the composer.
+          */}
+          <p
+            id="ask-voice-status"
+            class="mt-2 hidden px-1 text-[11px] leading-snug"
+            role="status"
+            aria-live="polite"
+          />
+
           <p class="mt-2 px-1 text-[11px] leading-snug text-neutral-500">
             Answers come from this site and can be wrong. To place an order or
             confirm a spec, call{' '}
@@ -157,6 +213,12 @@ const suggestions = [
    * built to encourage — would otherwise throw the conversation away on
    * navigation. It is per-tab and dies with it; nothing is persisted to disk.
    */
+  import {
+    createDictation,
+    insertAtCaret,
+    isDictationSupported,
+    type Dictation,
+  } from '@scripts/dictation';
 
   interface Source {
     n: number;
@@ -187,12 +249,24 @@ const suggestions = [
     'ask-input'
   ) as HTMLTextAreaElement | null;
   const send = document.getElementById('ask-send') as HTMLButtonElement | null;
+  const mic = document.getElementById('ask-mic') as HTMLButtonElement | null;
+  const voiceStatus = document.getElementById('ask-voice-status');
 
   if (root && launcher && panel && log && form && input && send) {
     const suggestions: string[] = JSON.parse(root.dataset.suggestions ?? '[]');
 
     let messages: Message[] = [];
     let pending = false;
+    /** Recording, or waiting on a transcript. Either way, mid-dictation. */
+    let dictating = false;
+
+    /*
+     * Declared up here with the rest of the state because closing the panel
+     * has to stop a recording it is about to hide: a microphone left open
+     * behind a dismissed panel keeps the browser's recording indicator lit for
+     * something the visitor believes they closed.
+     */
+    let dictation: Dictation | null = null;
 
     /**
      * Set when the route rate limits us, and honoured client-side.
@@ -205,6 +279,19 @@ const suggestions = [
      */
     let cooldownUntil = 0;
     const MAX_HONOURED_COOLDOWN_MS = 60_000;
+
+    /**
+     * One writer for the send button's enabled state.
+     *
+     * Three independent things want to disable it — an answer in flight, a
+     * rate-limit cooldown, and a recording in progress — and when each set the
+     * flag directly, whichever finished last decided, so ending a recording
+     * could re-enable send in the middle of a cooldown. Everything now sets a
+     * variable and calls this.
+     */
+    const syncSend = () => {
+      send.disabled = pending || dictating || Date.now() < cooldownUntil;
+    };
 
     // ── Persistence ─────────────────────────────────────────────────────
     /*
@@ -398,7 +485,11 @@ const suggestions = [
         ?.classList.toggle('hidden', !open);
 
       if (open && focusInput) input.focus();
-      if (!open) launcher.focus();
+      if (!open) {
+        launcher.focus();
+        // Never leave the microphone running behind a dismissed panel.
+        dictation?.stop();
+      }
       save(open);
     };
 
@@ -439,10 +530,65 @@ const suggestions = [
       form.requestSubmit();
     });
 
+    // ── Dictation ───────────────────────────────────────────────────────
+    const setVoiceStatus = (text: string, isError = false) => {
+      if (!voiceStatus) return;
+      voiceStatus.textContent = text;
+      voiceStatus.classList.toggle('hidden', !text);
+      voiceStatus.classList.toggle('text-red-600', isError);
+      voiceStatus.classList.toggle('text-neutral-500', !isError);
+    };
+
+    if (mic && isDictationSupported()) {
+      // Rendered hidden, revealed only now — see the note on the button.
+      mic.classList.remove('hidden');
+      mic.classList.add('inline-flex');
+
+      dictation = createDictation({
+        onText: text => {
+          /*
+           * Inserted rather than sent. A transcript is a first draft: mishearing
+           * "eleven inch" as "seven inch" would otherwise spend a question and
+           * return a confidently wrong answer, and the visitor never saw what
+           * was asked. They read it, fix it, and press send.
+           */
+          insertAtCaret(input, text);
+          autosize();
+        },
+        onStatus: setVoiceStatus,
+        onRecordingChange: recording => {
+          dictating = recording;
+          syncSend();
+          mic.setAttribute('aria-pressed', String(recording));
+          mic.classList.toggle('border-red-400', recording);
+          mic.classList.toggle('bg-red-50', recording);
+          mic.setAttribute(
+            'aria-label',
+            recording ? 'Stop recording' : 'Dictate your question'
+          );
+          mic
+            .querySelector('[data-mic-idle]')
+            ?.classList.toggle('hidden', recording);
+          mic
+            .querySelector('[data-mic-recording]')
+            ?.classList.toggle('hidden', !recording);
+        },
+        onBusyChange: busy => {
+          // Still mid-dictation while the audio is in flight: sending now would
+          // fire the question a moment before its own text arrives.
+          dictating = busy;
+          syncSend();
+          mic.disabled = busy;
+        },
+      });
+
+      mic.addEventListener('click', () => dictation?.toggle());
+    }
+
     const ask = async (question: string) => {
       messages.push({ role: 'user', content: question });
       pending = true;
-      send.disabled = true;
+      syncSend();
       render();
 
       /*
@@ -494,8 +640,8 @@ const suggestions = [
       } finally {
         pending = false;
         const wait = cooldownUntil - Date.now();
-        send.disabled = wait > 0;
-        if (wait > 0) window.setTimeout(() => (send.disabled = pending), wait);
+        syncSend();
+        if (wait > 0) window.setTimeout(syncSend, wait);
         render();
         save(isOpen());
       }
@@ -504,9 +650,13 @@ const suggestions = [
     form.addEventListener('submit', event => {
       event.preventDefault();
       const question = input.value.trim();
-      if (!question || pending || Date.now() < cooldownUntil) return;
+      if (!question || pending || dictating || Date.now() < cooldownUntil) {
+        return;
+      }
       input.value = '';
       autosize();
+      // "Added. Edit as needed." refers to text that has now been sent.
+      setVoiceStatus('');
       void ask(question);
     });
 
