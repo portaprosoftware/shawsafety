@@ -1,0 +1,133 @@
+---
+/**
+ * Ground transit-time map.
+ *
+ * Appears above the footer on the landing page and every product page, where
+ * "when will it get here?" is the last question before checkout.
+ *
+ * The map is globbed rather than imported so a missing file cannot break the
+ * build — the same reasoning as the hero photo and the product shots. With no
+ * file present the section renders the legend alone, which still answers the
+ * question in text.
+ */
+import { getImage } from 'astro:assets';
+import type { ImageMetadata } from 'astro';
+import Icon from '@components/ui/icons/Icon.astro';
+
+const matches = import.meta.glob<{ default: ImageMetadata }>(
+  '/src/images/Shipping.{png,jpg,jpeg,webp,avif}',
+  { eager: true }
+);
+const source = Object.values(matches)[0]?.default;
+
+/*
+ * Served at 2000px into a ~1100px box. The source is 5000px wide and the state
+ * labels are small, so a 1x render turns the map to mush on a retina screen.
+ */
+const map = source ? await getImage({ src: source, width: 2000 }) : null;
+const full = source ? await getImage({ src: source, width: 3000 }) : null;
+
+/*
+ * Swatch colours sampled from the legend baked into the map, so the text key
+ * and the artwork cannot drift apart. Deliberately raw hex rather than theme
+ * tokens: these are the map's colours, not the brand's.
+ */
+const bands = [
+  { hex: '#2e7f2e', label: '1 day' },
+  { hex: '#64b964', label: '2 days' },
+  { hex: '#ffd633', label: '3 days' },
+  { hex: '#f07800', label: '4 days' },
+  { hex: '#c72929', label: '5 days' },
+];
+---
+
+<section class="border-t border-neutral-200 py-16 lg:py-20">
+  <div class="mx-auto max-w-3xl text-center">
+    <span
+      class="bg-maroon-700 mx-auto block h-1 w-12 rounded-full"
+      aria-hidden="true"></span>
+    <h2
+      class="mt-5 text-3xl font-bold tracking-tight text-neutral-900 sm:text-4xl lg:text-5xl"
+    >
+      Ground Delivery Times
+    </h2>
+    {
+      /*
+      The cutoff is stated once in src/data_files/faqs.json and repeated on the
+      product pages; it is restated here rather than left implicit because
+      transit time alone does not answer "when will it arrive".
+    */
+    }
+    <p class="mt-4 text-base text-neutral-600">
+      Business days in transit once your order leaves our dock. Orders placed
+      before 5pm ship the next business day.
+    </p>
+  </div>
+
+  {
+    /* The key is real text: at phone width the map's own legend is unreadable. */
+  }
+  <ul
+    class="mt-8 flex flex-wrap items-center justify-center gap-x-5 gap-y-2.5"
+    aria-label="Transit time key"
+  >
+    {
+      bands.map(band => (
+        <li class="inline-flex items-center gap-2">
+          <span
+            class="h-3.5 w-3.5 rounded-sm border border-neutral-400/60"
+            style={`background:${band.hex}`}
+            aria-hidden="true"
+          />
+          <span class="text-sm font-medium text-neutral-700">{band.label}</span>
+        </li>
+      ))
+    }
+  </ul>
+
+  {
+    map && full && (
+      <figure class="mt-10">
+        <div class="mx-auto max-w-5xl">
+          {/*
+            Opens the map full size in a new tab. On a phone the fitted map is
+            a picture of a map rather than a usable one — the state labels are
+            a few pixels tall — so an escape hatch to a zoomable view is not
+            optional. Matches the spec-sheet link on the product pages.
+          */}
+          <a
+            href={full.src}
+            target="_blank"
+            rel="noopener"
+            class="focus-visible:ring-maroon-700 group block rounded-xl focus:outline-hidden focus-visible:ring-2 focus-visible:ring-offset-4"
+          >
+            <img
+              src={map.src}
+              alt="Map of the contiguous United States, Alaska and Hawaii, shaded by ground transit time. The Ohio Valley and Northeast are one day; the upper Midwest, Southeast and New England are two; the Plains, Texas and Florida are three; the Southwest is four; and the Pacific Northwest, Alaska and Hawaii are five."
+              width="2000"
+              height="1400"
+              loading="lazy"
+              decoding="async"
+              class="h-auto w-full rounded-xl transition group-hover:opacity-95"
+            />
+            <figcaption class="mt-3 flex items-center justify-center gap-1.5 text-sm text-neutral-500">
+              <Icon name="zoomIn" class="h-4 w-4" />
+              <span class="group-hover:text-maroon-700 underline underline-offset-4 transition">
+                View the map full size
+              </span>
+            </figcaption>
+          </a>
+        </div>
+      </figure>
+    )
+  }
+
+  <p class="mx-auto mt-8 max-w-2xl text-center text-sm text-neutral-500">
+    Transit times are carrier estimates and exclude weekends and holidays. If
+    you need a guaranteed delivery date, <a
+      href="/contact"
+      class="text-maroon-700 hover:text-maroon-800 font-medium underline underline-offset-4"
+      >get in touch</a
+    > and we will confirm before you order.
+  </p>
+</section>

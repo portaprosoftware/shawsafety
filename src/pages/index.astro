@@ -9,6 +9,7 @@ import VestCrossSell from '@components/sections/landing/VestCrossSell.astro';
 import HeroSectionAlt from '@components/sections/landing/HeroSectionAlt.astro';
 import PricingSection from '@components/sections/pricing/PricingSection.astro';
 import FAQ from '@components/sections/misc/FAQ.astro';
+import GroundDeliveryTimes from '@components/sections/misc/GroundDeliveryTimes.astro';
 import ProductCard from '@components/ui/cards/ProductCard.astro';
 import SectionHeading from '@components/ui/blocks/SectionHeading.astro';
 import faqs from '@data/faqs.json';
@@ -63,5 +64,6 @@ const structuredData = {
     <div class="pb-20">
       <HeroSectionAlt />
     </div>
+    <GroundDeliveryTimes />
   </div>
 </MainLayout>

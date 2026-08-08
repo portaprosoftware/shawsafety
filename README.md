@@ -293,6 +293,20 @@ the variant in frontmatter, alongside `images:`. It resolves the same way, so
 the extension is not referenced. A variant without a `spec` simply shows no
 link, which is why the vests have none.
 
+### Ground delivery map
+
+`src/images/Shipping.png` backs the **Ground Delivery Times** section above the
+footer on the landing page and both product pages
+(`src/components/sections/misc/GroundDeliveryTimes.astro`). Like the hero, it is
+globbed rather than imported, so replacing or removing it cannot break the
+build — with no file the section still renders its text key.
+
+The five-band colour key beside the map is real HTML, with swatch hex values
+sampled from the legend baked into the artwork. **Replacing the map with one
+using different colours means updating `bands` in that component**, or the key
+and the map will disagree. The map also links to a 3000px render, because at
+phone width the state labels are a few pixels tall.
+
 ### Hero image
 
 Optional. Drop any `hero-image.{jpg,png,webp,avif}` into `src/images/` and the
