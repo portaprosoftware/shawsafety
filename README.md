@@ -212,8 +212,10 @@ present but unreferenced, which usually means a typo in a filename.
 
 Shoot square-ish on a white background: the gallery and cards use
 `object-contain`, so off-ratio images letterbox rather than crop. Don't
-pre-resize or compress — upload the largest version you have, since the zoom
-lightbox renders at 1600px. Use JPG for photographs; PNG or WebP are fine too.
+pre-resize or compress — upload the largest version you have. The main photo is
+served at 1100px into a ~560px box so the in-place magnifier (1.75x, following
+the cursor) reveals real detail rather than upscaled pixels. Change `ZOOM` in
+`src/components/ui/blocks/ImageZoom.astro` to adjust the magnification. Use JPG for photographs; PNG or WebP are fine too.
 
 ### Filename manifest
 
