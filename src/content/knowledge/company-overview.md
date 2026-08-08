@@ -23,5 +23,4 @@ in four colors, and an ANSI/ISEA 107 Class 2 hi-vis safety vest sold in
 Everything is sold direct at published wholesale pricing — UL 21S listed, DOT
 compliant, and shipped the next business day. There is no account to create,
 no minimum order, and no quote cycle between a buyer and a price. The company
-tagline is "Industrial Zip Ties & Hi-Vis Safety Gear", and the storefront is
-at shawsafety.com.
+tagline is "Industrial Zip Ties & Hi-Vis Safety Gear".

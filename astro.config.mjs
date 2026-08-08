@@ -7,7 +7,16 @@ import mdx from '@astrojs/mdx';
 
 // https://astro.build/config
 export default defineConfig({
-  site: 'https://shawsafety.com',
+  /*
+   * The canonical origin for this deployment. Feeds canonical links, og:url,
+   * the sitemap, and (via SITE.url in src/data_files/constants.ts, which must
+   * be kept in step) every JSON-LD @id.
+   *
+   * Deliberately NOT shawsafety.com: that domain is run by someone else and
+   * points at their own deployment. Declaring it here would tell search
+   * engines their site is the original and this one a duplicate.
+   */
+  site: 'https://shaw.portaprosoftware.com',
   // All images are local to src/images/ and go through Astro's build pipeline.
   // If assets ever move to a CDN, allowlist the host here AND in the `img-src`
   // CSP directive in vercel.json — missing either one silently blanks them.

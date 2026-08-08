@@ -5,7 +5,7 @@
  * it can be picked and shipped. Without this, a paid order is only visible by
  * watching the Stripe dashboard.
  *
- * Point a Stripe webhook at https://shawsafety.com/api/stripe-webhook with the
+ * Point a Stripe webhook at https://shaw.portaprosoftware.com/api/stripe-webhook
  * `checkout.session.completed` event enabled, and put its signing secret in
  * STRIPE_CHECKOUT_WEBHOOK_SECRET.
  *
@@ -168,7 +168,7 @@ export const POST: APIRoute = async ({ request }) => {
   const html = `
     <div style="font-family:system-ui,-apple-system,Segoe UI,sans-serif;color:#171717">
       <h2 style="margin:0 0 4px;color:#9B1C2E">New Order</h2>
-      <p style="margin:0 0 20px;color:#737373;font-size:13px">via shawsafety.com</p>
+      <p style="margin:0 0 20px;color:#737373;font-size:13px">via Shaw Safety</p>
       <table style="border-collapse:collapse;font-size:14px">
         ${rows
           .map(
@@ -200,7 +200,7 @@ export const POST: APIRoute = async ({ request }) => {
     </div>`;
 
   const text = [
-    'New Order via shawsafety.com',
+    'New Order via Shaw Safety',
     ...rows.map(([label, value]) => `${label}: ${value}`),
     '',
     'Items:',

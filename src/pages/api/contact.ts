@@ -218,7 +218,7 @@ export const POST: APIRoute = async ({ request }) => {
       <h2 style="margin:0 0 4px;color:#9B1C2E">
         ${isQuote ? 'Bulk Quote Request' : 'Contact Form Submission'}
       </h2>
-      <p style="margin:0 0 20px;color:#737373;font-size:13px">via shawsafety.com</p>
+      <p style="margin:0 0 20px;color:#737373;font-size:13px">via Shaw Safety</p>
       <table style="border-collapse:collapse;font-size:14px">
         ${rows
           .map(
