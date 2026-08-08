@@ -69,6 +69,7 @@ imports so it can be tested directly.
 | `STRIPE_PRICE_YELLOW`                      | —        | Price ID for the yellow tie.               |
 | `STRIPE_PRICE_PINK` / `_GREEN` / `_ORANGE` | —        | The other tie colors.                      |
 | `STRIPE_PRICE_VEST_LIME` / `_VEST_ORANGE`  | —        | The vests.                                 |
+| `STRIPE_CHECKOUT_WEBHOOK_SECRET`           | yes      | Verifies order webhooks. Server-only.      |
 
 The variant-to-variable mapping is `src/utils/stripePrices.ts`. **A variant
 with no Price ID cannot be bought**: checkout refuses the whole order and names
@@ -103,9 +104,33 @@ Stripe. An explicit zero-cost shipping rate is attached so the customer sees
 On return, `/checkout/success` clears the cart — deliberately not at redirect
 time, so abandoning Stripe keeps the basket intact.
 
-There is no order webhook. Fulfilment currently means watching the Stripe
-dashboard; a `checkout.session.completed` webhook would be the way to automate
-it.
+### Order notifications
+
+`/api/stripe-webhook` listens for `checkout.session.completed` and emails the
+order — customer, phone, shipping address, line items, total — to `CONTACT_TO`
+via Resend, so fulfilment does not depend on watching the Stripe dashboard.
+
+Configure the webhook in Stripe against
+`https://shawsafety.com/api/stripe-webhook` with only that event enabled, and
+put its signing secret in `STRIPE_CHECKOUT_WEBHOOK_SECRET`. The payload is
+verified with `constructEventAsync`, which covers both the signature and
+Stripe's five-minute replay window.
+
+Two behaviours worth knowing:
+
+- **A failed notification returns 500 on purpose**, so Stripe retries rather
+  than the order being silently lost. The payment itself is unaffected.
+- **Duplicate suppression is best-effort.** Event ids are remembered in memory,
+  which only catches an immediate retry landing on the same warm instance.
+  Proper idempotency needs a datastore. Ids are recorded only after the email
+  actually sends, so a genuine failure still gets retried.
+
+### CSRF
+
+Astro rejects cross-site form POSTs, so `/api/contact` requires a matching
+`Origin` header — browsers send one, `curl` does not. JSON endpoints
+(`/api/checkout`, `/api/stripe-webhook`) are exempt, which is why Stripe can
+post to the webhook.
 
 ## Forms and email
 
@@ -113,9 +138,10 @@ The contact form and the wholesale quote form both POST to `/api/contact`,
 which sends the enquiry via [Resend](https://resend.com).
 
 This is why the project has the Vercel adapter. Pages are still fully
-prerendered — `output: 'static'` — and only `src/pages/api/contact.ts` opts out
-with `export const prerender = false` and runs as a serverless function. A server is unavoidable here: the Resend API key must
-never reach the browser.
+prerendered — `output: 'static'` — and only the routes under `src/pages/api/`
+opt out with `export const prerender = false` and run as serverless functions.
+A server is unavoidable here: the Resend and Stripe secrets must never reach
+the browser.
 
 ### Environment variables
 
@@ -204,6 +230,17 @@ cart thumbnail, so it should be the cleanest one.
 Three per color is not a rule — add or remove entries in the `images:` array in
 `src/content/products/*.md` and the thumbnail rail follows. Counts need not
 match across colors.
+
+### Spec sheets
+
+Each tie colour has a dimensioned drawing behind a **View Spec** link on the
+product page, opened in a modal with an "Open full size" escape hatch — the
+annotation is too fine to read at fitted size on a phone.
+
+Add one by putting the image in `src/images/products/` and setting `spec:` on
+the variant in frontmatter, alongside `images:`. It resolves the same way, so
+the extension is not referenced. A variant without a `spec` simply shows no
+link, which is why the vests have none.
 
 ### Hero image
 

@@ -12,6 +12,11 @@
  *                   sales@shawsafety.com.
  */
 import type { APIRoute } from 'astro';
+import {
+  escapeHtml,
+  notificationRecipients,
+  sendEmail,
+} from '@utils/sendEmail';
 import { readEnv } from '@utils/env';
 
 export const prerender = false;
@@ -117,53 +122,15 @@ function looksLikeEmail(value: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 }
 
-/** Escape for interpolation into the HTML email body. */
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
-
-/**
- * Header injection guard for the Reply-To address. A newline in a header value
- * lets an attacker append their own headers, so any address containing one is
- * dropped rather than sanitised.
- */
-function safeHeaderValue(value: string): string | null {
-  return /[\r\n]/.test(value) ? null : value;
-}
-
-/** Resend rejects a request with more recipients than this. */
-const MAX_RECIPIENTS = 50;
-
-/**
- * Parse CONTACT_TO into a recipient list.
- *
- * Accepts a comma-separated string so notifications can reach several people
- * without a code change. Invalid entries are dropped rather than passed
- * through — one typo would otherwise make Resend reject the whole send, taking
- * the valid recipients down with it.
- */
-function parseRecipients(raw: string): string[] {
-  return raw
-    .split(',')
-    .map(entry => entry.trim())
-    .filter(entry => entry && looksLikeEmail(entry))
-    .slice(0, MAX_RECIPIENTS);
-}
-
 export const POST: APIRoute = async ({ request }) => {
-  const apiKey = readEnv('RESEND_API_KEY');
-  const from = readEnv('RESEND_FROM');
-  const recipients = parseRecipients(
-    readEnv('CONTACT_TO') || 'sales@shawsafety.com'
-  );
+  // Check configuration before accepting anything: no valid recipient means
+  // the enquiry would vanish silently.
+  const configured =
+    readEnv('RESEND_API_KEY') &&
+    readEnv('RESEND_FROM') &&
+    notificationRecipients().length > 0;
 
-  // No valid recipient means the enquiry would vanish. Treat it as
-  // misconfiguration rather than sending into the void.
-  if (!apiKey || !from || recipients.length === 0) {
+  if (!configured) {
     // A misconfigured deploy must not look like a delivered message.
     console.error(
       '[contact] Misconfigured: check RESEND_API_KEY, RESEND_FROM, and that ' +
@@ -278,53 +245,17 @@ export const POST: APIRoute = async ({ request }) => {
     submission.message,
   ].join('\n');
 
-  const replyTo = safeHeaderValue(submission.email);
+  const result = await sendEmail({
+    subject,
+    html,
+    text,
+    // Replying to the notification reaches the customer directly.
+    replyTo: submission.email,
+  });
 
-  try {
-    const response = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        from,
-        to: recipients,
-        subject,
-        html,
-        text,
-        // Replying to the notification reaches the customer directly.
-        ...(replyTo ? { reply_to: replyTo } : {}),
-      }),
-    });
-
-    if (!response.ok) {
-      // Log the provider's reason server-side; never surface it to the client.
-      console.error(
-        `[contact] Resend responded ${response.status}: ${await response.text()}`
-      );
-      return respond(
-        request,
-        502,
-        {
-          ok: false,
-          error:
-            'We could not send that just now. Please email sales@shawsafety.com.',
-        },
-        'That did not send',
-        'Something went wrong on our side. Please email sales@shawsafety.com.'
-      );
-    }
-
-    return respond(
-      request,
-      200,
-      { ok: true },
-      'Thanks — we have got it',
-      'We reply within one business day.'
-    );
-  } catch (error) {
-    console.error('[contact] Request to Resend failed:', error);
+  if (!result.ok) {
+    // Log the provider's reason server-side; never surface it to the visitor.
+    console.error(`[contact] ${result.reason}`);
     return respond(
       request,
       502,
@@ -337,8 +268,15 @@ export const POST: APIRoute = async ({ request }) => {
       'Something went wrong on our side. Please email sales@shawsafety.com.'
     );
   }
+
+  return respond(
+    request,
+    200,
+    { ok: true },
+    'Thanks — we have got it',
+    'We reply within one business day.'
+  );
 };
 
-/** Anything other than POST is a mistake worth answering clearly. */
 export const ALL: APIRoute = () =>
   json({ ok: false, error: 'Method not allowed.' }, 405);
