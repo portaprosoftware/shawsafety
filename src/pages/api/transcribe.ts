@@ -7,17 +7,43 @@
  * devtools, and it is a billable credential.
  *
  * Environment (set in Vercel → Project → Settings → Environment Variables):
- *   ELEVENLABS_API_KEY  required. Server-only; never prefix with PUBLIC_.
+ *   SHAW_ELEVENLABS     required. Server-only; never prefix with PUBLIC_.
+ *   ELEVENLABS_API_KEY  optional fallback, checked only if the above is unset.
  */
 import type { APIRoute } from 'astro';
 import { readEnv } from '@utils/env';
 
 export const prerender = false;
 
+/**
+ * Where the key is read from, in order.
+ *
+ * Two names rather than one because both exist in the project right now.
+ * Ordered, not merged: whichever is found first wins outright, so there is
+ * always a single answer to "which key is live" — and `GET` reports which,
+ * since two configured keys mean a failure could belong to either.
+ */
+const KEY_VARS = ['SHAW_ELEVENLABS', 'ELEVENLABS_API_KEY'] as const;
+
+/** The first key variable that is actually set, with its name. */
+function resolveKey(): { name: string; value: string } | null {
+  for (const name of KEY_VARS) {
+    const value = readEnv(name);
+    if (value) return { name, value };
+  }
+  return null;
+}
+
 const ELEVENLABS_STT_URL = 'https://api.elevenlabs.io/v1/speech-to-text';
 
-/** ElevenLabs' general-purpose transcription model. */
-const MODEL_ID = 'scribe_v1';
+/**
+ * ElevenLabs' general-purpose transcription model.
+ *
+ * Availability is per account, not universal — a plan without this model
+ * returns a 400 naming it, which surfaces here as "Could not transcribe that
+ * audio" with the model id in the server log.
+ */
+const MODEL_ID = 'scribe_v2';
 
 /**
  * Ceiling on an upload, in bytes.
@@ -50,15 +76,31 @@ function json(body: unknown, status: number): Response {
  * whether the key is configured, which is the one piece of setup worth
  * checking from outside — the key itself is never echoed.
  */
-export const GET: APIRoute = () =>
-  json(
+export const GET: APIRoute = () => {
+  const key = resolveKey();
+  return json(
     {
       ok: false,
       error: 'Method not allowed. POST audio as multipart/form-data.',
-      configured: Boolean(readEnv('ELEVENLABS_API_KEY')),
+      configured: Boolean(key),
+      /*
+       * Which variable supplied it. With two names in play, "the key is
+       * wrong" is not actionable without knowing which one is being read —
+       * fixing the wrong variable looks exactly like the fix not working.
+       */
+      keySource: key?.name ?? null,
+      /*
+       * Shape only, never the value. A key set to something that is not an
+       * ElevenLabs key at all — a webhook secret, a token from another
+       * service — is indistinguishable from a correct one until a real
+       * request fails, and the failure reads like an audio problem. This
+       * makes that visible without a recording.
+       */
+      keyLooksValid: key ? key.value.startsWith('sk_') : null,
     },
     405
   );
+};
 
 /**
  * Strip parameters from a media type: `audio/webm;codecs=opus` to `audio/webm`.
@@ -72,15 +114,15 @@ function baseType(type: string): string {
 }
 
 export const POST: APIRoute = async ({ request }) => {
-  const apiKey = readEnv('ELEVENLABS_API_KEY');
+  const key = resolveKey();
 
   /*
    * Misconfiguration is reported as such rather than as a transcription
    * failure: without this the button would look broken to a visitor and
    * mysterious to whoever has to debug it.
    */
-  if (!apiKey) {
-    console.error('[transcribe] ELEVENLABS_API_KEY is not set');
+  if (!key) {
+    console.error(`[transcribe] no API key set. Tried: ${KEY_VARS.join(', ')}`);
     return json(
       { ok: false, error: 'Dictation is not configured. Please type instead.' },
       503
@@ -134,7 +176,7 @@ export const POST: APIRoute = async ({ request }) => {
   try {
     response = await fetch(ELEVENLABS_STT_URL, {
       method: 'POST',
-      headers: { 'xi-api-key': apiKey },
+      headers: { 'xi-api-key': key.value },
       body: upstream,
       signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
     });
@@ -155,6 +197,7 @@ export const POST: APIRoute = async ({ request }) => {
      * does not say what was sent — an earlier round of this failed with a bare
      * `400 {"detail":...}` and no way to tell which field it objected to.
      */
+    const body = await response.text().catch(() => '(no body)');
     console.error(
       `[transcribe] ElevenLabs returned ${response.status}`,
       JSON.stringify({
@@ -165,9 +208,40 @@ export const POST: APIRoute = async ({ request }) => {
           bytes: clean.size,
           model: MODEL_ID,
         },
-        body: await response.text().catch(() => '(no body)'),
+        body,
       })
     );
+
+    /*
+     * A rejected key is a configuration fault, not a bad recording, and
+     * reporting it as the latter is actively misleading: it sends whoever is
+     * debugging to look at audio formats while the real problem is one
+     * environment variable. ElevenLabs signals this as 401/403, and also as a
+     * 400 carrying an authentication_error — hence matching the body too.
+     *
+     * Reported to the visitor exactly like a missing key, because from where
+     * they stand it is the same thing: dictation is not set up, and no amount
+     * of trying again will help.
+     */
+    if (
+      response.status === 401 ||
+      response.status === 403 ||
+      /authentication_error|invalid_api_key/i.test(body)
+    ) {
+      console.error(
+        `[transcribe] the key in ${key.name} was rejected by ElevenLabs. ` +
+          'Check that value in Vercel — an ElevenLabs key begins with "sk_". ' +
+          'Dictation stays off until it is corrected.'
+      );
+      return json(
+        {
+          ok: false,
+          error: 'Dictation is not configured. Please type instead.',
+        },
+        503
+      );
+    }
+
     return json({ ok: false, error: 'Could not transcribe that audio.' }, 502);
   }
 

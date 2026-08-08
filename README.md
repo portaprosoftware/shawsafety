@@ -188,7 +188,7 @@ adding a field needs no wiring — drop the component on the page once and every
 multi-line field on it is covered, including ones added later.
 
 The browser posts the recording to `/api/transcribe`, which forwards it to
-ElevenLabs' `scribe_v1` model. The route exists solely to keep the key server-
+ElevenLabs' `scribe_v2` model. The route exists solely to keep the key server-
 side; calling ElevenLabs from the page would publish a billable credential to
 anyone who opens devtools.
 
@@ -215,9 +215,9 @@ would carry its original type through, and strips any parameters as a second
 line of defence. If the browser cannot decode its own recording, the original
 blob is sent unconverted — a failed conversion is no reason to discard audio.
 
-| Variable             | Required | Purpose                                              |
-| -------------------- | -------- | ---------------------------------------------------- |
-| `ELEVENLABS_API_KEY` | no       | Transcription. Server-only — never prefix `PUBLIC_`. |
+| Variable          | Required | Purpose                                              |
+| ----------------- | -------- | ---------------------------------------------------- |
+| `SHAW_ELEVENLABS` | no       | Transcription. Server-only — never prefix `PUBLIC_`. |
 
 Behaviour worth knowing:
 
@@ -234,11 +234,47 @@ Behaviour worth knowing:
   secure context) nothing is rendered and the form works by typing.
 - **With no API key the button reports that dictation is unavailable** and tells
   the visitor to type. It never fails silently.
+- **A rejected key is reported as misconfiguration, not as a bad recording.**
+  ElevenLabs signals this as 401/403 or as a 400 carrying
+  `authentication_error`; all three return 503 and the "not configured" message,
+  because from the visitor's side it is the same thing — dictation is not set up
+  and retrying will not help. Getting this wrong is expensive: an invalid key
+  once surfaced as "Could not transcribe that audio", which sent two people
+  hunting through audio formats for a problem that was one environment
+  variable.
 - **`GET /api/transcribe` answers 405** rather than falling through to the
   router's 404. Opening the endpoint in a browser is the first thing anyone does
   when dictation misbehaves, and an unhandled GET logs a warning that reads like
-  a routing fault. The response also reports whether the key is configured —
-  never the key itself — which is the one setting worth checking from outside.
+  a routing fault. It reports `configured` and `keyLooksValid` — shape only,
+  never the value. A key set to something that is not an ElevenLabs key at all
+  (a webhook secret, a token from another service) is otherwise
+  indistinguishable from a correct one until a real recording fails:
+
+  ```
+  {"configured":true,"keySource":"SHAW_ELEVENLABS","keyLooksValid":true}
+  {"configured":true,"keySource":"SHAW_ELEVENLABS","keyLooksValid":false}
+  {"configured":false,"keySource":null,"keyLooksValid":null}
+  ```
+
+  `keySource` matters when both variables are set: fixing the one that is not
+  being read looks exactly like the fix not working.
+
+### Getting the key right
+
+`SHAW_ELEVENLABS` comes from **ElevenLabs → Profile → API Keys** and begins
+with `sk_`. `ELEVENLABS_API_KEY` is still read as a fallback, but only when
+`SHAW_ELEVENLABS` is unset — whichever is found first wins outright, so there
+is always one answer to "which key is live", and `GET /api/transcribe` reports
+it as `keySource`. It is not a webhook signing secret and not a hash from any other
+dashboard — a 64-character hex string is a sure sign the wrong value was
+pasted. Server-only: no `PUBLIC_` prefix, and `api.elevenlabs.io` cannot be
+called from the browser anyway, which is the reason this route exists.
+
+The model is `scribe_v2`, set as `MODEL_ID` at the top of the route. Model
+availability is per account: a plan without it returns a 400 naming the model,
+which reaches the visitor as "Could not transcribe that audio" and appears in
+the server log with the model id attached. `scribe_v1` is the drop-in fallback.
+
 - **An upstream rejection logs what was sent** (filename, content type, size,
   model) next to the response body. The body alone does not say which field was
   objected to, which is what made the content-type bug above so slow to place.
