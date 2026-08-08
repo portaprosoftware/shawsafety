@@ -254,8 +254,9 @@ spends money per call. Rate limiting matters more here than on the mail form.
 ## RAG assistant
 
 `POST /api/ask` answers questions about the store from a hand-written knowledge
-corpus, using OpenAI for retrieval and generation. There is no chat UI yet — the
-route is the product; wire a widget to it, or call it from an agent.
+corpus, using OpenAI for retrieval and generation. `AskWidget.astro` is the chat
+UI on top of it; the route is also callable directly, by an agent or anything
+else.
 
 ```bash
 curl -s localhost:4321/api/ask -X POST -H 'Content-Type: application/json' \
@@ -353,6 +354,47 @@ Behaviour worth knowing:
 Like `/api/contact` and `/api/transcribe`, this endpoint is unauthenticated and
 unthrottled, and it spends money per call — two OpenAI calls per question. Rate
 limiting matters here.
+
+### The chat widget
+
+`src/components/ask/AskWidget.astro` sits in `MainLayout`, so the launcher is on
+every page. **It renders nothing unless `OPENAI_API_KEY` is set _and_ an index is
+present** — the same rule the dictation button follows, since a chat button that
+can only apologise is worse than no chat button. That check runs at build time
+because the pages are prerendered, so adding the key in Vercel needs a redeploy
+before the launcher appears.
+
+Behaviour worth knowing:
+
+- **Non-modal on purpose.** No backdrop, no scroll lock, no focus trap. Half the
+  questions are about something on the page behind it ("is that price per tie or
+  per pack?"), and a modal that hides the page to discuss the page is
+  self-defeating. Escape and the close button dismiss it.
+- **The closed panel is `inert`, not just `aria-hidden`.** It is only faded and
+  translated, so without `inert` its composer stays in the tab order and a
+  keyboard visitor tabs from the footer into an invisible chat box.
+- **The transcript lives in `sessionStorage`,** and a panel left open reopens
+  itself after a navigation. Following a cited link is the thing the answers are
+  built to encourage, and on a multi-page site that would otherwise discard the
+  conversation. Per-tab, dies with it, never written to disk. Focus is not
+  stolen on restore.
+- **Citations become links.** `[2]` in an answer is rendered as a superscript
+  link to the page that passage came from, and distinct sources are listed as
+  chips beneath. Only numbers the API actually returned are linked — a model
+  citing `[7]` with five passages in hand gets plain text, and every href comes
+  from our own index rather than from the answer.
+- **Answers are escaped before anything else.** What survives is a deliberately
+  small subset — bold, bullets, paragraphs — because a full Markdown renderer
+  here is a dependency and an attack surface bought for two formatting features.
+- **Error bubbles are never sent back as history.** A network failure is UI, not
+  something the model said; feeding it back invites the next answer to apologise
+  for it.
+- **Enter sends, Shift+Enter is a newline,** and composition events are checked
+  so an IME candidate accepted with Enter does not fire the question.
+- **The composer opts out of dictation** via `data-no-dictation`. `VoiceInput`
+  attaches to every textarea on its page, and it is only on two pages — without
+  the opt-out the chat box would sprout a Speak button on the contact and
+  wholesale pages and nowhere else.
 
 ## Product images
 

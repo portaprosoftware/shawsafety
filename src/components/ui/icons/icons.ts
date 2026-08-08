@@ -77,6 +77,16 @@ export const Icons: Record<string, IconDef> = {
     paths: ['M2 3h2.5l2.7 12.4a2 2 0 0 0 2 1.6h7.7a2 2 0 0 0 2-1.6L20 7H6'],
     extra: '<circle cx="9" cy="20" r="1.5"/><circle cx="18" cy="20" r="1.5"/>',
   },
+  chat: {
+    paths: [
+      'M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z',
+      'M8 9h8',
+      'M8 13h5',
+    ],
+  },
+  send: {
+    paths: ['M22 2 11 13', 'M22 2 15 22l-4-9-9-4z'],
+  },
   search: {
     paths: ['m21 21-4.35-4.35'],
     extra: '<circle cx="11" cy="11" r="7"/>',
