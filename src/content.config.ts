@@ -19,7 +19,7 @@ const productsCollection = defineCollection({
     pattern: '**/[^_]*.{md,mdx}',
     base: './src/content/products',
   }),
-  schema: ({ image }) =>
+  schema: () =>
     z.object({
       title: z.string(),
       shortTitle: z.string(),
@@ -47,7 +47,14 @@ const productsCollection = defineCollection({
           hex: z.string(),
           sku: z.string(),
           inStock: z.boolean().default(true),
-          images: z.array(image()),
+          /**
+           * Extension-less filenames resolved against src/images/products/ at
+           * render time by @utils/productImages. Deliberately NOT Astro's
+           * `image()` helper: that resolves at build time and hard-fails on a
+           * missing file, so removing a photo broke the deploy. Missing files
+           * now render a labelled placeholder instead.
+           */
+          images: z.array(z.string()),
           tiers: z.array(tierSchema).optional(),
         })
       ),

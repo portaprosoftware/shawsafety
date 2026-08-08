@@ -29,14 +29,14 @@ variants:
     sku: '440210'
     inStock: true
     images:
-      - './../../images/products/vest-hi-vis-lime-1.svg'
+      - 'vest-hi-vis-lime-1'
   - id: 'hi-vis-orange'
     name: 'Hi-Vis Orange'
     hex: '#FF8A1F'
     sku: '440211'
     inStock: true
     images:
-      - './../../images/products/vest-hi-vis-orange-1.svg'
+      - 'vest-hi-vis-orange-1'
 highlights:
   - icon: 'shieldCheck'
     title: 'ANSI/ISEA 107 Class 2'
