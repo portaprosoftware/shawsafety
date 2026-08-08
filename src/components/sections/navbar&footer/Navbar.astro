@@ -96,6 +96,14 @@ const pathname = Astro.url.pathname.replace(/\/+$/, '') || '/';
          */
       }
       <a
+        href="https://app.portaprosoftware.com/t/shaw-safety/sign-in"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="text-maroon-700 hover:bg-maroon-700 focus-visible:ring-maroon-700 hidden shrink-0 rounded-lg px-3.5 py-2 text-sm font-semibold transition hover:text-white focus:outline-hidden focus-visible:ring-2 lg:inline-flex"
+      >
+        My Account
+      </a>
+      <a
         href="/contact"
         aria-current={pathname === '/contact' ? 'page' : undefined}
         class:list={[
@@ -134,6 +142,16 @@ const pathname = Astro.url.pathname.replace(/\/+$/, '') || '/';
         ))
       }
       <li class="pt-1">
+        <a
+          href="https://app.portaprosoftware.com/t/shaw-safety/sign-in"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="text-maroon-700 hover:bg-maroon-700 block rounded-lg px-3 py-2.5 text-center text-sm font-semibold transition hover:text-white"
+        >
+          My Account
+        </a>
+      </li>
+      <li>
         <a
           href="/contact"
           class="border-maroon-700 text-maroon-700 hover:bg-maroon-700 block rounded-lg border px-3 py-2.5 text-center text-sm font-semibold transition hover:text-white"
