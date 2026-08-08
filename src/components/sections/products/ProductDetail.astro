@@ -331,12 +331,23 @@ const clientData = {
       </p>
     </div>
 
-    {/* Compliance */}
-    <ul class="mt-6 flex flex-wrap gap-2">
+    {
+      /*
+      Compliance marks. Pills sized to their text wrap into a ragged staircase
+      on a phone — one on the first row, two on the next — which reads as a
+      layout bug rather than a list. Below `sm` they become full-width rows of
+      equal height with the ticks in one column; the pills return with the
+      space to sit on a line together.
+    */
+    }
+    <ul class="mt-6 grid gap-2 sm:flex sm:flex-wrap">
       {
         p.compliance.map(item => (
-          <li class="inline-flex items-center gap-1.5 rounded-full border border-neutral-200 bg-white px-3 py-1.5 text-xs font-semibold text-neutral-700">
-            <Icon name="checkCircle" class="text-maroon-700 h-3.5 w-3.5" />
+          <li class="flex items-center gap-2 rounded-lg border border-neutral-200 bg-white px-3 py-2 text-xs font-semibold text-neutral-700 sm:rounded-full sm:py-1.5">
+            <Icon
+              name="checkCircle"
+              class="text-maroon-700 h-3.5 w-3.5 shrink-0"
+            />
             {item}
           </li>
         ))
@@ -352,9 +363,10 @@ const clientData = {
     {
       p.highlights.map(item => (
         <div class="flex gap-3.5">
-          <span class="bg-maroon-50 text-maroon-700 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg">
-            <Icon name={item.icon} class="h-5 w-5" />
-          </span>
+          <Icon
+            name={item.icon}
+            class="text-maroon-700 mt-0.5 h-6 w-6 shrink-0"
+          />
           <div>
             <h3 class="text-sm font-bold tracking-wide text-neutral-900 uppercase">
               {item.title}

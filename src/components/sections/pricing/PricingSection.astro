@@ -7,12 +7,19 @@ interface Props {
   subTitle?: string;
   /** Hide the closing CTA when the section is embedded in a longer page. */
   showCta?: boolean;
+  /**
+   * Step the heading down a size and a weight. Used where the section sits
+   * under a page title that already owns the top of the hierarchy, so the two
+   * headings do not read as competing h1s.
+   */
+  compactHeading?: boolean;
 }
 
 const {
   title = 'Simple, Transparent Pricing',
   subTitle = 'One price list, published up front. The discount applies automatically at checkout — no account, no negotiation, no minimum order.',
   showCta = true,
+  compactHeading = false,
 } = Astro.props;
 
 /**
@@ -58,7 +65,12 @@ const plans = [
 <section class="py-16 lg:py-24">
   <div class="mx-auto max-w-2xl text-center">
     <h2
-      class="text-3xl font-bold tracking-tight text-neutral-900 sm:text-4xl lg:text-5xl"
+      class:list={[
+        'tracking-tight text-neutral-900',
+        compactHeading
+          ? 'text-2xl font-semibold sm:text-3xl'
+          : 'text-3xl font-bold sm:text-4xl lg:text-5xl',
+      ]}
     >
       {title}
     </h2>

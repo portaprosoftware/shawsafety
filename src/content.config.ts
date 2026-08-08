@@ -82,6 +82,48 @@ const productsCollection = defineCollection({
     }),
 });
 
+/**
+ * Retrieval corpus for the RAG assistant.
+ *
+ * One file per chunk. Chunks are authored by hand rather than scraped from the
+ * rendered site: the pages interleave copy with markup and price math, and a
+ * scraper would produce fragments that read as fragments. Each chunk is
+ * written to stand alone — it names the product it is about instead of relying
+ * on a heading three sections up — because retrieval will hand it to the model
+ * with no surrounding page.
+ *
+ * `questions` is the retrieval hook. Embedding the questions a chunk answers
+ * alongside its prose closes the vocabulary gap between how a buyer asks
+ * ("how fast do you ship?") and how the site states it ("dispatch"). The build
+ * script prepends them to the embedded text; they are not shown to the model
+ * as content.
+ */
+const knowledgeCollection = defineCollection({
+  loader: glob({
+    pattern: '**/[^_]*.md',
+    base: './src/content/knowledge',
+  }),
+  schema: () =>
+    z.object({
+      title: z.string(),
+      topic: z.enum([
+        'product',
+        'pricing',
+        'shipping',
+        'ordering',
+        'policy',
+        'company',
+      ]),
+      /** Page this chunk was drawn from, cited back to the visitor. */
+      url: z.string(),
+      /** Human label for that page, used in the citation list. */
+      sourceLabel: z.string().optional(),
+      questions: z.array(z.string()).default([]),
+      keywords: z.array(z.string()).default([]),
+    }),
+});
+
 export const collections = {
   products: productsCollection,
+  knowledge: knowledgeCollection,
 };

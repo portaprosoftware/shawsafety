@@ -10,7 +10,8 @@
     "format:fix": "prettier --write .",
     "preview": "astro preview",
     "astro": "astro",
-    "test:smoke": "node scripts/smoke.mjs"
+    "test:smoke": "node scripts/smoke.mjs",
+    "rag:index": "node --env-file-if-exists=.env scripts/build-rag-index.mjs"
   },
   "dependencies": {
     "@astrojs/check": "^0.9.10",

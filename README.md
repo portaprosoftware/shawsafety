@@ -22,6 +22,7 @@ pnpm format:fix # CI fails on unformatted files — run before committing
 | ------------------------------ | -------------------------------------------------------------------------------------- |
 | `src/pages/`                   | File-based routes. One page per file; `products/[id].astro` is the only dynamic route. |
 | `src/content/products/`        | Product data as Markdown frontmatter. Schema in `src/content.config.ts`.               |
+| `src/content/knowledge/`       | RAG corpus. One Markdown file per retrieval chunk.                                     |
 | `src/assets/scripts/`          | Cart store, pricing math, and the checkout adapter.                                    |
 | `src/assets/styles/global.css` | The entire theme. Tailwind v4 `@theme` block — there is no `tailwind.config.js`.       |
 | `src/data_files/constants.ts`  | Site metadata, trust marks, marquee copy.                                              |
@@ -39,6 +40,23 @@ those tokens — no component markup references a raw hex.
 
 `--color-fluoro-*` are _product_ colors (the actual tie pigments) and should
 never be used for UI chrome.
+
+### Icons sit on the page, never in a tile
+
+A site-wide rule: an icon is never given a filled shape behind it. No rounded
+squares, no circles, no pastel wash, no translucent or blurred "glass" panel —
+the icon draws directly on whatever the page background already is, and colour
+carries it.
+
+Where a tile used to supply the colour, the icon takes that colour on itself:
+a white glyph on maroon becomes a maroon glyph, and a black glyph on a
+fluorescent swatch becomes a fluorescent glyph. `TrustStrip.astro` is the
+reference implementation.
+
+Icons _inside a control_ are not tiles and are left alone — the glyph in a
+button, in the search field's submit affordance, or in a labelled chip is part
+of that control's own surface. The rule is about decorative containers whose
+only job is to sit behind an icon.
 
 ## Pricing
 
@@ -130,8 +148,8 @@ Astro rejects cross-site form POSTs, so `/api/contact` and `/api/transcribe`
 both require a matching `Origin` header — browsers send one, `curl` does not.
 That protection is a side effect of their content type (form-encoded and
 multipart respectively), not something either route asks for. JSON endpoints
-(`/api/checkout`, `/api/stripe-webhook`) are exempt, which is why Stripe can
-post to the webhook.
+(`/api/checkout`, `/api/stripe-webhook`, `/api/ask`) are exempt, which is why
+Stripe can post to the webhook.
 
 ## Forms and email
 
@@ -174,7 +192,7 @@ effect until the next deploy.
   the endpoint returns a styled HTML page rather than raw JSON when the request
   asks for HTML.
 
-Rate-limited at **five submissions per IP per minute** (see the section below).
+Rate-limited at **five submissions per caller per minute** (see the section below).
 A visitor fixing a typo and resubmitting has plenty of room; a scripted flood
 is cut off at the door.
 
@@ -292,60 +310,252 @@ the server log with the model id attached. `scribe_v1` is the drop-in fallback.
 is the non-obvious way to break this — the button renders and the permission
 prompt never appears.
 
-Rate-limited at ten calls per IP per minute — see below.
+Rate-limited at ten calls per caller per minute — see below.
 
 ## Rate limiting
 
-Both public API routes (`/api/transcribe` and `/api/contact`) are throttled per
-IP before they touch any of the work they would otherwise do. Rejection
-returns 429 with a `Retry-After` header in seconds, so any client that honours
-it backs off automatically.
+All three public API routes are throttled per caller before they touch any of
+the work they would otherwise do. Rejection returns 429 with `Retry-After` in
+seconds so any client that honours it backs off automatically.
 
-| Endpoint          | Limit         | Why                                                                                                  |
-| ----------------- | ------------- | ---------------------------------------------------------------------------------------------------- |
-| `/api/transcribe` | 10 / IP / min | Every allowed call bills ElevenLabs. Generous for a real user tapping the mic, brutal for a scraper. |
-| `/api/contact`    | 5 / IP / min  | Plenty of room to fix a typo and resubmit; scripted flooders are cut off at the door.                |
+| Endpoint          | Limit                                                | Why                                                                                                  |
+| ----------------- | ---------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `/api/transcribe` | 10 / caller / min                                    | Every allowed call bills ElevenLabs. Generous for a real user tapping the mic, brutal for a scraper. |
+| `/api/contact`    | 5 / caller / min                                     | Room to fix a typo and resubmit; scripted flooders are cut off at the door.                          |
+| `/api/ask`        | 6 / caller / min + 40 / caller / hr + 600 / hr total | OpenAI is the most expensive of the three per call; the instance ceiling bounds a bad day.           |
 
-The limiter is fixed-window: buckets align to real seconds since the epoch, so
-a burst across a window boundary can briefly exceed the nominal rate. That is
-deliberate — sliding-window buys nothing meaningful against the abuse shape
-we care about, and it costs a sorted-set write per hit.
+The limiter is a sliding window (log of timestamps), not a fixed bucket — the
+boundary of a fixed bucket lets a caller spend its whole allowance at the tail
+of one bucket and again at the head of the next, doubling the effective rate.
+`/api/ask` in particular relies on this to enforce a burst rule and an hourly
+rule together without either interfering with the other.
 
-### Shared state (or the lack of it)
+The caller is the client IP, read from the forwarding headers Vercel's edge
+sets itself. **That identity is only trustworthy behind an edge that overwrites
+those headers** — deployed somewhere that forwards client headers blindly, a
+caller could pick its own bucket. Requests with no usable header share one
+`unknown` bucket rather than each getting a fresh allowance.
 
-Rate limits must hold across serverless invocations, and Vercel functions do
-not share memory. The limiter prefers **Upstash Redis** via its HTTP API (no
-client SDK); when Upstash is not configured it falls back to an in-memory map.
+### Shared state
+
+Rate limits have to hold across serverless invocations, and Vercel functions
+do not share memory. The limiter prefers **Upstash Redis** via its HTTP API
+(sorted set per key, no client SDK); when Upstash is not configured it falls
+back to an in-memory table. `GET /api/transcribe` reports which one is live
+under `rateLimiter`.
 
 The fallback is loudly documented as best-effort: it only catches repeat calls
 landing on the same warm instance, so a scripted attacker cycling requests
 across cold starts gets unlimited quota. It still helps against a real user
-hammering the button, which is the common case, but for real anti-abuse the
-Upstash pair should be set.
+hammering a button, which is the common case, but for a real global limit
+Upstash needs to be set.
 
-| Variable                   | Required | Purpose                      |
-| -------------------------- | -------- | ---------------------------- |
-| `UPSTASH_REDIS_REST_URL`   | pair     | Upstash Redis REST endpoint. |
-| `UPSTASH_REDIS_REST_TOKEN` | pair     | Bearer token for the above.  |
+| Variable                   | Required | Purpose                     |
+| -------------------------- | -------- | --------------------------- |
+| `UPSTASH_REDIS_REST_URL`   | pair     | Upstash Redis REST endpoint |
+| `UPSTASH_REDIS_REST_TOKEN` | pair     | Bearer token for the above  |
 
-"Pair" means both or neither — one on its own falls straight through to the
-in-memory fallback.
+"Pair" means both or neither — one on its own falls through to the in-memory
+fallback.
+
+**The Vercel Marketplace integration for Upstash injects these under different
+names**, prefixing every variable with the storage slug — a project set up
+that way sees `UPSTASH_REDIS_REST_KV_REST_API_URL` and
+`…_KV_REST_API_TOKEN` in its env. The code recognises three name pairs, in
+order:
+
+1. `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` (documented default)
+2. `KV_REST_API_URL` / `KV_REST_API_TOKEN` (older Vercel KV integration)
+3. `UPSTASH_REDIS_REST_KV_REST_API_URL` / `UPSTASH_REDIS_REST_KV_REST_API_TOKEN`
+   (current Vercel Marketplace integration for Upstash)
+
+So both integration flows work without renaming anything in the dashboard.
+`GET /api/transcribe`'s `rateLimiter.source` field prints the exact pair being
+used, which is what to check first when a fresh deploy is not picking up the
+integration.
 
 ### Failure modes
 
 - **Upstash unreachable.** The limiter fails **open**, logs loudly, and lets
-  the request through. A Redis outage should not take dictation offline for
-  real users; monitoring the log picks up a genuine outage without penalising
+  the request through. A Redis outage should not take these routes offline for
+  real users; monitoring the log picks up a real outage without penalising
   visitors during a network blip.
 - **Client without a resolvable IP.** All such callers collapse onto a single
-  `unknown` bucket, on purpose. It means an unidentified request still counts
-  against something rather than getting a free pass.
+  `unknown` bucket, on purpose. An unidentified request still counts against
+  something rather than getting a free pass.
 - **Two endpoints on the same IP.** Buckets are scoped per endpoint
-  (`transcribe`, `contact`), so exhausting one does not lock out the other.
+  (`transcribe:*`, `contact:*`, and `/api/ask`'s own keys), so exhausting one
+  does not lock out the others.
+- **A rejected request is not recorded.** A caller who keeps hammering while
+  limited would otherwise push their own window forward on every attempt and
+  never come back — a limiter that turns a burst into a permanent ban.
+- **The in-memory table is capped at 10,000 keys**, evicted oldest-first, so
+  forged IPs cannot turn the limiter into the memory leak it was added to
+  prevent.
 
-Change either limit at the constant in the route itself
-(`src/pages/api/transcribe.ts`, `src/pages/api/contact.ts`). There is no reason
-to make these runtime settings.
+Change any limit at the constant in the route itself (`src/pages/api/*.ts`) —
+they are deliberately not runtime settings.
+
+## RAG assistant
+
+`POST /api/ask` answers questions about the store from a hand-written knowledge
+corpus, using OpenAI for retrieval and generation. `AskWidget.astro` is the chat
+UI on top of it; the route is also callable directly, by an agent or anything
+else.
+
+```bash
+curl -s localhost:4321/api/ask -X POST -H 'Content-Type: application/json' \
+  -d '{"question":"do mixed colors count toward the volume tier?"}'
+```
+
+```jsonc
+{
+  "ok": true,
+  "answer": "Yes — quantity totals across every color and SKU … [1][2]",
+  "sources": [
+    {
+      "n": 1,
+      "title": "Wholesale Pricing",
+      "url": "/wholesale",
+      "score": 0.612,
+    },
+  ],
+}
+```
+
+`history` may be passed alongside `question` as an array of
+`{ role: 'user' | 'assistant', content }` turns; the last six are kept.
+Retrieval always runs against the current question.
+
+### The corpus is written, not scraped
+
+`src/content/knowledge/` holds one Markdown file per chunk, typed by the
+`knowledge` collection in `src/content.config.ts`. Thirty chunks of 100–300
+words cover the products, specs, compliance marks, price ladders, shipping,
+returns, ordering, and both legal pages.
+
+They are authored rather than extracted from the rendered pages for two
+reasons. The pages interleave copy with markup and price math, so a scraper
+yields fragments that read as fragments. And a retrieved chunk arrives at the
+model with no surrounding page — so each one names the product it is about
+instead of relying on a heading three sections up.
+
+Frontmatter carries a `questions` list: the questions that chunk answers,
+phrased the way a buyer would ask them. These are embedded alongside the prose
+and close the vocabulary gap between "how fast do you ship?" and the site's
+word for it, "dispatch". They are never shown to the model as content.
+
+**Editing a chunk means re-running the index.** Prices and tiers appear in the
+corpus as prose and are not derived from `src/content/products/`, so a price
+change has to be made in both places — grep the corpus for the old number.
+
+### Building the index
+
+```bash
+pnpm rag:index --dry-run   # parse and report the corpus, no API call
+pnpm rag:index             # embed and write src/data_files/rag-index.json
+```
+
+The index is a single JSON file and is **committed**. At thirty chunks a linear
+cosine scan in the route is microseconds, so a vector database would add a
+network hop, a second credential, and an operational dependency to lose to an
+in-process loop. Vectors are truncated to 512 dimensions — the
+`text-embedding-3` models are trained so a prefix is still a usable embedding —
+which thirds the file for no measurable retrieval difference at this size.
+
+Indexing is deliberately not part of `pnpm build`: the corpus changes far less
+often than the site deploys, and a billable call inside the build means a
+rotated key fails a deploy. The route reads the model and vector width back out
+of the index rather than pinning them separately, since a query is only
+comparable to vectors from the same model at the same width.
+
+| Variable                 | Required | Purpose                               |
+| ------------------------ | -------- | ------------------------------------- |
+| `OPENAI_API_KEY`         | no       | Embeddings and answers. Server-only.  |
+| `OPENAI_EMBEDDING_MODEL` | no       | Defaults to `text-embedding-3-small`. |
+| `OPENAI_CHAT_MODEL`      | no       | Defaults to `gpt-4o-mini`.            |
+
+Behaviour worth knowing:
+
+- **The answer is grounded or refused.** The system prompt forbids answering
+  outside the retrieved passages, and passages scoring below 0.25 similarity are
+  dropped before the model sees them. A question that retrieves nothing is
+  answered with the phone number and email, without spending a completion call —
+  a storefront assistant inventing a return window is the failure mode this is
+  built to avoid.
+- **Nothing is derived at answer time.** Prices, SKUs, and tier breakpoints are
+  quoted from the corpus verbatim; the model is told never to compute or adjust
+  one.
+- **Sources come back numbered** in citation order, so `[2]` in the answer maps
+  to a real page. Similarity scores ride along — the only signal available for
+  tuning the threshold against real questions.
+- **With no key, or no index built, the route answers 503** and points the
+  visitor at sales@shawsafety.com. Neither the key nor the corpus is echoed.
+- **`GET /api/ask` answers 405** and reports whether the key is set and what
+  index is deployed, matching `/api/transcribe`.
+- **The index is globbed, not imported**, so a fresh clone with no index builds
+  and deploys fine — same reasoning as the product photos.
+
+### Rate limiting
+
+Covered in the top-level **Rate limiting** section — same limiter, same store,
+same failure modes. `/api/ask` uses it with the sharpest ruleset because every
+allowed call spends two OpenAI credits: 6 per minute plus 40 per hour per
+caller, and a 600 per hour ceiling for the whole instance.
+
+Two `/api/ask`-specific behaviours worth noting on top of that:
+
+- **Both rule sets are tested before either is charged.** Otherwise a request
+  the instance ceiling turns away would still spend the caller's own allowance
+  on a question that was never answered.
+- **429s carry `Retry-After`** and a `retryAfter` in the JSON body. The widget
+  honours it by disabling send for up to a minute, so it does not fire
+  requests it knows will be refused and make the wait longer than the message
+  promised.
+
+`/api/contact` and `/api/transcribe` are still unthrottled, and `/api/transcribe`
+also spends money per call.
+
+### The chat widget
+
+`src/components/ask/AskWidget.astro` sits in `MainLayout`, so the launcher is on
+every page. **It renders nothing unless `OPENAI_API_KEY` is set _and_ an index is
+present** — the same rule the dictation button follows, since a chat button that
+can only apologise is worse than no chat button. That check runs at build time
+because the pages are prerendered, so adding the key in Vercel needs a redeploy
+before the launcher appears.
+
+Behaviour worth knowing:
+
+- **Non-modal on purpose.** No backdrop, no scroll lock, no focus trap. Half the
+  questions are about something on the page behind it ("is that price per tie or
+  per pack?"), and a modal that hides the page to discuss the page is
+  self-defeating. Escape and the close button dismiss it.
+- **The closed panel is `inert`, not just `aria-hidden`.** It is only faded and
+  translated, so without `inert` its composer stays in the tab order and a
+  keyboard visitor tabs from the footer into an invisible chat box.
+- **The transcript lives in `sessionStorage`,** and a panel left open reopens
+  itself after a navigation. Following a cited link is the thing the answers are
+  built to encourage, and on a multi-page site that would otherwise discard the
+  conversation. Per-tab, dies with it, never written to disk. Focus is not
+  stolen on restore.
+- **Citations become links.** `[2]` in an answer is rendered as a superscript
+  link to the page that passage came from, and distinct sources are listed as
+  chips beneath. Only numbers the API actually returned are linked — a model
+  citing `[7]` with five passages in hand gets plain text, and every href comes
+  from our own index rather than from the answer.
+- **Answers are escaped before anything else.** What survives is a deliberately
+  small subset — bold, bullets, paragraphs — because a full Markdown renderer
+  here is a dependency and an attack surface bought for two formatting features.
+- **Error bubbles are never sent back as history.** A network failure is UI, not
+  something the model said; feeding it back invites the next answer to apologise
+  for it.
+- **Enter sends, Shift+Enter is a newline,** and composition events are checked
+  so an IME candidate accepted with Enter does not fire the question.
+- **The composer opts out of dictation** via `data-no-dictation`. `VoiceInput`
+  attaches to every textarea on its page, and it is only on two pages — without
+  the opt-out the chat box would sprout a Speak button on the contact and
+  wholesale pages and nowhere else.
 
 ## Product images
 

@@ -10,6 +10,7 @@ import PricingSection from '@components/sections/pricing/PricingSection.astro';
 import FAQ from '@components/sections/misc/FAQ.astro';
 import GroundDeliveryTimes from '@components/sections/misc/GroundDeliveryTimes.astro';
 import ProductCard from '@components/ui/cards/ProductCard.astro';
+import SpecModal from '@components/ui/blocks/SpecModal.astro';
 import SectionHeading from '@components/ui/blocks/SectionHeading.astro';
 import faqs from '@data/faqs.json';
 import { SEO, SITE } from '@data/constants';
@@ -64,4 +65,6 @@ const structuredData = {
     </div>
     <GroundDeliveryTimes />
   </div>
+
+  <SpecModal />
 </MainLayout>

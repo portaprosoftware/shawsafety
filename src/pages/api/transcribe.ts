@@ -12,7 +12,7 @@
  */
 import type { APIRoute } from 'astro';
 import { readEnv } from '@utils/env';
-import { check, resolveIp, tooManyRequests } from '@utils/rateLimit';
+import { backendInfo, check, clientKey } from '@utils/rateLimit';
 
 export const prerender = false;
 
@@ -47,15 +47,17 @@ const ELEVENLABS_STT_URL = 'https://api.elevenlabs.io/v1/speech-to-text';
 const MODEL_ID = 'scribe_v2';
 
 /**
- * Per-IP throttle for a public, billable endpoint.
+ * Per-caller throttle for a public, billable endpoint.
  *
- * Ten calls per minute is generous for a real visitor tapping the mic
- * repeatedly, and punishing for a script — a scraper trying to burn ElevenLabs
- * credits gets six per minute per source IP once the second window rolls over.
- * Tighten in the constant here if abuse shows up; there is no reason to make
- * this a runtime setting.
+ * Ten recordings per minute is generous for a real visitor tapping the mic
+ * repeatedly, and punishing for a script — a scraper trying to burn
+ * ElevenLabs credits gets exactly ten. Rules are named because the shared
+ * limiter reports which one rejected, which is useful when logs need to name
+ * the reason.
  */
-const RATE_LIMIT = { limit: 10, windowSec: 60 };
+const RATE_LIMIT = {
+  burst: { limit: 10, windowMs: 60_000 },
+} as const;
 
 /**
  * Ceiling on an upload, in bytes.
@@ -111,6 +113,12 @@ export const GET: APIRoute = () => {
        * makes that visible without a recording.
        */
       keyLooksValid: key ? key.value.startsWith('sk_') : null,
+      /*
+       * Which store the rate limiter is talking to right now. Names the exact
+       * env-var pair when Upstash is live, so a wrong-named variable in Vercel
+       * is visible without pulling logs.
+       */
+      rateLimiter: backendInfo(),
     },
     405
   );
@@ -127,22 +135,36 @@ function baseType(type: string): string {
   return type.split(';')[0]!.trim().toLowerCase();
 }
 
-export const POST: APIRoute = async ({ request, clientAddress }) => {
+export const POST: APIRoute = async ({ request }) => {
   /*
    * Throttle before doing any work — every earlier check either reads
    * headers or spends bytes parsing the body. Rate-limit rejection at the
    * front means an abuser cannot force the function to touch multipart or
    * hit ElevenLabs at all.
+   *
+   * `clientAddress` is ignored here in favour of clientKey(request), because
+   * clientKey prefers `x-vercel-forwarded-for` (which the edge sets itself
+   * and cannot be spoofed) over the more common `x-forwarded-for`.
    */
-  const ip = resolveIp(request, clientAddress);
-  const gate = await check('transcribe', ip, RATE_LIMIT);
+  const caller = clientKey(request);
+  const gate = await check(`transcribe:${caller}`, RATE_LIMIT);
   if (!gate.allowed) {
     console.warn(
-      `[transcribe] rate limit hit for ${ip}; retry after ${gate.retryAfterSec}s`
+      `[transcribe] rate limit hit for ${caller} on ${gate.rule}; retry in ${gate.retryAfter}s`
     );
-    return tooManyRequests(
-      gate,
-      'Too many recordings in a short time. Please wait a moment and try again.'
+    return new Response(
+      JSON.stringify({
+        ok: false,
+        error:
+          'Too many recordings in a short time. Please wait a moment and try again.',
+      }),
+      {
+        status: 429,
+        headers: {
+          'Content-Type': 'application/json',
+          'Retry-After': String(gate.retryAfter),
+        },
+      }
     );
   }
 

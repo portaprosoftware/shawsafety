@@ -18,7 +18,7 @@ import {
   sendEmail,
 } from '@utils/sendEmail';
 import { readEnv } from '@utils/env';
-import { check, resolveIp } from '@utils/rateLimit';
+import { check, clientKey } from '@utils/rateLimit';
 
 export const prerender = false;
 
@@ -124,20 +124,22 @@ function looksLikeEmail(value: string): boolean {
 }
 
 /**
- * Per-IP throttle. Contact form submissions cost time and Resend quota;
+ * Per-caller throttle. Contact form submissions cost time and Resend quota;
  * genuine visitors send one, spammers send hundreds. Five per minute leaves
  * room to fix a typo and resubmit while cutting off scripted floods.
  */
-const RATE_LIMIT = { limit: 5, windowSec: 60 };
+const RATE_LIMIT = {
+  burst: { limit: 5, windowMs: 60_000 },
+} as const;
 
-export const POST: APIRoute = async ({ request, clientAddress }) => {
+export const POST: APIRoute = async ({ request }) => {
   // Rate limit before configuration or parsing — an abuser must not force
   // the function to touch the form body or send anything.
-  const ip = resolveIp(request, clientAddress);
-  const gate = await check('contact', ip, RATE_LIMIT);
+  const caller = clientKey(request);
+  const gate = await check(`contact:${caller}`, RATE_LIMIT);
   if (!gate.allowed) {
     console.warn(
-      `[contact] rate limit hit for ${ip}; retry after ${gate.retryAfterSec}s`
+      `[contact] rate limit hit for ${caller} on ${gate.rule}; retry in ${gate.retryAfter}s`
     );
     return respond(
       request,

@@ -12,7 +12,6 @@
  */
 import { getImage } from 'astro:assets';
 import type { ImageMetadata } from 'astro';
-import Icon from '@components/ui/icons/Icon.astro';
 
 const matches = import.meta.glob<{ default: ImageMetadata }>(
   '/src/images/Shipping.{png,jpg,jpeg,webp,avif}',
@@ -25,7 +24,6 @@ const source = Object.values(matches)[0]?.default;
  * labels are small, so a 1x render turns the map to mush on a retina screen.
  */
 const map = source ? await getImage({ src: source, width: 2000 }) : null;
-const full = source ? await getImage({ src: source, width: 3000 }) : null;
 
 /*
  * Swatch colours sampled from the legend baked into the map, so the text key
@@ -86,37 +84,18 @@ const bands = [
   </ul>
 
   {
-    map && full && (
+    map && (
       <figure class="mt-10">
         <div class="mx-auto max-w-5xl">
-          {/*
-            Opens the map full size in a new tab. On a phone the fitted map is
-            a picture of a map rather than a usable one — the state labels are
-            a few pixels tall — so an escape hatch to a zoomable view is not
-            optional. Matches the spec-sheet link on the product pages.
-          */}
-          <a
-            href={full.src}
-            target="_blank"
-            rel="noopener"
-            class="focus-visible:ring-maroon-700 group block rounded-xl focus:outline-hidden focus-visible:ring-2 focus-visible:ring-offset-4"
-          >
-            <img
-              src={map.src}
-              alt="Map of the contiguous United States, Alaska and Hawaii, shaded by ground transit time. The Ohio Valley and Northeast are one day; the upper Midwest, Southeast and New England are two; the Plains, Texas and Florida are three; the Southwest is four; and the Pacific Northwest, Alaska and Hawaii are five."
-              width="2000"
-              height="1400"
-              loading="lazy"
-              decoding="async"
-              class="h-auto w-full rounded-xl transition group-hover:opacity-95"
-            />
-            <figcaption class="mt-3 flex items-center justify-center gap-1.5 text-sm text-neutral-500">
-              <Icon name="zoomIn" class="h-4 w-4" />
-              <span class="group-hover:text-maroon-700 underline underline-offset-4 transition">
-                View the map full size
-              </span>
-            </figcaption>
-          </a>
+          <img
+            src={map.src}
+            alt="Map of the contiguous United States, Alaska and Hawaii, shaded by ground transit time. The Ohio Valley and Northeast are one day; the upper Midwest, Southeast and New England are two; the Plains, Texas and Florida are three; the Southwest is four; and the Pacific Northwest, Alaska and Hawaii are five."
+            width="2000"
+            height="1400"
+            loading="lazy"
+            decoding="async"
+            class="h-auto w-full rounded-xl"
+          />
         </div>
       </figure>
     )
@@ -124,10 +103,16 @@ const bands = [
 
   <p class="mx-auto mt-8 max-w-2xl text-center text-sm text-neutral-500">
     Transit times are carrier estimates and exclude weekends and holidays. If
-    you need a guaranteed delivery date, <a
-      href="/contact"
-      class="text-maroon-700 hover:text-maroon-800 font-medium underline underline-offset-4"
-      >get in touch</a
-    > and we will confirm before you order.
+    you need a guaranteed delivery date, get in touch and we will confirm before
+    you order.
   </p>
+
+  <div class="mt-5 flex justify-center">
+    <a
+      href="/contact"
+      class="focus-visible:ring-maroon-700 inline-flex items-center rounded-lg border border-neutral-300 px-6 py-3 text-sm font-bold text-neutral-800 transition hover:border-neutral-500 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-offset-2"
+    >
+      Get in Touch
+    </a>
+  </div>
 </section>

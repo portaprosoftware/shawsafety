@@ -72,10 +72,74 @@ const reasons = [
     />
   </section>
 
+  {/* ── Value proposition ─────────────────────────────────────────────── */}
+  <section class="pb-14 lg:pb-20">
+    <div
+      class="border-maroon-100 rounded-2xl border bg-white p-8 shadow-xs sm:p-12 lg:p-14"
+    >
+      <div class="mx-auto max-w-3xl text-center">
+        <p
+          class="text-maroon-700 text-xs font-bold tracking-[0.18em] uppercase"
+        >
+          Tailored for Trade Professionals
+        </p>
+        <h2
+          class="mt-3 text-3xl font-bold tracking-tight text-neutral-900 sm:text-4xl"
+        >
+          The Hands-On Wholesale Partner That Helps You Win Big.
+        </h2>
+        <p class="mt-5 text-base leading-relaxed text-neutral-600 sm:text-lg">
+          Consistent inventory, honest wholesale rates, plus totally painless
+          ordering. Your crew gets the gear to hit deadlines, and leadership
+          sees real cuts to overhead costs.
+        </p>
+      </div>
+
+      <ul
+        class="mt-10 grid gap-6 sm:grid-cols-2 lg:mt-12 lg:grid-cols-3 lg:gap-8"
+      >
+        {
+          [
+            {
+              icon: 'container',
+              title: 'Consistent Inventory',
+              body: 'Stock you can plan around — every color, every size, ready to ship when the job calls for it.',
+            },
+            {
+              icon: 'tag',
+              title: 'Honest Wholesale Rates',
+              body: 'The same published ladder for everyone. No haggling, no gatekeeping, no surprise markups.',
+            },
+            {
+              icon: 'bolt',
+              title: 'Painless Ordering',
+              body: 'Reorder in a couple of clicks. Same-day fulfillment on orders placed before 5pm.',
+            },
+          ].map(item => (
+            <li class="flex gap-4">
+              <span class="bg-maroon-50 text-maroon-700 flex h-11 w-11 shrink-0 items-center justify-center rounded-lg">
+                <Icon name={item.icon} class="h-5 w-5" />
+              </span>
+              <div>
+                <h3 class="text-sm font-bold tracking-wide text-neutral-900 uppercase">
+                  {item.title}
+                </h3>
+                <p class="mt-1.5 text-sm leading-relaxed text-neutral-600">
+                  {item.body}
+                </p>
+              </div>
+            </li>
+          ))
+        }
+      </ul>
+    </div>
+  </section>
+
   <PricingSection
     title="Two Tiers, Published Up Front"
     subTitle="Discounts apply automatically at checkout. The deeper tier is not a negotiated rate — it is the price at that quantity."
     showCta={false}
+    compactHeading
   />
 
   {/* ── Volume calculator ─────────────────────────────────────────────── */}
@@ -168,7 +232,7 @@ const reasons = [
 
       <p
         id="calc-nudge"
-        class="border-maroon-200 bg-maroon-50 text-maroon-900 mt-4 hidden rounded-lg border px-3.5 py-2.5 text-sm font-medium"
+        class="border-maroon-900 text-maroon-900 mt-4 hidden rounded-lg border bg-transparent px-3.5 py-2.5 text-sm font-medium"
       >
       </p>
     </div>
@@ -182,9 +246,10 @@ const reasons = [
       {
         reasons.map(reason => (
           <div class="flex gap-3.5">
-            <span class="bg-maroon-50 text-maroon-700 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg">
-              <Icon name={reason.icon} class="h-5 w-5" />
-            </span>
+            <Icon
+              name={reason.icon}
+              class="text-maroon-700 mt-0.5 h-6 w-6 shrink-0"
+            />
             <div>
               <h3 class="text-sm font-bold tracking-wide text-neutral-900 uppercase">
                 {reason.title}

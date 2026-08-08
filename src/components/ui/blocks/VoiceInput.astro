@@ -24,65 +24,59 @@ import Icon from '@components/ui/icons/Icon.astro';
 <template data-voice-template>
   {
     /*
-    Sits below the textarea with breathing room on all sides — the field's
-    resize grip lives in its bottom-right corner, and a tight offset made the
-    button read as if it were part of the grip rather than a separate control.
+    The control sits in the bottom-right corner of the field it fills, so it
+    reads as part of the box rather than another button stacked under the
+    form. That leaves no room for a caption, so "Speak" moves to the
+    accessible name — the microphone alone is understood, and the label was
+    the widest thing in the row.
   */
   }
-  <div class="mt-3 mb-1 flex items-center gap-3 px-0.5">
+  <button
+    type="button"
+    data-voice-button
+    class="focus-visible:ring-maroon-700 absolute right-2 bottom-2 inline-flex h-8 w-8 items-center justify-center rounded-lg border border-neutral-300 bg-white text-neutral-600 transition hover:border-neutral-400 hover:bg-neutral-50 hover:text-neutral-900 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-50"
+  >
+    <span data-voice-icon-idle class="contents">
+      <Icon name="microphone" class="h-4 w-4" strokeWidth={2} />
+    </span>
+    <span data-voice-icon-recording class="contents hidden">
+      <Icon name="stop" class="h-4 w-4 text-red-600" />
+    </span>
+    <span data-voice-label class="sr-only">Speak</span>
+
     {
       /*
-      The wrapper is `relative` so the radio-wave rings, which live inside the
-      button and grow beyond it via animate-ping, are positioned against the
-      button box.
+      Radio-wave rings while recording. Two staggered animate-ping layers so
+      it reads as an emanating wave, not a single throb. Positioned as
+      children of the (already position:absolute) button, so `absolute inset-0`
+      resolves against the button box and the pulse extends into the space
+      around it. aria-hidden and pointer-events:none so nothing interferes
+      with focus or the click path; class-hidden when idle so the paint cost
+      is zero the rest of the time.
     */
     }
-    <div class="relative shrink-0">
-      <button
-        type="button"
-        data-voice-button
-        class="focus-visible:ring-maroon-700 relative inline-flex items-center gap-1.5 rounded-lg border border-neutral-300 bg-white px-3 py-2 text-xs font-semibold text-neutral-700 shadow-sm transition hover:border-neutral-400 hover:bg-neutral-50 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-      >
-        <span data-voice-icon-idle class="contents">
-          <Icon name="microphone" class="h-3.5 w-3.5" strokeWidth={2} />
-        </span>
-        <span data-voice-icon-recording class="contents hidden">
-          <Icon name="stop" class="h-3.5 w-3.5 text-red-600" />
-        </span>
-        <span data-voice-label>Speak</span>
-      </button>
-
-      {
-        /*
-        Radio-wave rings. Two staggered pings so it reads as an emanating
-        wave, not a single pulse. Absolutely positioned around the button and
-        rendered behind it visually because they scale out; kept out of the
-        DOM tab order and click path.
-      */
-      }
-      <span
-        data-voice-rings
-        aria-hidden="true"
-        class="pointer-events-none absolute inset-0 hidden"
-      >
-        <span
-          class="absolute inset-0 animate-ping rounded-lg ring-2 ring-red-500/60"
-        ></span>
-        <span
-          class="absolute inset-0 animate-ping rounded-lg ring-2 ring-red-500/40"
-          style="animation-delay:0.6s"></span>
-      </span>
-    </div>
-
-    {/* aria-live so the state change is announced, not just drawn. */}
-    <p
-      data-voice-status
-      class="text-xs text-neutral-500"
-      role="status"
-      aria-live="polite"
+    <span
+      data-voice-rings
+      aria-hidden="true"
+      class="pointer-events-none absolute inset-0 hidden"
     >
-    </p>
-  </div>
+      <span
+        class="absolute inset-0 animate-ping rounded-lg ring-2 ring-red-500/60"
+      ></span>
+      <span
+        class="absolute inset-0 animate-ping rounded-lg ring-2 ring-red-500/40"
+        style="animation-delay:0.6s"></span>
+    </span>
+  </button>
+
+  {/* aria-live so the state change is announced, not just drawn. */}
+  <p
+    data-voice-status
+    class="mt-1.5 text-xs text-neutral-500"
+    role="status"
+    aria-live="polite"
+  >
+  </p>
 </template>
 
 <script>
@@ -98,12 +92,12 @@ import Icon from '@components/ui/icons/Icon.astro';
   /**
    * Auto-stop, in ms.
    *
-   * A forgotten open mic is a bill and a privacy problem, and the API is
-   * unauthenticated — anyone can post to it. Ten seconds is enough for a
-   * complete thought on a form field; if more is needed the visitor can press
-   * again. This deliberately favours cost/abuse control over long dictations:
-   * a two-minute recording sent by accident is a bigger loss than a truncated
-   * one that the visitor immediately notices and continues.
+   * A forgotten open mic is a bill and a privacy problem on an
+   * unauthenticated endpoint. Ten seconds is enough for one thought at a form
+   * field; if more is needed the visitor presses again. This deliberately
+   * favours cost/abuse control over long dictations — a two-minute recording
+   * sent by accident is a bigger loss than a truncated one the visitor
+   * immediately notices and continues.
    */
   const MAX_RECORDING_MS = 10_000;
 
@@ -159,18 +153,32 @@ import Icon from '@components/ui/icons/Icon.astro';
 
   function attach(field: HTMLTextAreaElement, template: HTMLTemplateElement) {
     const fragment = template.content.cloneNode(true) as DocumentFragment;
-    const root = fragment.firstElementChild as HTMLElement;
 
     const el: Elements = {
-      button: root.querySelector('[data-voice-button]')!,
-      label: root.querySelector('[data-voice-label]')!,
-      status: root.querySelector('[data-voice-status]')!,
-      idle: root.querySelector('[data-voice-icon-idle]')!,
-      recording: root.querySelector('[data-voice-icon-recording]')!,
-      rings: root.querySelector('[data-voice-rings]')!,
+      button: fragment.querySelector('[data-voice-button]')!,
+      label: fragment.querySelector('[data-voice-label]')!,
+      status: fragment.querySelector('[data-voice-status]')!,
+      idle: fragment.querySelector('[data-voice-icon-idle]')!,
+      recording: fragment.querySelector('[data-voice-icon-recording]')!,
+      rings: fragment.querySelector('[data-voice-rings]')!,
     };
 
-    field.insertAdjacentElement('afterend', root);
+    /*
+     * The button is positioned against the field, which means the field needs
+     * a positioned parent. Wrapping here rather than in every form keeps the
+     * "add a textarea and it just works" contract — the markup around the
+     * field stays untouched, and the extra bottom padding stops a long
+     * message from running underneath the microphone.
+     */
+    const wrapper = document.createElement('div');
+    wrapper.className = 'relative';
+    field.insertAdjacentElement('beforebegin', wrapper);
+    wrapper.appendChild(field);
+    wrapper.appendChild(el.button);
+    field.classList.add('pb-12');
+
+    // The status line belongs to the field, not inside its box.
+    wrapper.insertAdjacentElement('afterend', el.status);
 
     // Name the control after the field it fills, so a screen reader hearing
     // "Speak" on a page with two of them knows which is which.
@@ -365,6 +373,14 @@ import Icon from '@components/ui/icons/Icon.astro';
       .forEach(field => {
         // A honeypot textarea is hidden from people and should stay that way.
         if (field.closest('[aria-hidden="true"]') || field.hidden) return;
+        /*
+         * An explicit opt-out, for fields that live outside this page's forms.
+         * The chat widget is in the layout and so appears on every page, while
+         * this component is only on two of them — without the opt-out its
+         * composer would sprout a Speak button on the contact and wholesale
+         * pages and nowhere else, which is worse than not offering it at all.
+         */
+        if (field.hasAttribute('data-no-dictation')) return;
         attach(field, template);
       });
   }
