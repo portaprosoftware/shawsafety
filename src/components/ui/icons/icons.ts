@@ -24,12 +24,16 @@ export const Icons: Record<string, IconDef> = {
       'm9 12 2 2 4-4',
     ],
   },
+  // Lucide's `container`. The previous drawing was a plain rectangle with
+  // three vertical bars, which read as a dumpster rather than a shipping
+  // container; this one is unmistakably the intermodal box.
   container: {
     paths: [
-      'M2 6a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2z',
-      'M7 4v16',
-      'M12 4v16',
-      'M17 4v16',
+      'M22 7.7c0-.6-.4-1.2-.8-1.5l-6.3-3.9a1.72 1.72 0 0 0-1.7 0l-10.3 6c-.5.2-.9.8-.9 1.4v6.6c0 .5.4 1.2.8 1.5l6.3 3.9a1.72 1.72 0 0 0 1.7 0l10.3-6c.5-.3.9-1 .9-1.5Z',
+      'M10 21.9V14L2.1 9.1',
+      'm10 14 11.9-6.9',
+      'M14 19.8v-8.1',
+      'M18 17.5V9.4',
     ],
   },
   truck: {
