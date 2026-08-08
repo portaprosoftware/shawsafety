@@ -232,8 +232,22 @@ const reasons = [
       <form
         id="quote-form"
         class="space-y-4 rounded-xl bg-white p-6"
+        method="post"
+        action="/api/contact"
         novalidate
       >
+        <input type="hidden" name="formType" value="quote" />
+        {/* Honeypot: hidden from people, irresistible to bots. */}
+        <div class="hidden" aria-hidden="true">
+          <label for="quote-website">Leave this field empty</label>
+          <input
+            id="quote-website"
+            name="website"
+            type="text"
+            tabindex="-1"
+            autocomplete="off"
+          />
+        </div>
         <div class="grid gap-4 sm:grid-cols-2">
           <div>
             <label
@@ -283,7 +297,7 @@ const reasons = [
           >
           <textarea
             id="quote-details"
-            name="details"
+            name="message"
             rows="4"
             required
             placeholder="e.g. 400 packs, mixed yellow and green, monthly standing order"
@@ -292,7 +306,8 @@ const reasons = [
         </div>
         <button
           type="submit"
-          class="hover:bg-maroon-800 focus-visible:ring-maroon-700 w-full rounded-lg bg-neutral-900 px-5 py-3 text-sm font-bold text-white transition focus:outline-hidden focus-visible:ring-2 focus-visible:ring-offset-2"
+          id="quote-submit"
+          class="hover:bg-maroon-800 focus-visible:ring-maroon-700 w-full rounded-lg bg-neutral-900 px-5 py-3 text-sm font-bold text-white transition focus:outline-hidden focus-visible:ring-2 focus-visible:ring-offset-2 disabled:opacity-60"
         >
           Request Quote
         </button>
@@ -300,6 +315,7 @@ const reasons = [
           id="quote-status"
           class="bg-maroon-50 text-maroon-900 hidden rounded-lg px-3.5 py-2.5 text-sm font-medium"
           role="status"
+          aria-live="polite"
         >
         </p>
       </form>
@@ -312,6 +328,7 @@ const reasons = [
 </script>
 
 <script>
+  import { attachFormHandler } from '@scripts/formSubmit';
   import {
     formatMoney,
     lineTotal,
@@ -379,18 +396,10 @@ const reasons = [
   qtyInput?.addEventListener('input', render);
   render();
 
-  const form = document.getElementById('quote-form') as HTMLFormElement | null;
-  const status = document.getElementById('quote-status');
-  form?.addEventListener('submit', event => {
-    event.preventDefault();
-    if (!form.checkValidity()) {
-      form.reportValidity();
-      return;
-    }
-    if (status) {
-      status.textContent =
-        'This form is not connected to an inbox yet. Email sales@shawsafety.com with your quantities and we will quote it the same day.';
-      status.classList.remove('hidden');
-    }
+  attachFormHandler({
+    formId: 'quote-form',
+    statusId: 'quote-status',
+    submitId: 'quote-submit',
+    idleLabel: 'Request Quote',
   });
 </script>

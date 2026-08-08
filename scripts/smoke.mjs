@@ -1,8 +1,23 @@
 import { createServer } from 'node:http';
+import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { extname, isAbsolute, relative, resolve } from 'node:path';
 
-const DIST = resolve(new URL('../dist/', import.meta.url).pathname);
+// The Vercel adapter emits prerendered pages to .vercel/output/static; a plain
+// `astro build` without an adapter still uses dist/. Prefer whichever exists,
+// matching how process-html.mjs resolves the same thing.
+const ROOT = new URL('../', import.meta.url).pathname;
+const DIST = [
+  resolve(ROOT, '.vercel/output/static'),
+  resolve(ROOT, 'dist'),
+].find(candidate => existsSync(candidate));
+
+if (!DIST) {
+  console.error(
+    'No build output found (checked .vercel/output/static and dist). Run the build first.'
+  );
+  process.exit(1);
+}
 const ROUTES = [
   '/',
   '/products/',
