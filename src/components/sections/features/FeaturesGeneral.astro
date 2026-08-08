@@ -42,9 +42,10 @@ const [left, right] = [p.highlights.slice(0, 3), p.highlights.slice(3, 6)];
           {
             left.map(item => (
               <div class="flex gap-3.5">
-                <span class="bg-maroon-700 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-white">
-                  <Icon name={item.icon} class="h-5 w-5" />
-                </span>
+                <Icon
+                  name={item.icon}
+                  class="text-maroon-700 mt-0.5 h-6 w-6 shrink-0"
+                />
                 <div>
                   <h3 class="text-sm font-bold tracking-wide text-neutral-900 uppercase">
                     {item.title}
@@ -75,12 +76,16 @@ const [left, right] = [p.highlights.slice(0, 3), p.highlights.slice(3, 6)];
           {
             right.map(item => (
               <div class="flex gap-3.5">
-                <span
-                  class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-neutral-900"
-                  style={`background:${variant.hex}`}
-                >
-                  <Icon name={item.icon} class="h-5 w-5" />
-                </span>
+                {/*
+                 * The tie's own fluorescent colour, on the icon itself rather
+                 * than a swatch behind it. `variant.hex` is a physical product
+                 * colour, so it has to stay inline — there is no token for it.
+                 */}
+                <Icon
+                  name={item.icon}
+                  class="mt-0.5 h-6 w-6 shrink-0"
+                  style={`color:${variant.hex}`}
+                />
                 <div>
                   <h3 class="text-sm font-bold tracking-wide text-neutral-900 uppercase">
                     {item.title}
@@ -97,12 +102,11 @@ const [left, right] = [p.highlights.slice(0, 3), p.highlights.slice(3, 6)];
         <div
           class="mt-6 flex items-center gap-3.5 border-2 border-neutral-900 p-4"
         >
-          <span
-            class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-neutral-900"
-            style={`background:${variant.hex}`}
-          >
-            <Icon name="refresh" class="h-5 w-5" />
-          </span>
+          <Icon
+            name="refresh"
+            class="h-6 w-6 shrink-0"
+            style={`color:${variant.hex}`}
+          />
           <div>
             <p
               class="text-sm font-bold tracking-wide text-neutral-900 uppercase"

@@ -6,9 +6,19 @@ interface Props {
   class?: string;
   /** Stroke width; nudge up for small sizes where hairlines disappear. */
   strokeWidth?: number;
+  /**
+   * Escape hatch for colours that cannot be a token — the fluorescent product
+   * colours come from content as raw hex. Prefer a `text-*` class otherwise.
+   */
+  style?: string;
 }
 
-const { name, class: className = 'h-6 w-6', strokeWidth = 1.75 } = Astro.props;
+const {
+  name,
+  class: className = 'h-6 w-6',
+  strokeWidth = 1.75,
+  style,
+} = Astro.props;
 
 const icon = Icons[name];
 
@@ -21,6 +31,7 @@ if (!icon) {
 
 <svg
   class={className}
+  style={style}
   viewBox="0 0 24 24"
   fill={icon.fill ? 'currentColor' : 'none'}
   stroke="currentColor"
