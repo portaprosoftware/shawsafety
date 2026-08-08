@@ -1,6 +1,6 @@
 ---
-import { getImage } from 'astro:assets';
 import type { CollectionEntry } from 'astro:content';
+import { resolveProductImage } from '@utils/productImages';
 import Icon from '@components/ui/icons/Icon.astro';
 import ImageZoom from '@components/ui/blocks/ImageZoom.astro';
 import { formatMoney, formatUnitPrice, type Tier } from '@scripts/pricing';
@@ -27,11 +27,11 @@ const activeIndex = Math.max(
 const variants = await Promise.all(
   p.variants.map(async variant => {
     const images = await Promise.all(
-      variant.images.map(async src => ({
-        display: (await getImage({ src, width: 720, height: 720 })).src,
-        thumb: (await getImage({ src, width: 160, height: 160 })).src,
-        // Zoom uses the original, which is the point of the lightbox.
-        full: (await getImage({ src, width: 1600, height: 1600 })).src,
+      variant.images.map(async stem => ({
+        display: (await resolveProductImage(stem, 720, 720)).src,
+        thumb: (await resolveProductImage(stem, 160, 160)).src,
+        // Zoom uses the largest render, which is the point of the lightbox.
+        full: (await resolveProductImage(stem, 1600, 1600)).src,
       }))
     );
     const tiers: Tier[] = variant.tiers ?? p.tiers;

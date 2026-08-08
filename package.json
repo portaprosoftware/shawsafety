@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "astro dev",
     "start": "astro dev",
-    "build": "astro check && astro build && node process-html.mjs",
+    "build": "astro check && astro build && node process-html.mjs && node scripts/check-images.mjs",
     "format:check": "prettier --check .",
     "format:fix": "prettier --write .",
     "preview": "astro preview",

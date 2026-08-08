@@ -1,8 +1,8 @@
 ---
-import { getImage } from 'astro:assets';
 import type { CollectionEntry } from 'astro:content';
 import AddToCartButton from '@components/cart/AddToCartButton.astro';
 import { formatMoney, type Tier } from '@scripts/pricing';
+import { resolveProductImage } from '@utils/productImages';
 
 interface Props {
   product: CollectionEntry<'products'>;
@@ -16,16 +16,8 @@ const p = product.data;
 const variant = p.variants.find(v => v.id === variantId) ?? p.variants[0];
 const tiers: Tier[] = variant.tiers ?? p.tiers;
 
-const image = await getImage({
-  src: variant.images[0],
-  width: 480,
-  height: 480,
-});
-const thumb = await getImage({
-  src: variant.images[0],
-  width: 160,
-  height: 160,
-});
+const image = await resolveProductImage(variant.images[0], 480, 480);
+const thumb = await resolveProductImage(variant.images[0], 160, 160);
 
 const href = `/products/${product.id}?color=${variant.id}`;
 ---

@@ -29,9 +29,9 @@ variants:
     sku: '220178'
     inStock: true
     images:
-      - './../../images/products/tie-fluorescent-yellow-1.svg'
-      - './../../images/products/tie-fluorescent-yellow-2.svg'
-      - './../../images/products/tie-fluorescent-yellow-3.svg'
+      - 'tie-fluorescent-yellow-1'
+      - 'tie-fluorescent-yellow-2'
+      - 'tie-fluorescent-yellow-3'
     # Yellow is the highest-volume color and is priced as the lead-in SKU.
     tiers:
       - minQty: 1
@@ -49,27 +49,27 @@ variants:
     sku: '220179'
     inStock: true
     images:
-      - './../../images/products/tie-fluorescent-pink-1.svg'
-      - './../../images/products/tie-fluorescent-pink-2.svg'
-      - './../../images/products/tie-fluorescent-pink-3.svg'
+      - 'tie-fluorescent-pink-1'
+      - 'tie-fluorescent-pink-2'
+      - 'tie-fluorescent-pink-3'
   - id: 'fluorescent-green'
     name: 'Fluorescent Green'
     hex: '#8CFF1A'
     sku: '220180'
     inStock: true
     images:
-      - './../../images/products/tie-fluorescent-green-1.svg'
-      - './../../images/products/tie-fluorescent-green-2.svg'
-      - './../../images/products/tie-fluorescent-green-3.svg'
+      - 'tie-fluorescent-green-1'
+      - 'tie-fluorescent-green-2'
+      - 'tie-fluorescent-green-3'
   - id: 'fluorescent-orange'
     name: 'Fluorescent Orange'
     hex: '#FF8A1F'
     sku: '220181'
     inStock: true
     images:
-      - './../../images/products/tie-fluorescent-orange-1.svg'
-      - './../../images/products/tie-fluorescent-orange-2.svg'
-      - './../../images/products/tie-fluorescent-orange-3.svg'
+      - 'tie-fluorescent-orange-1'
+      - 'tie-fluorescent-orange-2'
+      - 'tie-fluorescent-orange-3'
 highlights:
   - icon: 'bolt'
     title: 'High Visibility'

@@ -1,20 +1,46 @@
 ---
-import { Image } from 'astro:assets';
-import heroImage from '@images/hero-image.svg';
+import { getImage } from 'astro:assets';
+import type { ImageMetadata } from 'astro';
 import Icon from '@components/ui/icons/Icon.astro';
+
+/**
+ * The hero photo is optional. Drop any image named `hero-image.*` into
+ * src/images/ and it is picked up automatically; with no file present the
+ * section falls back to the brand gradient alone, which still reads well.
+ * Globbed rather than imported so a missing file cannot break the build.
+ */
+const heroMatches = import.meta.glob<{ default: ImageMetadata }>(
+  '/src/images/hero-image.{jpg,jpeg,png,webp,avif}',
+  { eager: true }
+);
+const heroSource = Object.values(heroMatches)[0]?.default;
+const heroPhoto = heroSource
+  ? await getImage({ src: heroSource, width: 2000, height: 1000 })
+  : null;
 ---
 
 <section class="relative overflow-hidden">
   <div class="relative isolate min-h-[520px] lg:min-h-[640px]">
-    <Image
-      id="hero-photo"
-      src={heroImage}
-      alt="Intermodal container on a highway at sunset"
-      width={2000}
-      height={1000}
-      loading="eager"
-      class="absolute inset-0 h-[118%] w-full object-cover"
-    />
+    {/* Base wash, visible on its own when no hero photo is present. */}
+    <div
+      class="from-maroon-950 via-maroon-900 to-maroon-700 absolute inset-0 bg-linear-to-br"
+      aria-hidden="true"
+    >
+    </div>
+
+    {
+      heroPhoto && (
+        <img
+          id="hero-photo"
+          src={heroPhoto.src}
+          alt="Intermodal container on a highway at sunset"
+          width="2000"
+          height="1000"
+          loading="eager"
+          class="absolute inset-0 h-[118%] w-full object-cover"
+        />
+      )
+    }
 
     {/* Brand scrim: keeps the headline legible over any part of the photo. */}
     <div

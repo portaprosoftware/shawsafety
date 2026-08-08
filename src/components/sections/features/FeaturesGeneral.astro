@@ -1,8 +1,8 @@
 ---
-import { getImage } from 'astro:assets';
 import type { CollectionEntry } from 'astro:content';
 import Icon from '@components/ui/icons/Icon.astro';
 import { formatMoney } from '@scripts/pricing';
+import { resolveProductImage } from '@utils/productImages';
 
 interface Props {
   product: CollectionEntry<'products'>;
@@ -15,11 +15,11 @@ const tiers = variant.tiers ?? p.tiers;
 const bestPrice = tiers[tiers.length - 1].pricePerUnit;
 
 // The bagged shot reads better here than a single tie.
-const image = await getImage({
-  src: variant.images[2] ?? variant.images[0],
-  width: 700,
-  height: 700,
-});
+const image = await resolveProductImage(
+  variant.images[2] ?? variant.images[0],
+  700,
+  700
+);
 
 const [left, right] = [p.highlights.slice(0, 3), p.highlights.slice(3, 6)];
 ---
