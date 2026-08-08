@@ -174,8 +174,9 @@ effect until the next deploy.
   the endpoint returns a styled HTML page rather than raw JSON when the request
   asks for HTML.
 
-There is no rate limiting — a public endpoint will eventually attract abuse.
-Adding it needs shared state (Vercel KV, Upstash, or Resend's own limits).
+Rate-limited at **five submissions per IP per minute** (see the section below).
+A visitor fixing a typo and resubmitting has plenty of room; a scripted flood
+is cut off at the door.
 
 ## Dictation
 
@@ -291,8 +292,60 @@ the server log with the model id attached. `scribe_v1` is the drop-in fallback.
 is the non-obvious way to break this — the button renders and the permission
 prompt never appears.
 
-Like `/api/contact`, this endpoint is unauthenticated and unthrottled, and it
-spends money per call. Rate limiting matters more here than on the mail form.
+Rate-limited at ten calls per IP per minute — see below.
+
+## Rate limiting
+
+Both public API routes (`/api/transcribe` and `/api/contact`) are throttled per
+IP before they touch any of the work they would otherwise do. Rejection
+returns 429 with a `Retry-After` header in seconds, so any client that honours
+it backs off automatically.
+
+| Endpoint          | Limit         | Why                                                                                                  |
+| ----------------- | ------------- | ---------------------------------------------------------------------------------------------------- |
+| `/api/transcribe` | 10 / IP / min | Every allowed call bills ElevenLabs. Generous for a real user tapping the mic, brutal for a scraper. |
+| `/api/contact`    | 5 / IP / min  | Plenty of room to fix a typo and resubmit; scripted flooders are cut off at the door.                |
+
+The limiter is fixed-window: buckets align to real seconds since the epoch, so
+a burst across a window boundary can briefly exceed the nominal rate. That is
+deliberate — sliding-window buys nothing meaningful against the abuse shape
+we care about, and it costs a sorted-set write per hit.
+
+### Shared state (or the lack of it)
+
+Rate limits must hold across serverless invocations, and Vercel functions do
+not share memory. The limiter prefers **Upstash Redis** via its HTTP API (no
+client SDK); when Upstash is not configured it falls back to an in-memory map.
+
+The fallback is loudly documented as best-effort: it only catches repeat calls
+landing on the same warm instance, so a scripted attacker cycling requests
+across cold starts gets unlimited quota. It still helps against a real user
+hammering the button, which is the common case, but for real anti-abuse the
+Upstash pair should be set.
+
+| Variable                   | Required | Purpose                      |
+| -------------------------- | -------- | ---------------------------- |
+| `UPSTASH_REDIS_REST_URL`   | pair     | Upstash Redis REST endpoint. |
+| `UPSTASH_REDIS_REST_TOKEN` | pair     | Bearer token for the above.  |
+
+"Pair" means both or neither — one on its own falls straight through to the
+in-memory fallback.
+
+### Failure modes
+
+- **Upstash unreachable.** The limiter fails **open**, logs loudly, and lets
+  the request through. A Redis outage should not take dictation offline for
+  real users; monitoring the log picks up a genuine outage without penalising
+  visitors during a network blip.
+- **Client without a resolvable IP.** All such callers collapse onto a single
+  `unknown` bucket, on purpose. It means an unidentified request still counts
+  against something rather than getting a free pass.
+- **Two endpoints on the same IP.** Buckets are scoped per endpoint
+  (`transcribe`, `contact`), so exhausting one does not lock out the other.
+
+Change either limit at the constant in the route itself
+(`src/pages/api/transcribe.ts`, `src/pages/api/contact.ts`). There is no reason
+to make these runtime settings.
 
 ## Product images
 

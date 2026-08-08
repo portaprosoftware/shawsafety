@@ -12,6 +12,7 @@
  */
 import type { APIRoute } from 'astro';
 import { readEnv } from '@utils/env';
+import { check, resolveIp, tooManyRequests } from '@utils/rateLimit';
 
 export const prerender = false;
 
@@ -44,6 +45,17 @@ const ELEVENLABS_STT_URL = 'https://api.elevenlabs.io/v1/speech-to-text';
  * audio" with the model id in the server log.
  */
 const MODEL_ID = 'scribe_v2';
+
+/**
+ * Per-IP throttle for a public, billable endpoint.
+ *
+ * Ten calls per minute is generous for a real visitor tapping the mic
+ * repeatedly, and punishing for a script — a scraper trying to burn ElevenLabs
+ * credits gets six per minute per source IP once the second window rolls over.
+ * Tighten in the constant here if abuse shows up; there is no reason to make
+ * this a runtime setting.
+ */
+const RATE_LIMIT = { limit: 10, windowSec: 60 };
 
 /**
  * Ceiling on an upload, in bytes.
@@ -115,7 +127,25 @@ function baseType(type: string): string {
   return type.split(';')[0]!.trim().toLowerCase();
 }
 
-export const POST: APIRoute = async ({ request }) => {
+export const POST: APIRoute = async ({ request, clientAddress }) => {
+  /*
+   * Throttle before doing any work — every earlier check either reads
+   * headers or spends bytes parsing the body. Rate-limit rejection at the
+   * front means an abuser cannot force the function to touch multipart or
+   * hit ElevenLabs at all.
+   */
+  const ip = resolveIp(request, clientAddress);
+  const gate = await check('transcribe', ip, RATE_LIMIT);
+  if (!gate.allowed) {
+    console.warn(
+      `[transcribe] rate limit hit for ${ip}; retry after ${gate.retryAfterSec}s`
+    );
+    return tooManyRequests(
+      gate,
+      'Too many recordings in a short time. Please wait a moment and try again.'
+    );
+  }
+
   const key = resolveKey();
 
   /*
