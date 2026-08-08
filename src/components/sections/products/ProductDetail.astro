@@ -28,10 +28,10 @@ const variants = await Promise.all(
   p.variants.map(async variant => {
     const images = await Promise.all(
       variant.images.map(async stem => ({
-        display: (await resolveProductImage(stem, 720, 720)).src,
+        // Rendered larger than the ~560px display box so the in-place
+        // magnifier reveals real detail rather than upscaled pixels.
+        display: (await resolveProductImage(stem, 1100, 1100)).src,
         thumb: (await resolveProductImage(stem, 160, 160)).src,
-        // Zoom uses the largest render, which is the point of the lightbox.
-        full: (await resolveProductImage(stem, 1600, 1600)).src,
       }))
     );
     const tiers: Tier[] = variant.tiers ?? p.tiers;
@@ -81,7 +81,6 @@ const clientData = {
   <div class="lg:sticky lg:top-32 lg:self-start">
     <ImageZoom
       src={active.images[0].display}
-      full={active.images[0].full}
       alt={`${p.shortTitle} in ${active.name}`}
     />
 
@@ -452,7 +451,7 @@ const clientData = {
     sku: string;
     inStock: boolean;
     tiers: Tier[];
-    images: { display: string; thumb: string; full: string }[];
+    images: { display: string; thumb: string }[];
     /** Spec-sheet drawing, or null for variants that have none. */
     spec: string | null;
   }
@@ -476,7 +475,6 @@ const clientData = {
     const rail = $('thumb-rail');
     const mainImage =
       document.querySelector<HTMLImageElement>('[data-zoom-image]');
-    const zoomLink = document.querySelector<HTMLElement>('[data-zoom-trigger]');
 
     // Deep-linked color wins over the default; falls back to the first.
     const initial = new URLSearchParams(location.search).get('color');
@@ -557,8 +555,6 @@ const clientData = {
         mainImage.src = image.display;
         mainImage.alt = `${data.title} in ${variant.name}`;
       }
-      zoomLink?.setAttribute('data-zoom-full', image.full);
-
       if (!rail) return;
       rail.innerHTML = variant.images
         .map(
