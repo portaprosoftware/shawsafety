@@ -9,7 +9,7 @@
         },
         {
           "key": "Permissions-Policy",
-          "value": "interest-cohort=()"
+          "value": "interest-cohort=(), microphone=(self), camera=(), geolocation=()"
         },
         {
           "key": "Referrer-Policy",

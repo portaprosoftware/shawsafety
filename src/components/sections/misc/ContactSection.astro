@@ -1,5 +1,6 @@
 ---
 import Icon from '@components/ui/icons/Icon.astro';
+import VoiceInput from '@components/ui/blocks/VoiceInput.astro';
 
 const contactMethods = [
   {
@@ -168,6 +169,8 @@ const contactMethods = [
     </div>
   </div>
 </section>
+
+<VoiceInput />
 
 <script>
   import { attachFormHandler } from '@scripts/formSubmit';
