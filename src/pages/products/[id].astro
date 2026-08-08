@@ -2,6 +2,7 @@
 import { getCollection } from 'astro:content';
 import MainLayout from '@/layouts/MainLayout.astro';
 import ProductDetail from '@components/sections/products/ProductDetail.astro';
+import GroundDeliveryTimes from '@components/sections/misc/GroundDeliveryTimes.astro';
 import { SITE } from '@data/constants';
 
 export async function getStaticPaths() {
@@ -66,4 +67,5 @@ const structuredData = {
   </nav>
 
   <ProductDetail product={product} selected={selected} />
+  <GroundDeliveryTimes />
 </MainLayout>
