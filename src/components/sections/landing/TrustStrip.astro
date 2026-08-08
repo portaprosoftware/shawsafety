@@ -5,12 +5,25 @@ import { trustMarks } from '@data/constants';
 
 <section class="border-b border-neutral-200 bg-neutral-50">
   <div class="mx-auto max-w-(--breakpoint-2xl) px-4 py-5 sm:px-6 lg:px-8">
+    {
+      /*
+      Two columns on phones rather than a wrapping row: at 390px the flex row
+      broke the marks at arbitrary points, so a two-word mark and a five-word
+      one shared a line and the next sat alone. The grid gives every mark the
+      same column, and the long container mark spans both on the last row.
+    */
+    }
     <ul
-      class="flex flex-wrap items-center justify-center gap-x-8 gap-y-3 lg:justify-between"
+      class="grid grid-cols-2 gap-x-5 gap-y-3 sm:flex sm:flex-wrap sm:items-center sm:justify-center sm:gap-x-8 lg:justify-between"
     >
       {
         trustMarks.map(mark => (
-          <li class="inline-flex items-center gap-2 text-sm font-semibold text-neutral-700">
+          <li
+            class:list={[
+              'flex items-center gap-2 text-sm font-semibold text-neutral-700',
+              mark.wide && 'order-last col-span-2 justify-center sm:order-none',
+            ]}
+          >
             <Icon name={mark.icon} class="text-maroon-700 h-5 w-5 shrink-0" />
             {mark.label}
           </li>

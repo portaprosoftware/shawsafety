@@ -22,30 +22,37 @@ import Icon from '@components/ui/icons/Icon.astro';
 */
 }
 <template data-voice-template>
-  <div class="mt-2 flex items-center gap-3">
-    <button
-      type="button"
-      data-voice-button
-      class="focus-visible:ring-maroon-700 inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-neutral-300 px-2.5 py-1.5 text-xs font-semibold text-neutral-700 transition hover:border-neutral-400 hover:bg-neutral-50 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-    >
-      <span data-voice-icon-idle class="contents">
-        <Icon name="microphone" class="h-3.5 w-3.5" strokeWidth={2} />
-      </span>
-      <span data-voice-icon-recording class="contents hidden">
-        <Icon name="stop" class="h-3.5 w-3.5 text-red-600" />
-      </span>
-      <span data-voice-label>Speak</span>
-    </button>
+  {
+    /*
+    The control sits in the bottom-right corner of the field it fills, so it
+    reads as part of the box rather than another button stacked under the
+    form. That leaves no room for a caption, so "Speak" moves to the
+    accessible name — the microphone alone is understood, and the label was
+    the widest thing in the row.
+  */
+  }
+  <button
+    type="button"
+    data-voice-button
+    class="focus-visible:ring-maroon-700 absolute right-2 bottom-2 inline-flex h-8 w-8 items-center justify-center rounded-lg border border-neutral-300 bg-white text-neutral-600 transition hover:border-neutral-400 hover:bg-neutral-50 hover:text-neutral-900 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-50"
+  >
+    <span data-voice-icon-idle class="contents">
+      <Icon name="microphone" class="h-4 w-4" strokeWidth={2} />
+    </span>
+    <span data-voice-icon-recording class="contents hidden">
+      <Icon name="stop" class="h-4 w-4 text-red-600" />
+    </span>
+    <span data-voice-label class="sr-only">Speak</span>
+  </button>
 
-    {/* aria-live so the state change is announced, not just drawn. */}
-    <p
-      data-voice-status
-      class="text-xs text-neutral-500"
-      role="status"
-      aria-live="polite"
-    >
-    </p>
-  </div>
+  {/* aria-live so the state change is announced, not just drawn. */}
+  <p
+    data-voice-status
+    class="mt-1.5 text-xs text-neutral-500"
+    role="status"
+    aria-live="polite"
+  >
+  </p>
 </template>
 
 <script>
@@ -112,17 +119,31 @@ import Icon from '@components/ui/icons/Icon.astro';
 
   function attach(field: HTMLTextAreaElement, template: HTMLTemplateElement) {
     const fragment = template.content.cloneNode(true) as DocumentFragment;
-    const root = fragment.firstElementChild as HTMLElement;
 
     const el: Elements = {
-      button: root.querySelector('[data-voice-button]')!,
-      label: root.querySelector('[data-voice-label]')!,
-      status: root.querySelector('[data-voice-status]')!,
-      idle: root.querySelector('[data-voice-icon-idle]')!,
-      recording: root.querySelector('[data-voice-icon-recording]')!,
+      button: fragment.querySelector('[data-voice-button]')!,
+      label: fragment.querySelector('[data-voice-label]')!,
+      status: fragment.querySelector('[data-voice-status]')!,
+      idle: fragment.querySelector('[data-voice-icon-idle]')!,
+      recording: fragment.querySelector('[data-voice-icon-recording]')!,
     };
 
-    field.insertAdjacentElement('afterend', root);
+    /*
+     * The button is positioned against the field, which means the field needs
+     * a positioned parent. Wrapping here rather than in every form keeps the
+     * "add a textarea and it just works" contract — the markup around the
+     * field stays untouched, and the extra bottom padding stops a long
+     * message from running underneath the microphone.
+     */
+    const wrapper = document.createElement('div');
+    wrapper.className = 'relative';
+    field.insertAdjacentElement('beforebegin', wrapper);
+    wrapper.appendChild(field);
+    wrapper.appendChild(el.button);
+    field.classList.add('pb-12');
+
+    // The status line belongs to the field, not inside its box.
+    wrapper.insertAdjacentElement('afterend', el.status);
 
     // Name the control after the field it fills, so a screen reader hearing
     // "Speak" on a page with two of them knows which is which.
