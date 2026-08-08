@@ -2,9 +2,17 @@
 
 import { defineCollection } from 'astro:content';
 import { z } from 'astro/zod';
-import { docsLoader } from '@astrojs/starlight/loaders';
-import { docsSchema } from '@astrojs/starlight/schema';
 import { glob } from 'astro/loaders';
+
+/**
+ * A single volume-pricing bracket. `maxQty: null` means "and up".
+ * Brackets are matched in order, so they must be authored ascending.
+ */
+const tierSchema = z.object({
+  minQty: z.number(),
+  maxQty: z.number().nullable(),
+  pricePerUnit: z.number(),
+});
 
 const productsCollection = defineCollection({
   loader: glob({
@@ -14,98 +22,54 @@ const productsCollection = defineCollection({
   schema: ({ image }) =>
     z.object({
       title: z.string(),
+      shortTitle: z.string(),
       description: z.string(),
-      main: z.object({
-        id: z.number(),
-        content: z.string(),
-        imgCard: image(),
-        imgMain: image(),
-        imgAlt: z.string(),
+      sku: z.string(),
+      category: z.enum(['zip-ties', 'vests']),
+      badge: z.string().optional(),
+      // Units inside one purchasable item, e.g. 100 ties per pack.
+      packSize: z.number(),
+      // Noun for one purchasable item ("pack", "vest").
+      unit: z.string(),
+      // Noun for one item inside a pack ("tie"); omit for single-unit products.
+      subUnit: z.string().optional(),
+      rating: z.object({
+        value: z.number(),
+        count: z.number(),
       }),
-      tabs: z.array(
+      // Default price ladder. A variant may override it with its own `tiers`.
+      tiers: z.array(tierSchema),
+      variants: z.array(
         z.object({
           id: z.string(),
-          dataTab: z.string(),
-          title: z.string(),
+          name: z.string(),
+          // Swatch color for the selector chip.
+          hex: z.string(),
+          sku: z.string(),
+          inStock: z.boolean().default(true),
+          images: z.array(image()),
+          tiers: z.array(tierSchema).optional(),
         })
       ),
-      longDescription: z.object({
-        title: z.string(),
-        subTitle: z.string(),
-        btnTitle: z.string(),
-        btnURL: z.string(),
-      }),
-      descriptionList: z.array(
+      highlights: z.array(
         z.object({
+          icon: z.string(),
           title: z.string(),
-          subTitle: z.string(),
+          body: z.string(),
         })
       ),
-      specificationsLeft: z.array(
+      specs: z.array(
         z.object({
-          title: z.string(),
-          subTitle: z.string(),
+          label: z.string(),
+          value: z.string(),
         })
       ),
-      specificationsRight: z
-        .array(
-          z.object({
-            title: z.string(),
-            subTitle: z.string(),
-          })
-        )
-        .optional(),
-      tableData: z
-        .array(
-          z.object({
-            feature: z.array(z.string()),
-            description: z.array(z.array(z.string())),
-          })
-        )
-        .optional(),
-      blueprints: z.object({
-        first: image().optional(),
-        second: image().optional(),
-      }),
-    }),
-});
-
-const blogCollection = defineCollection({
-  loader: glob({ pattern: '**/[^_]*.{md,mdx}', base: './src/content/blog' }),
-  schema: ({ image }) =>
-    z.object({
-      title: z.string(),
-      description: z.string(),
-      author: z.string(),
-      role: z.string().optional(),
-      authorImage: image(),
-      authorImageAlt: z.string(),
-      pubDate: z.date(),
-      cardImage: image(),
-      cardImageAlt: z.string(),
-      readTime: z.number(),
-      tags: z.array(z.string()).optional(),
-    }),
-});
-
-const insightsCollection = defineCollection({
-  loader: glob({
-    pattern: '**/[^_]*.{md,mdx}',
-    base: './src/content/insights',
-  }),
-  schema: ({ image }) =>
-    z.object({
-      title: z.string(),
-      description: z.string(),
-      // contents: z.array(z.string()),
-      cardImage: image(),
-      cardImageAlt: z.string(),
+      compliance: z.array(z.string()),
+      // Ordering on the products index (ascending).
+      order: z.number().default(0),
     }),
 });
 
 export const collections = {
-  docs: defineCollection({ loader: docsLoader(), schema: docsSchema() }),
   products: productsCollection,
-  blog: blogCollection,
-  insights: insightsCollection,
 };

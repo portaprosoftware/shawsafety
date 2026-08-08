@@ -1,0 +1,288 @@
+---
+import Icon from '@components/ui/icons/Icon.astro';
+---
+
+<div
+  id="cart-drawer-root"
+  class="pointer-events-none fixed inset-0 z-90 hidden"
+  aria-hidden="true"
+>
+  <div
+    id="cart-backdrop"
+    class="absolute inset-0 bg-neutral-950/40 opacity-0 backdrop-blur-sm transition-opacity duration-300"
+  >
+  </div>
+
+  <aside
+    id="cart-panel"
+    class="absolute top-0 right-0 flex h-full w-full max-w-md translate-x-full flex-col bg-white shadow-2xl transition-transform duration-300 ease-out"
+    role="dialog"
+    aria-modal="true"
+    aria-label="Shopping cart"
+  >
+    <header
+      class="flex items-center justify-between border-b border-neutral-200 px-5 py-4"
+    >
+      <h2 class="text-lg font-bold tracking-tight text-neutral-900">
+        Your Cart <span
+          id="cart-drawer-count"
+          class="ml-1 text-sm font-medium text-neutral-500"></span>
+      </h2>
+      <button
+        type="button"
+        data-cart-close
+        class="focus-visible:ring-maroon-700 rounded-lg p-2 text-neutral-500 transition hover:bg-neutral-100 hover:text-neutral-900 focus:outline-hidden focus-visible:ring-2"
+        aria-label="Close cart"
+      >
+        <Icon name="close" class="h-5 w-5" />
+      </button>
+    </header>
+
+    {/* Free-shipping progress. Hidden once the threshold is met. */}
+    <div
+      id="cart-shipping"
+      class="hidden border-b border-neutral-200 bg-neutral-50 px-5 py-3"
+    >
+      <p id="cart-shipping-text" class="text-xs font-medium text-neutral-600">
+      </p>
+      <div
+        class="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-neutral-200"
+      >
+        <div
+          id="cart-shipping-bar"
+          class="bg-maroon-700 h-full rounded-full transition-[width] duration-500"
+          style="width:0%"
+        >
+        </div>
+      </div>
+    </div>
+
+    <div id="cart-lines" class="flex-1 overflow-y-auto px-5 py-4"></div>
+
+    <div
+      id="cart-empty"
+      class="flex flex-1 flex-col items-center justify-center gap-3 px-5 text-center"
+    >
+      <Icon name="cart" class="h-10 w-10 text-neutral-300" />
+      <p class="text-sm font-medium text-neutral-500">Your cart is empty.</p>
+      <a
+        href="/products/11-inch-zip-tie-100-pack"
+        class="text-maroon-700 hover:text-maroon-800 text-sm font-semibold underline underline-offset-4"
+      >
+        Shop safety ties
+      </a>
+    </div>
+
+    <footer
+      id="cart-footer"
+      class="hidden border-t border-neutral-200 px-5 py-4"
+    >
+      <div
+        id="cart-savings"
+        class="mb-2 hidden text-sm font-semibold text-green-700"
+      >
+      </div>
+      <div class="flex items-baseline justify-between">
+        <span class="text-sm font-medium text-neutral-600">Subtotal</span>
+        <span
+          id="cart-subtotal"
+          class="text-2xl font-bold tracking-tight text-neutral-900">$0.00</span
+        >
+      </div>
+      <p class="mt-1 text-xs text-neutral-500">
+        Taxes and shipping calculated at checkout.
+      </p>
+      <button
+        type="button"
+        id="cart-checkout"
+        class="bg-maroon-700 hover:bg-maroon-800 focus-visible:ring-maroon-700 mt-4 w-full rounded-lg px-5 py-3.5 text-sm font-bold text-white transition focus:outline-hidden focus-visible:ring-2 focus-visible:ring-offset-2 disabled:opacity-60"
+      >
+        Checkout
+      </button>
+      <p
+        id="cart-checkout-note"
+        class="bg-maroon-50 text-maroon-900 mt-3 hidden rounded-lg px-3 py-2 text-xs font-medium"
+      >
+      </p>
+      <a
+        href="/cart"
+        class="mt-3 block text-center text-sm font-semibold text-neutral-600 underline underline-offset-4 hover:text-neutral-900"
+      >
+        View full cart
+      </a>
+    </footer>
+  </aside>
+</div>
+
+<script>
+  import {
+    subscribe,
+    updateQty,
+    removeItem,
+    getItems,
+    unitPriceFor,
+    FREE_SHIPPING_THRESHOLD,
+    type CartItem,
+  } from '@scripts/cart';
+  import { formatMoney, lineTotal, savingsPercent } from '@scripts/pricing';
+  import { checkout } from '@scripts/checkout';
+
+  const root = document.getElementById('cart-drawer-root');
+  const backdrop = document.getElementById('cart-backdrop');
+  const panel = document.getElementById('cart-panel');
+  const lines = document.getElementById('cart-lines');
+  const empty = document.getElementById('cart-empty');
+  const footer = document.getElementById('cart-footer');
+  const subtotalEl = document.getElementById('cart-subtotal');
+  const savingsEl = document.getElementById('cart-savings');
+  const countEl = document.getElementById('cart-drawer-count');
+  const shipping = document.getElementById('cart-shipping');
+  const shippingText = document.getElementById('cart-shipping-text');
+  const shippingBar = document.getElementById('cart-shipping-bar');
+  const checkoutBtn = document.getElementById(
+    'cart-checkout'
+  ) as HTMLButtonElement | null;
+  const checkoutNote = document.getElementById('cart-checkout-note');
+
+  if (root && panel && backdrop && lines) {
+    let lastFocused: HTMLElement | null = null;
+
+    const open = () => {
+      lastFocused = document.activeElement as HTMLElement;
+      root.classList.remove('hidden');
+      root.classList.add('pointer-events-auto');
+      root.setAttribute('aria-hidden', 'false');
+      document.body.style.overflow = 'hidden';
+      // Next frame so the transition has a start state to animate from.
+      requestAnimationFrame(() => {
+        backdrop.classList.replace('opacity-0', 'opacity-100');
+        panel.classList.remove('translate-x-full');
+      });
+      panel.querySelector<HTMLElement>('[data-cart-close]')?.focus();
+    };
+
+    const close = () => {
+      backdrop.classList.replace('opacity-100', 'opacity-0');
+      panel.classList.add('translate-x-full');
+      root.classList.remove('pointer-events-auto');
+      root.setAttribute('aria-hidden', 'true');
+      document.body.style.overflow = '';
+      window.setTimeout(() => root.classList.add('hidden'), 300);
+      lastFocused?.focus();
+    };
+
+    window.addEventListener('cart:open', open);
+    window.addEventListener('cart:close', close);
+    backdrop.addEventListener('click', close);
+    root
+      .querySelectorAll('[data-cart-close]')
+      .forEach(btn => btn.addEventListener('click', close));
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape' && !root.classList.contains('hidden')) close();
+    });
+
+    const renderLine = (item: CartItem) => {
+      const unit = unitPriceFor(item);
+      const saved = savingsPercent(item.tiers, unit);
+      return `
+        <div class="flex gap-3 border-b border-neutral-100 py-4 last:border-0" data-key="${item.key}">
+          <a href="${item.href}" class="relative block h-18 w-18 shrink-0">
+            <img src="${item.image}" alt="" width="72" height="72"
+              class="h-full w-full rounded-lg border border-neutral-200 bg-white object-contain p-1" />
+            <span class="absolute -right-1 -bottom-1 h-4 w-4 rounded-full border-2 border-white"
+              style="background:${item.hex}"></span>
+          </a>
+          <div class="min-w-0 flex-1">
+            <a href="${item.href}" class="line-clamp-2 text-sm font-semibold text-neutral-900 hover:text-maroon-700">${item.title}</a>
+            <p class="mt-0.5 text-xs text-neutral-500">${item.variantName} &middot; SKU ${item.sku}</p>
+            <p class="mt-1 text-xs font-medium text-neutral-600">
+              ${formatMoney(unit)} / ${item.unit}
+              ${saved > 0 ? `<span class="ml-1 font-semibold text-green-700">${saved}% off</span>` : ''}
+            </p>
+            <div class="mt-2 flex items-center justify-between gap-2">
+              <div class="inline-flex items-center rounded-lg border border-neutral-300">
+                <button type="button" data-act="dec" aria-label="Decrease quantity"
+                  class="px-2.5 py-1 text-neutral-600 transition hover:bg-neutral-100 hover:text-neutral-900">&minus;</button>
+                <input type="number" min="1" value="${item.qty}" data-act="qty" aria-label="Quantity"
+                  class="w-12 border-0 bg-transparent p-0 text-center text-sm font-semibold focus:ring-0" />
+                <button type="button" data-act="inc" aria-label="Increase quantity"
+                  class="px-2.5 py-1 text-neutral-600 transition hover:bg-neutral-100 hover:text-neutral-900">+</button>
+              </div>
+              <div class="flex items-center gap-2">
+                <span class="text-sm font-bold text-neutral-900">${formatMoney(lineTotal(item.tiers, item.qty))}</span>
+                <button type="button" data-act="remove" aria-label="Remove ${item.title}"
+                  class="rounded p-1 text-neutral-400 transition hover:bg-red-50 hover:text-red-600">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"
+                    stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4" aria-hidden="true">
+                    <path d="M3 6h18"/><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/>
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>`;
+    };
+
+    subscribe((items, totals) => {
+      const hasItems = items.length > 0;
+      lines.innerHTML = items.map(renderLine).join('');
+      lines.classList.toggle('hidden', !hasItems);
+      empty?.classList.toggle('hidden', hasItems);
+      footer?.classList.toggle('hidden', !hasItems);
+      if (countEl)
+        countEl.textContent = hasItems
+          ? `(${totals.count} ${totals.count === 1 ? 'item' : 'items'})`
+          : '';
+      if (subtotalEl) subtotalEl.textContent = formatMoney(totals.subtotal);
+      if (savingsEl) {
+        savingsEl.classList.toggle('hidden', totals.savings <= 0);
+        savingsEl.textContent = `You're saving ${formatMoney(totals.savings)} with volume pricing.`;
+      }
+      if (shipping && shippingText && shippingBar) {
+        const remaining = FREE_SHIPPING_THRESHOLD - totals.subtotal;
+        shipping.classList.toggle('hidden', !hasItems);
+        if (remaining > 0) {
+          shippingText.textContent = `Add ${formatMoney(remaining)} for free U.S. shipping.`;
+          shippingBar.style.width = `${Math.min(100, (totals.subtotal / FREE_SHIPPING_THRESHOLD) * 100)}%`;
+        } else {
+          shippingText.textContent = 'Your order ships free.';
+          shippingBar.style.width = '100%';
+        }
+      }
+      // A stale note from a previous attempt would be misleading.
+      checkoutNote?.classList.add('hidden');
+    });
+
+    lines.addEventListener('click', e => {
+      const btn = (e.target as HTMLElement).closest<HTMLElement>('[data-act]');
+      const row = (e.target as HTMLElement).closest<HTMLElement>('[data-key]');
+      if (!btn || !row) return;
+      const key = row.dataset.key!;
+      const input = row.querySelector<HTMLInputElement>('[data-act="qty"]');
+      const qty = Number(input?.value ?? 1);
+      if (btn.dataset.act === 'inc') updateQty(key, qty + 1);
+      if (btn.dataset.act === 'dec') updateQty(key, qty - 1);
+      if (btn.dataset.act === 'remove') removeItem(key);
+    });
+
+    lines.addEventListener('change', e => {
+      const input = e.target as HTMLInputElement;
+      if (input.dataset.act !== 'qty') return;
+      const row = input.closest<HTMLElement>('[data-key]');
+      if (row) updateQty(row.dataset.key!, Number(input.value));
+    });
+
+    checkoutBtn?.addEventListener('click', async () => {
+      checkoutBtn.disabled = true;
+      checkoutBtn.textContent = 'Starting checkout…';
+      const result = await checkout(getItems());
+      checkoutBtn.disabled = false;
+      checkoutBtn.textContent = 'Checkout';
+      if (!result.ok && checkoutNote) {
+        checkoutNote.textContent = result.message;
+        checkoutNote.classList.remove('hidden');
+      }
+    });
+  }
+</script>

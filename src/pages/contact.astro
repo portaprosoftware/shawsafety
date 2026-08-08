@@ -1,36 +1,69 @@
 ---
-// Import the necessary components
 import MainLayout from '@/layouts/MainLayout.astro';
 import ContactSection from '@components/sections/misc/ContactSection.astro';
+import FAQ from '@components/sections/misc/FAQ.astro';
+import faqs from '@data/faqs.json';
 import { SITE } from '@data/constants';
 
-const pageTitle: string = `Contact | ${SITE.title}`;
-const metaDescription =
-  "Have questions or want to discuss a project? Reach out, and let's craft the perfect solution with our tools and services.";
-const ogTitle = 'Contact Us | ScrewFast';
+const description =
+  'Reach Shaw Safety about seal specifications, bulk and mixed-color orders, printed ties, or shipping. Replies within one business day.';
+
+const structuredData = {
+  '@context': 'https://schema.org',
+  '@type': 'ContactPage',
+  '@id': `${SITE.url}/contact`,
+  url: `${SITE.url}/contact`,
+  name: `Contact | ${SITE.title}`,
+  description,
+  inLanguage: 'en-US',
+};
 ---
 
 <MainLayout
-  title={pageTitle}
-  customDescription={metaDescription}
-  customOgTitle={ogTitle}
-  structuredData={{
-    '@context': 'https://schema.org',
-    '@type': 'WebPage',
-    '@id': 'https://screwfast.uk/contact',
-    url: 'https://screwfast.uk/contact',
-    name: 'Contact Us | ScrewFast',
-    description:
-      "Have questions or want to discuss a project? Reach out, and let's craft the perfect solution with our tools and services.",
-    isPartOf: {
-      '@type': 'WebSite',
-      url: 'https://screwfast.uk',
-      name: 'ScrewFast',
-      description:
-        'ScrewFast offers top-tier hardware tools and expert construction services to meet all your project needs.',
-    },
-    inLanguage: 'en-US',
-  }}
+  title={`Contact | ${SITE.title}`}
+  customDescription={description}
+  customOgTitle={`Contact ${SITE.title}`}
+  structuredData={structuredData}
 >
   <ContactSection />
+
+  <section id="shipping" class="scroll-mt-32 border-t border-neutral-200 py-14">
+    <h2 class="text-2xl font-bold tracking-tight text-neutral-900">
+      Shipping & Returns
+    </h2>
+    <div class="mt-6 grid gap-8 sm:grid-cols-3">
+      <div>
+        <h3 class="text-sm font-bold tracking-wide text-neutral-900 uppercase">
+          Dispatch
+        </h3>
+        <p class="mt-2 text-sm leading-relaxed text-neutral-600">
+          Orders placed before 5pm CT on a business day ship the next business
+          day from stock. Custom and printed seals ship within 24 hours.
+        </p>
+      </div>
+      <div>
+        <h3 class="text-sm font-bold tracking-wide text-neutral-900 uppercase">
+          Free Shipping
+        </h3>
+        <p class="mt-2 text-sm leading-relaxed text-neutral-600">
+          Free ground shipping on retail orders within the contiguous United
+          States. Freight quotes are provided on pallet-scale wholesale orders.
+        </p>
+      </div>
+      <div>
+        <h3 class="text-sm font-bold tracking-wide text-neutral-900 uppercase">
+          Returns
+        </h3>
+        <p class="mt-2 text-sm leading-relaxed text-neutral-600">
+          Unopened packs can be returned within 30 days for a full refund. If a
+          tie fails to meet its published spec we replace the affected lot at
+          our cost.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <div class="border-t border-neutral-200">
+    <FAQ title="Frequently Asked <br />Questions" faqs={faqs} />
+  </div>
 </MainLayout>

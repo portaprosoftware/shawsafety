@@ -1,0 +1,26 @@
+---
+interface Props {
+  title: string;
+  subTitle?: string;
+  /** Left-align for in-page sections; centered reads as a section opener. */
+  align?: 'center' | 'left';
+}
+
+const { title, subTitle, align = 'center' } = Astro.props;
+---
+
+<div class:list={[align === 'center' && 'mx-auto max-w-2xl text-center']}>
+  {/* A short brand rule reads cleanly at any size, unlike a small glyph. */}
+  <span
+    class:list={[
+      'bg-maroon-700 block h-1 w-12 rounded-full',
+      align === 'center' && 'mx-auto',
+    ]}
+    aria-hidden="true"></span>
+  <h2
+    class="mt-5 text-3xl font-bold tracking-tight text-neutral-900 sm:text-4xl lg:text-5xl"
+  >
+    {title}
+  </h2>
+  {subTitle && <p class="mt-4 text-base text-neutral-600">{subTitle}</p>}
+</div>

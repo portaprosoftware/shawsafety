@@ -1,0 +1,82 @@
+---
+import { getImage } from 'astro:assets';
+import type { CollectionEntry } from 'astro:content';
+import Icon from '@components/ui/icons/Icon.astro';
+import { formatMoney } from '@scripts/pricing';
+
+interface Props {
+  product: CollectionEntry<'products'>;
+}
+
+const { product } = Astro.props;
+const p = product.data;
+const variant = p.variants[0];
+const tiers = variant.tiers ?? p.tiers;
+
+const image = await getImage({
+  src: variant.images[0],
+  width: 560,
+  height: 560,
+});
+---
+
+<section class="py-16 lg:py-20">
+  <div
+    class="grid items-center gap-8 overflow-hidden rounded-2xl border border-neutral-200 bg-neutral-50 p-8 lg:grid-cols-2 lg:gap-12 lg:p-12"
+  >
+    <div>
+      <span
+        class="inline-block bg-neutral-900 px-2.5 py-1 text-xs font-bold tracking-wide text-white uppercase"
+      >
+        Also from Shaw Safety
+      </span>
+      <h2
+        class="mt-4 text-3xl font-bold tracking-tight text-neutral-900 sm:text-4xl"
+      >
+        Hi-Vis Vests, Same Buying Logic
+      </h2>
+      <p class="mt-4 text-neutral-600">
+        ANSI/ISEA 107 Class 2 vests with 2-inch reflective banding and 5-point
+        breakaway construction. Sold in crew-sized 10-packs, priced from {
+          formatMoney(tiers[tiers.length - 1].pricePerUnit)
+        } per pack at volume.
+      </p>
+
+      <ul class="mt-6 space-y-2.5">
+        {
+          p.compliance.map(item => (
+            <li class="flex items-center gap-2 text-sm font-medium text-neutral-700">
+              <Icon
+                name="checkCircle"
+                class="text-maroon-700 h-4 w-4 shrink-0"
+              />
+              {item}
+            </li>
+          ))
+        }
+      </ul>
+
+      <a
+        href="/safety-vests"
+        class="group bg-maroon-700 hover:bg-maroon-800 focus-visible:ring-maroon-700 mt-8 inline-flex items-center gap-2 rounded-lg px-7 py-3.5 text-sm font-bold text-white transition focus:outline-hidden focus-visible:ring-2 focus-visible:ring-offset-2"
+      >
+        Shop Safety Vests
+        <Icon
+          name="arrowRight"
+          class="h-4 w-4 transition group-hover:translate-x-1"
+        />
+      </a>
+    </div>
+
+    <div>
+      <img
+        src={image.src}
+        alt={`${p.shortTitle} in ${variant.name}`}
+        width="560"
+        height="560"
+        loading="lazy"
+        class="mx-auto aspect-square w-full max-w-[380px] rounded-xl border border-neutral-200 bg-white object-contain p-6"
+      />
+    </div>
+  </div>
+</section>

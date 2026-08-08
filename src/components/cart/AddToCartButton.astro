@@ -1,0 +1,45 @@
+---
+import Icon from '@components/ui/icons/Icon.astro';
+import type { Tier } from '@scripts/pricing';
+
+interface Props {
+  productId: string;
+  variantId: string;
+  title: string;
+  variantName: string;
+  hex: string;
+  image: string;
+  sku: string;
+  unit: string;
+  tiers: Tier[];
+  href: string;
+  qty?: number;
+  label?: string;
+  class?: string;
+}
+
+const {
+  qty = 1,
+  label = 'Add to Cart',
+  class: className = '',
+  ...item
+} = Astro.props;
+
+/**
+ * The line payload rides on a data attribute so a card can be rendered
+ * statically and still add itself to the cart with no per-page script.
+ */
+const payload = JSON.stringify({ ...item, qty });
+---
+
+<button
+  type="button"
+  data-add-to-cart={payload}
+  class:list={[
+    'group bg-maroon-700 hover:bg-maroon-800 focus-visible:ring-maroon-700 inline-flex w-full items-center justify-center gap-2 rounded-lg px-5 py-3 text-sm font-bold text-white transition focus:outline-hidden focus-visible:ring-2 focus-visible:ring-offset-2',
+    className,
+  ]}
+>
+  <span data-label>{label}</span>
+  <Icon name="cart" class="h-4 w-4 transition group-hover:translate-x-0.5" />
+</button>

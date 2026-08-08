@@ -1,438 +1,593 @@
 ---
-import ProductTabBtn from '@components/ui/buttons/ProductTabBtn.astro';
-import PrimaryCTA from '@components/ui/buttons/PrimaryCTA.astro';
-import { Image } from 'astro:assets';
+import { getImage } from 'astro:assets';
 import type { CollectionEntry } from 'astro:content';
+import Icon from '@components/ui/icons/Icon.astro';
+import ImageZoom from '@components/ui/blocks/ImageZoom.astro';
+import { formatMoney, formatUnitPrice, type Tier } from '@scripts/pricing';
 
 interface Props {
   product: CollectionEntry<'products'>;
-  lang?: 'en' | 'fr';
+  /** Variant id from `?color=`, when the visitor deep-linked one. */
+  selected?: string;
 }
 
-const { product } = Astro.props;
+const { product, selected } = Astro.props;
+const p = product.data;
+
+const activeIndex = Math.max(
+  0,
+  p.variants.findIndex(v => v.id === selected)
+);
+
+/**
+ * Pre-optimize every variant image up front. The color switcher is
+ * client-side, so all sources must already exist in the HTML — swapping
+ * colors must not trigger a network round trip.
+ */
+const variants = await Promise.all(
+  p.variants.map(async variant => {
+    const images = await Promise.all(
+      variant.images.map(async src => ({
+        display: (await getImage({ src, width: 720, height: 720 })).src,
+        thumb: (await getImage({ src, width: 160, height: 160 })).src,
+        // Zoom uses the original, which is the point of the lightbox.
+        full: (await getImage({ src, width: 1600, height: 1600 })).src,
+      }))
+    );
+    const tiers: Tier[] = variant.tiers ?? p.tiers;
+    return {
+      id: variant.id,
+      name: variant.name,
+      hex: variant.hex,
+      sku: variant.sku,
+      inStock: variant.inStock,
+      tiers,
+      images,
+    };
+  })
+);
+
+const active = variants[activeIndex];
+
+const stars = Array.from(
+  { length: 5 },
+  (_, i) => i < Math.round(p.rating.value)
+);
+
+/** Data the client needs to repaint the buy box on color/qty change. */
+const clientData = {
+  productId: product.id,
+  title: p.title,
+  packSize: p.packSize,
+  unit: p.unit,
+  subUnit: p.subUnit ?? null,
+  variants,
+};
 ---
 
-<div
-  id="overlay"
-  class="pointer-events-none fixed inset-0 bg-neutral-200 dark:bg-neutral-800"
->
-</div>
+<div class="grid gap-10 py-8 lg:grid-cols-2 lg:gap-14 lg:py-12">
+  {/* ── Gallery ─────────────────────────────────────────────────────── */}
+  <div class="lg:sticky lg:top-32 lg:self-start">
+    <ImageZoom
+      src={active.images[0].display}
+      full={active.images[0].full}
+      alt={`${p.shortTitle} in ${active.name}`}
+    />
 
-<section
-  class="mx-auto flex max-w-[85rem] flex-col px-4 py-10 sm:px-6 lg:px-8 lg:py-14 2xl:max-w-full"
->
-  <div>
-    <p
-      id="fadeText"
-      class="mb-8 max-w-prose font-light text-pretty text-neutral-700 sm:text-xl dark:text-neutral-300"
-    >
-      {product.data.main.content}
-    </p>
+    {
+      active.images.length > 1 && (
+        <div id="thumb-rail" class="mt-4 flex gap-3">
+          {active.images.map((image, i) => (
+            <button
+              type="button"
+              data-thumb={i}
+              aria-label={`View image ${i + 1}`}
+              class:list={[
+                'h-20 w-20 overflow-hidden rounded-lg border-2 bg-white p-1 transition',
+                i === 0
+                  ? 'border-maroon-700'
+                  : 'border-neutral-200 hover:border-neutral-400',
+              ]}
+            >
+              <img
+                src={image.thumb}
+                alt=""
+                width="72"
+                height="72"
+                class="h-full w-full object-contain"
+              />
+            </button>
+          ))}
+        </div>
+      )
+    }
   </div>
-  <div
-    class="flex flex-col items-center justify-between space-y-4 sm:flex-row sm:space-y-0"
-  >
-    <div id="fadeInUp">
-      <h1
-        class="block text-4xl font-bold tracking-tighter text-neutral-800 sm:text-5xl md:text-6xl lg:text-7xl dark:text-neutral-200"
+
+  {/* ── Buy box ─────────────────────────────────────────────────────── */}
+  <div>
+    {
+      p.badge && (
+        <span class="bg-maroon-700 inline-block px-2.5 py-1 text-xs font-bold tracking-wide text-white uppercase">
+          {p.badge}
+        </span>
+      )
+    }
+
+    <h1
+      class="mt-4 text-3xl font-bold tracking-tight text-neutral-900 sm:text-4xl"
+    >
+      {p.title}
+    </h1>
+
+    <div class="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+      <span class="flex items-center gap-0.5" aria-hidden="true">
+        {
+          stars.map(filled => (
+            <Icon
+              name="star"
+              class:list={[
+                'h-4 w-4',
+                filled ? 'text-maroon-600' : 'text-neutral-300',
+              ]}
+            />
+          ))
+        }
+      </span>
+      <span class="font-semibold text-neutral-800">{p.rating.value}/5</span>
+      <span class="text-neutral-500">({p.rating.count} reviews)</span>
+    </div>
+
+    <div class="mt-2 flex items-center gap-4 text-sm">
+      <span class="text-neutral-500">
+        SKU <span id="pdp-sku" class="font-semibold text-neutral-800"
+          >{active.sku}</span
+        >
+      </span>
+      <span
+        id="pdp-stock"
+        class="inline-flex items-center gap-1.5 font-medium text-green-700"
       >
-        {product.data.title}
-      </h1>
-      <p class="text-lg text-neutral-600 dark:text-neutral-400">
-        {product.data.description}
+        <span class="h-2 w-2 rounded-full bg-green-500"></span>In Stock
+      </span>
+    </div>
+
+    {/* Price */}
+    <div class="mt-6">
+      <div class="flex items-baseline gap-2">
+        <span
+          id="pdp-price"
+          class="text-4xl font-bold tracking-tight text-neutral-900"
+          >{formatMoney(active.tiers[0].pricePerUnit)}</span
+        >
+        <span class="text-lg text-neutral-500">/ {p.unit}</span>
+      </div>
+      {
+        p.subUnit && (
+          <p class="mt-1 text-sm text-neutral-500">
+            <span id="pdp-unit-price">
+              {formatUnitPrice(active.tiers[0].pricePerUnit, p.packSize)}
+            </span>{' '}
+            per {p.subUnit}
+          </p>
+        )
+      }
+      <p class="text-sm text-neutral-500">
+        <span class="font-semibold text-neutral-700">{p.packSize}</span>{' '}
+        {p.subUnit ? `${p.subUnit}s` : 'units'} per {p.unit}
       </p>
     </div>
-    <div class="overflow-hidden">
-      <Image
-        id="fadeInMoveRight"
-        src={product.data.main.imgMain}
-        class="w-[600px] will-change-transform"
-        alt={product.data.main.imgAlt}
-        format={'avif'}
-        loading={'eager'}
-      />
+
+    {/* Color selector */}
+    <fieldset class="mt-7">
+      <legend class="text-sm font-semibold text-neutral-900">Color</legend>
+      <div id="pdp-colors" class="mt-2.5 flex flex-wrap gap-2">
+        {
+          variants.map((variant, i) => (
+            <button
+              type="button"
+              data-variant={variant.id}
+              aria-pressed={i === activeIndex ? 'true' : 'false'}
+              disabled={!variant.inStock}
+              class:list={[
+                'group inline-flex items-center gap-2 rounded-lg border-2 px-3 py-2 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-40',
+                i === activeIndex
+                  ? 'border-maroon-700 bg-maroon-50 text-maroon-900'
+                  : 'border-neutral-200 text-neutral-700 hover:border-neutral-400',
+              ]}
+            >
+              <span
+                class="h-4 w-4 rounded-full border border-neutral-300 shadow-inner"
+                style={`background:${variant.hex}`}
+              />
+              {variant.name}
+            </button>
+          ))
+        }
+      </div>
+    </fieldset>
+
+    {/* Volume pricing */}
+    <div class="mt-7 overflow-hidden rounded-lg border border-neutral-200">
+      <table class="w-full text-sm">
+        <caption class="sr-only">Volume pricing</caption>
+        <thead class="bg-neutral-50 text-left">
+          <tr class="border-b border-neutral-200">
+            <th scope="col" class="px-4 py-2.5 font-semibold text-neutral-700"
+              >Qty ({p.unit}s)</th
+            >
+            <th scope="col" class="px-4 py-2.5 font-semibold text-neutral-700"
+              >Price / {p.unit}</th
+            >
+            <th scope="col" class="px-4 py-2.5 font-semibold text-neutral-700"
+              >You Save</th
+            >
+          </tr>
+        </thead>
+        <tbody id="pdp-tiers"></tbody>
+      </table>
     </div>
+
+    {/* Quantity + add to cart */}
+    <div class="mt-6 flex flex-col gap-3 sm:flex-row">
+      <div
+        class="inline-flex shrink-0 items-center rounded-lg border border-neutral-300"
+      >
+        <button
+          type="button"
+          id="qty-dec"
+          class="px-4 py-3 text-neutral-600 transition hover:bg-neutral-100 hover:text-neutral-900"
+          aria-label="Decrease quantity">&minus;</button
+        >
+        <input
+          id="qty"
+          type="number"
+          min="1"
+          value="1"
+          aria-label="Quantity"
+          class="w-16 border-0 bg-transparent p-0 text-center text-base font-bold text-neutral-900 focus:ring-0"
+        />
+        <button
+          type="button"
+          id="qty-inc"
+          class="px-4 py-3 text-neutral-600 transition hover:bg-neutral-100 hover:text-neutral-900"
+          aria-label="Increase quantity">+</button
+        >
+      </div>
+      <button
+        type="button"
+        id="pdp-add"
+        class="group hover:bg-maroon-800 focus-visible:ring-maroon-700 inline-flex flex-1 items-center justify-center gap-2 rounded-lg bg-neutral-900 px-6 py-3.5 text-sm font-bold text-white transition focus:outline-hidden focus-visible:ring-2 focus-visible:ring-offset-2"
+      >
+        <span data-label>Add to cart</span>
+        <Icon
+          name="cart"
+          class="h-4 w-4 transition group-hover:translate-x-0.5"
+        />
+      </button>
+    </div>
+
+    {/* Next-tier nudge */}
+    <p
+      id="pdp-nudge"
+      class="border-maroon-200 bg-maroon-50 text-maroon-900 mt-3 hidden rounded-lg border px-3.5 py-2.5 text-sm font-medium"
+    >
+    </p>
+
+    <p class="mt-4 flex items-center gap-2 text-sm text-neutral-600">
+      <Icon name="truck" class="h-4 w-4 shrink-0 text-neutral-400" />
+      Ships next business day if you order before 5pm.
+    </p>
+
+    {/* Subtotal */}
+    <div class="mt-4 rounded-lg border border-neutral-200 bg-neutral-50 p-4">
+      <div class="flex items-baseline justify-between">
+        <span
+          id="pdp-subtotal-label"
+          class="text-sm font-medium text-neutral-600"
+          >Subtotal (1 {p.unit})</span
+        >
+        <span id="pdp-subtotal" class="text-lg font-bold text-neutral-900"
+        ></span>
+      </div>
+      <p
+        id="pdp-subtotal-savings"
+        class="mt-1 hidden text-xs font-semibold text-green-700"
+      >
+      </p>
+    </div>
+
+    {/* Compliance */}
+    <ul class="mt-6 flex flex-wrap gap-2">
+      {
+        p.compliance.map(item => (
+          <li class="inline-flex items-center gap-1.5 rounded-full border border-neutral-200 bg-white px-3 py-1.5 text-xs font-semibold text-neutral-700">
+            <Icon name="checkCircle" class="text-maroon-700 h-3.5 w-3.5" />
+            {item}
+          </li>
+        ))
+      }
+    </ul>
+  </div>
+</div>
+
+{/* ── Highlights ─────────────────────────────────────────────────────── */}
+<section class="border-t border-neutral-200 py-12">
+  <h2 class="text-2xl font-bold tracking-tight text-neutral-900">Highlights</h2>
+  <div class="mt-7 grid gap-x-8 gap-y-7 sm:grid-cols-2 lg:grid-cols-3">
+    {
+      p.highlights.map(item => (
+        <div class="flex gap-3.5">
+          <span class="bg-maroon-50 text-maroon-700 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg">
+            <Icon name={item.icon} class="h-5 w-5" />
+          </span>
+          <div>
+            <h3 class="text-sm font-bold tracking-wide text-neutral-900 uppercase">
+              {item.title}
+            </h3>
+            <p class="mt-1 text-sm leading-relaxed text-neutral-600">
+              {item.body}
+            </p>
+          </div>
+        </div>
+      ))
+    }
   </div>
 </section>
 
-<div
-  id="product-detail-body"
-  class="mx-auto max-w-[85rem] px-4 pt-10 sm:px-6 lg:px-8 lg:pt-14"
->
-  <nav
-    class="mx-auto grid max-w-6xl gap-y-px sm:flex sm:gap-x-4 sm:gap-y-0"
-    aria-label="Tabs"
-    role="tablist"
-  >
+{/* ── Specifications ─────────────────────────────────────────────────── */}
+<section class="border-t border-neutral-200 py-12">
+  <h2 class="text-2xl font-bold tracking-tight text-neutral-900">
+    Specifications
+  </h2>
+  <dl class="mt-6 grid gap-x-12 sm:grid-cols-2">
     {
-      product.data.tabs.map((tab, index) => (
-        <ProductTabBtn
-          title={tab.title}
-          id={tab.id}
-          dataTab={tab.dataTab}
-          first={index === 0}
-        />
+      p.specs.map(spec => (
+        <div class="flex justify-between gap-4 border-b border-neutral-200 py-3">
+          <dt class="text-sm text-neutral-600">{spec.label}</dt>
+          <dd class="text-sm font-semibold text-neutral-900">{spec.value}</dd>
+        </div>
       ))
     }
-  </nav>
+  </dl>
+</section>
 
-  <div class="relative mt-12 md:mt-16">
-    <div id="tabs-with-card-1" class="product-tab-panel" role="tabpanel">
-      <div class="mx-auto max-w-[85rem] px-4 pb-10 sm:px-6 lg:px-8 lg:pb-14">
-        <div class="grid gap-12 md:grid-cols-2">
-          <div class="lg:w-3/4">
-            <h2
-              class="text-3xl font-bold tracking-tight text-balance text-neutral-800 md:leading-tight lg:text-4xl dark:text-neutral-200"
-            >
-              {product.data.longDescription.title}
-            </h2>
-            <p class="mt-3 text-pretty text-neutral-600 dark:text-neutral-400">
-              {product.data.longDescription.subTitle}
-            </p>
-            <p class="mt-5">
-              <PrimaryCTA
-                title={product.data.longDescription.btnTitle}
-                url={product.data.longDescription.btnURL}
-              />
-            </p>
-          </div>
-
-          <div class="space-y-6 lg:space-y-10">
-            {
-              product.data.descriptionList.map(list => (
-                <div class="flex">
-                  <div>
-                    <h3 class="text-base font-bold text-neutral-800 sm:text-lg dark:text-neutral-200">
-                      {list.title}
-                    </h3>
-                    <p class="mt-1 text-neutral-600 dark:text-neutral-400">
-                      {list.subTitle}
-                    </p>
-                  </div>
-                </div>
-              ))
-            }
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div id="tabs-with-card-2" class="product-tab-panel hidden" role="tabpanel">
-      <div class="mx-auto max-w-[85rem] px-4 pb-10 sm:px-6 lg:px-8 lg:pb-14">
-        <div class="grid w-full grid-cols-1 gap-x-16 md:grid-cols-2">
-          <div class="max-w-md space-y-6">
-            {
-              product.data.specificationsLeft.map(spec => (
-                <div>
-                  <h3 class="block font-bold text-neutral-800 dark:text-neutral-200">
-                    {spec.title}
-                  </h3>
-                  <p class="text-neutral-600 dark:text-neutral-400">
-                    {spec.subTitle}
-                  </p>
-                </div>
-              ))
-            }
-          </div>
-          {
-            product.data.specificationsRight ? (
-              <div class="mt-6 max-w-md space-y-6 md:mt-0 md:ml-auto">
-                {product.data.specificationsRight?.map(spec => (
-                  <div>
-                    <h3 class="block font-bold text-neutral-800 dark:text-neutral-200">
-                      {spec.title}
-                    </h3>
-                    <p class="text-neutral-600 dark:text-neutral-400">
-                      {spec.subTitle}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            ) : product.data.tableData ? (
-              <div class="mt-6 space-y-6 md:mt-0 md:ml-auto">
-                <div class="flex flex-col">
-                  <div class="-m-1.5 overflow-x-auto">
-                    <div class="inline-block min-w-full p-1.5 align-middle">
-                      <div class="overflow-hidden">
-                        <table class="min-w-full divide-y divide-neutral-300 dark:divide-neutral-700">
-                          <thead>
-                            <tr>
-                              {product.data.tableData?.[0].feature?.map(
-                                header => (
-                                  <th
-                                    scope="col"
-                                    class="px-6 py-3 text-start text-xs font-medium text-neutral-500 uppercase dark:text-neutral-500"
-                                  >
-                                    {header}
-                                  </th>
-                                )
-                              )}
-                            </tr>
-                          </thead>
-                          <tbody class="divide-y divide-neutral-300 dark:divide-neutral-700">
-                            {product.data.tableData?.map(row =>
-                              // Wrap each row's content in a separate <tr> element
-                              row.description.map(rowData => (
-                                <tr>
-                                  {/* Iterate through each cell value in the row's description array */}
-                                  {rowData.map(cellValue => (
-                                    // Render each cell value in its own <td> element
-                                    <td class="px-6 py-4 text-sm font-medium whitespace-nowrap text-neutral-600 dark:text-neutral-400">
-                                      {cellValue}
-                                    </td>
-                                  ))}
-                                </tr>
-                              ))
-                            )}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ) : null
-          }
-        </div>
-      </div>
-    </div>
-
-    <div id="tabs-with-card-3" class="product-tab-panel hidden" role="tabpanel">
-      <div class="mx-auto mb-20 flex w-full md:mb-28 2xl:w-4/5">
-        <div
-          class="relative top-12 left-12 z-10 overflow-hidden rounded-xl shadow-lg md:top-16 md:left-12 md:-ml-12 lg:ml-0"
-        >
-          {
-            product.data.blueprints.first && (
-              <Image
-                src={product.data.blueprints.first}
-                class="h-full w-full object-cover object-center"
-                alt="Blueprint Illustration"
-                format={'avif'}
-              />
-            )
-          }
-        </div>
-
-        <div class="relative right-12 overflow-hidden rounded-xl shadow-xl">
-          {
-            product.data.blueprints.second && (
-              <Image
-                src={product.data.blueprints.second}
-                class="h-full w-full object-cover object-center"
-                alt="Blueprint Illustration"
-                format={'avif'}
-              />
-            )
-          }
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
+<script is:inline define:vars={{ clientData }}>
+  window.__shawProduct = clientData;
+</script>
 
 <script>
-  import { gsap } from 'gsap';
+  import { addItem, openDrawer } from '@scripts/cart';
+  import {
+    formatMoney,
+    formatUnitPrice,
+    lineTotal,
+    nextTierNudge,
+    resolveTier,
+    savingsPercent,
+    roundMoney,
+    type Tier,
+  } from '@scripts/pricing';
 
-  const prefersReducedMotion = window.matchMedia(
-    '(prefers-reduced-motion: reduce)'
-  ).matches;
+  interface VariantView {
+    id: string;
+    name: string;
+    hex: string;
+    sku: string;
+    inStock: boolean;
+    tiers: Tier[];
+    images: { display: string; thumb: string; full: string }[];
+  }
 
-  if (prefersReducedMotion) {
-    gsap.set(
-      ['#fadeText', '#fadeInUp', '#fadeInMoveRight', '#product-detail-body'],
-      { clearProps: 'all' }
-    );
-    gsap.set('#overlay', { autoAlpha: 0, display: 'none' });
-  } else {
-    gsap.set('#fadeText', { autoAlpha: 0, y: 20 });
-    gsap.set('#fadeInUp', { autoAlpha: 0, y: 28 });
-    gsap.set('#fadeInMoveRight', { autoAlpha: 0, x: 56, scale: 0.97 });
-    gsap.set('#product-detail-body', { autoAlpha: 0, y: 24 });
+  interface ProductView {
+    productId: string;
+    title: string;
+    packSize: number;
+    unit: string;
+    subUnit: string | null;
+    variants: VariantView[];
+  }
 
-    const revealContent = () => {
-      gsap.set(
-        ['#fadeText', '#fadeInUp', '#fadeInMoveRight', '#product-detail-body'],
-        { autoAlpha: 1, x: 0, y: 0, scale: 1 }
-      );
-      gsap.set('#overlay', { autoAlpha: 0, display: 'none' });
+  const data = (window as unknown as { __shawProduct?: ProductView })
+    .__shawProduct;
+
+  if (data) {
+    const $ = (id: string) => document.getElementById(id);
+    const qtyInput = $('qty') as HTMLInputElement | null;
+    const colors = $('pdp-colors');
+    const rail = $('thumb-rail');
+    const mainImage =
+      document.querySelector<HTMLImageElement>('[data-zoom-image]');
+    const zoomLink = document.querySelector<HTMLElement>('[data-zoom-trigger]');
+
+    // Deep-linked color wins over the default; falls back to the first.
+    const initial = new URLSearchParams(location.search).get('color');
+    let variant = data.variants.find(v => v.id === initial) ?? data.variants[0];
+    let imageIndex = 0;
+
+    const qty = () => Math.max(1, Math.floor(Number(qtyInput?.value) || 1));
+
+    const renderTiers = () => {
+      const body = $('pdp-tiers');
+      if (!body) return;
+      const n = qty();
+      const current = resolveTier(variant.tiers, n);
+      body.innerHTML = variant.tiers
+        .map(tier => {
+          const isActive = tier === current;
+          const saved = savingsPercent(variant.tiers, tier.pricePerUnit);
+          const range =
+            tier.maxQty === null
+              ? `${tier.minQty}+`
+              : `${tier.minQty}–${tier.maxQty}`;
+          return `
+            <tr class="border-b border-neutral-100 last:border-0 transition-colors ${
+              isActive ? 'bg-maroon-50' : ''
+            }">
+              <td class="px-4 py-2.5 font-medium ${isActive ? 'text-maroon-800' : 'text-neutral-700'}">${range}</td>
+              <td class="px-4 py-2.5 font-semibold ${isActive ? 'text-maroon-800' : 'text-neutral-900'}">${formatMoney(tier.pricePerUnit)}</td>
+              <td class="px-4 py-2.5 ${saved > 0 ? 'font-semibold text-green-700' : 'text-neutral-400'}">${saved > 0 ? `${saved}% off` : '—'}</td>
+            </tr>`;
+        })
+        .join('');
     };
 
-    const safetyId = window.setTimeout(revealContent, 2200);
+    const renderPrice = () => {
+      const n = qty();
+      const unitPrice = resolveTier(variant.tiers, n).pricePerUnit;
+      const listPrice = variant.tiers[0].pricePerUnit;
 
-    gsap
-      .timeline({
-        defaults: { ease: 'power3.out' },
-        onComplete: () => {
-          window.clearTimeout(safetyId);
-          gsap.set('#overlay', { display: 'none' });
-        },
-      })
-      .to(
-        '#overlay',
-        {
-          autoAlpha: 0,
-          duration: 0.65,
-          ease: 'power2.inOut',
-        },
-        0.08
-      )
-      .to(
-        '#fadeText',
-        {
-          autoAlpha: 1,
-          y: 0,
-          duration: 0.85,
-        },
-        0.12
-      )
-      .to(
-        '#fadeInUp',
-        {
-          autoAlpha: 1,
-          y: 0,
-          duration: 0.95,
-        },
-        0.22
-      )
-      .to(
-        '#fadeInMoveRight',
-        {
-          autoAlpha: 1,
-          x: 0,
-          scale: 1,
-          duration: 1.05,
-        },
-        0.18
-      )
-      .to(
-        '#product-detail-body',
-        {
-          autoAlpha: 1,
-          y: 0,
-          duration: 0.8,
-        },
-        0.42
+      const priceEl = $('pdp-price');
+      if (priceEl) priceEl.textContent = formatMoney(unitPrice);
+
+      const unitEl = $('pdp-unit-price');
+      if (unitEl)
+        unitEl.textContent = formatUnitPrice(unitPrice, data.packSize);
+
+      const total = lineTotal(variant.tiers, n);
+      const subtotalEl = $('pdp-subtotal');
+      if (subtotalEl) subtotalEl.textContent = formatMoney(total);
+
+      const labelEl = $('pdp-subtotal-label');
+      if (labelEl)
+        labelEl.textContent = `Subtotal (${n} ${data.unit}${n === 1 ? '' : 's'})`;
+
+      const savedEl = $('pdp-subtotal-savings');
+      if (savedEl) {
+        const saved = roundMoney(listPrice * n - total);
+        savedEl.classList.toggle('hidden', saved <= 0);
+        savedEl.textContent = `You save ${formatMoney(saved)} at this quantity.`;
+      }
+
+      const nudgeEl = $('pdp-nudge');
+      if (nudgeEl) {
+        const nudge = nextTierNudge(variant.tiers, n);
+        if (nudge && nudge.unitsAway > 0) {
+          nudgeEl.textContent = `Add ${nudge.unitsAway} more ${data.unit}${
+            nudge.unitsAway === 1 ? '' : 's'
+          } to save ${nudge.percent}% — ${formatMoney(nudge.pricePerUnit)} per ${data.unit}.`;
+          nudgeEl.classList.remove('hidden');
+        } else {
+          nudgeEl.classList.add('hidden');
+        }
+      }
+    };
+
+    const renderImages = () => {
+      const image = variant.images[imageIndex] ?? variant.images[0];
+      if (mainImage) {
+        mainImage.src = image.display;
+        mainImage.alt = `${data.title} in ${variant.name}`;
+      }
+      zoomLink?.setAttribute('data-zoom-full', image.full);
+
+      if (!rail) return;
+      rail.innerHTML = variant.images
+        .map(
+          (img, i) => `
+          <button type="button" data-thumb="${i}" aria-label="View image ${i + 1}"
+            class="h-20 w-20 overflow-hidden rounded-lg border-2 bg-white p-1 transition ${
+              i === imageIndex
+                ? 'border-maroon-700'
+                : 'border-neutral-200 hover:border-neutral-400'
+            }">
+            <img src="${img.thumb}" alt="" width="72" height="72" class="h-full w-full object-contain" />
+          </button>`
+        )
+        .join('');
+      rail.classList.toggle('hidden', variant.images.length < 2);
+    };
+
+    const renderVariant = () => {
+      const skuEl = $('pdp-sku');
+      if (skuEl) skuEl.textContent = variant.sku;
+
+      colors?.querySelectorAll<HTMLElement>('[data-variant]').forEach(btn => {
+        const isActive = btn.dataset.variant === variant.id;
+        btn.setAttribute('aria-pressed', String(isActive));
+        btn.classList.toggle('border-maroon-700', isActive);
+        btn.classList.toggle('bg-maroon-50', isActive);
+        btn.classList.toggle('text-maroon-900', isActive);
+        btn.classList.toggle('border-neutral-200', !isActive);
+        btn.classList.toggle('text-neutral-700', !isActive);
+      });
+
+      const stockEl = $('pdp-stock');
+      if (stockEl) {
+        stockEl.innerHTML = variant.inStock
+          ? '<span class="h-2 w-2 rounded-full bg-green-500"></span>In Stock'
+          : '<span class="h-2 w-2 rounded-full bg-neutral-400"></span>Backordered';
+        stockEl.classList.toggle('text-green-700', variant.inStock);
+        stockEl.classList.toggle('text-neutral-500', !variant.inStock);
+      }
+
+      renderImages();
+    };
+
+    const renderAll = () => {
+      renderVariant();
+      renderTiers();
+      renderPrice();
+    };
+
+    colors?.addEventListener('click', e => {
+      const btn = (e.target as HTMLElement).closest<HTMLElement>(
+        '[data-variant]'
       );
-  }
-
-  function changeHeadingStyle(
-    button: Element,
-    addClasses: string[],
-    removeClasses: string[]
-  ) {
-    const heading = button.querySelector('span');
-    if (heading) {
-      heading.classList.remove(...removeClasses);
-      heading.classList.add(...addClasses);
-    }
-  }
-
-  function setButtonInactive(btn: Element, activeButton: Element) {
-    if (btn === activeButton) return;
-
-    btn.classList.remove(
-      'active',
-      'bg-neutral-100',
-      'hover:border-transparent',
-      'dark:bg-white/[.05]'
-    );
-
-    changeHeadingStyle(
-      btn,
-      ['text-neutral-800', 'dark:text-neutral-200'],
-      ['text-orange-400', 'dark:text-orange-300']
-    );
-  }
-
-  function setButtonActive(button: Element) {
-    button.classList.add(
-      'active',
-      'bg-neutral-100',
-      'hover:border-transparent',
-      'dark:bg-white/[.05]'
-    );
-
-    changeHeadingStyle(
-      button,
-      ['text-orange-400', 'dark:text-orange-300'],
-      ['text-neutral-800', 'dark:text-neutral-200']
-    );
-  }
-
-  let activePanel = document.querySelector(
-    '.product-tab-panel:not(.hidden)'
-  ) as HTMLElement | null;
-  let isSwitching = false;
-
-  function clearPanelMotion(panel: HTMLElement) {
-    panel.style.transition = '';
-    panel.style.opacity = '';
-    panel.style.transform = '';
-  }
-
-  function switchPanel(nextPanel: HTMLElement) {
-    if (!nextPanel || nextPanel === activePanel || isSwitching) return;
-
-    if (prefersReducedMotion || !activePanel) {
-      activePanel?.classList.add('hidden');
-      nextPanel.classList.remove('hidden');
-      clearPanelMotion(nextPanel);
-      activePanel = nextPanel;
-      return;
-    }
-
-    isSwitching = true;
-    const previousPanel = activePanel;
-
-    previousPanel.style.transition =
-      'opacity 220ms cubic-bezier(0.4, 0, 1, 1), transform 220ms cubic-bezier(0.4, 0, 1, 1)';
-    previousPanel.style.opacity = '0';
-    previousPanel.style.transform = 'translateY(10px)';
-
-    window.setTimeout(() => {
-      previousPanel.classList.add('hidden');
-      clearPanelMotion(previousPanel);
-
-      nextPanel.classList.remove('hidden');
-      nextPanel.style.opacity = '0';
-      nextPanel.style.transform = 'translateY(16px)';
-      void nextPanel.offsetWidth;
-
-      nextPanel.style.transition =
-        'opacity 400ms cubic-bezier(0.22, 1, 0.36, 1), transform 400ms cubic-bezier(0.22, 1, 0.36, 1)';
-      nextPanel.style.opacity = '1';
-      nextPanel.style.transform = 'translateY(0)';
-
-      window.setTimeout(() => {
-        clearPanelMotion(nextPanel);
-        activePanel = nextPanel;
-        isSwitching = false;
-      }, 420);
-    }, 230);
-  }
-
-  const tabButtons = document.querySelectorAll('[data-target]');
-
-  if (tabButtons.length > 0) {
-    changeHeadingStyle(
-      tabButtons[0],
-      ['text-orange-400', 'dark:text-orange-300'],
-      []
-    );
-  }
-
-  tabButtons.forEach(button => {
-    button.addEventListener('click', () => {
-      const tabId = button.getAttribute('data-target');
-      if (!tabId) return;
-
-      const nextPanel = document.querySelector(tabId) as HTMLElement | null;
-      if (!nextPanel || nextPanel === activePanel || isSwitching) return;
-
-      tabButtons.forEach(btn => setButtonInactive(btn, button));
-      setButtonActive(button);
-      switchPanel(nextPanel);
+      if (!btn) return;
+      const next = data.variants.find(v => v.id === btn.dataset.variant);
+      if (!next) return;
+      variant = next;
+      imageIndex = 0;
+      // Make the chosen color linkable without a navigation.
+      const url = new URL(location.href);
+      url.searchParams.set('color', variant.id);
+      history.replaceState({}, '', url);
+      renderAll();
     });
-  });
+
+    rail?.addEventListener('click', e => {
+      const btn = (e.target as HTMLElement).closest<HTMLElement>(
+        '[data-thumb]'
+      );
+      if (!btn) return;
+      imageIndex = Number(btn.dataset.thumb);
+      renderImages();
+    });
+
+    qtyInput?.addEventListener('input', () => {
+      renderTiers();
+      renderPrice();
+    });
+    $('qty-inc')?.addEventListener('click', () => {
+      if (qtyInput) qtyInput.value = String(qty() + 1);
+      renderTiers();
+      renderPrice();
+    });
+    $('qty-dec')?.addEventListener('click', () => {
+      if (qtyInput) qtyInput.value = String(Math.max(1, qty() - 1));
+      renderTiers();
+      renderPrice();
+    });
+
+    $('pdp-add')?.addEventListener('click', () => {
+      addItem(
+        {
+          productId: data.productId,
+          variantId: variant.id,
+          title: data.title,
+          variantName: variant.name,
+          hex: variant.hex,
+          image: variant.images[0].thumb,
+          sku: variant.sku,
+          unit: data.unit,
+          tiers: variant.tiers,
+          href: `/products/${data.productId}?color=${variant.id}`,
+        },
+        qty()
+      );
+      openDrawer();
+    });
+
+    renderAll();
+  }
 </script>

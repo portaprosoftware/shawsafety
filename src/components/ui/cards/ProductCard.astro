@@ -1,0 +1,96 @@
+---
+import { getImage } from 'astro:assets';
+import type { CollectionEntry } from 'astro:content';
+import AddToCartButton from '@components/cart/AddToCartButton.astro';
+import { formatMoney, type Tier } from '@scripts/pricing';
+
+interface Props {
+  product: CollectionEntry<'products'>;
+  /** Which color to feature. Defaults to the first variant. */
+  variantId?: string;
+}
+
+const { product, variantId } = Astro.props;
+const p = product.data;
+
+const variant = p.variants.find(v => v.id === variantId) ?? p.variants[0];
+const tiers: Tier[] = variant.tiers ?? p.tiers;
+
+const image = await getImage({
+  src: variant.images[0],
+  width: 480,
+  height: 480,
+});
+const thumb = await getImage({
+  src: variant.images[0],
+  width: 160,
+  height: 160,
+});
+
+const href = `/products/${product.id}?color=${variant.id}`;
+---
+
+<article
+  class="group relative flex flex-col overflow-hidden rounded-xl border border-neutral-200 bg-white transition duration-300 hover:-translate-y-1 hover:shadow-xl"
+>
+  {
+    /*
+    The swatch bleeds in from the top edge on hover, tying the card to the
+    physical product color without tinting the photography.
+  */
+  }
+  <span
+    class="absolute inset-x-0 top-0 h-1 origin-left scale-x-0 transition-transform duration-300 group-hover:scale-x-100"
+    style={`background:${variant.hex}`}
+    aria-hidden="true"></span>
+
+  <a href={href} class="block overflow-hidden bg-white p-5">
+    <img
+      src={image.src}
+      alt={`${p.shortTitle} in ${variant.name}`}
+      width="480"
+      height="480"
+      loading="lazy"
+      class="mx-auto aspect-square w-full max-w-[240px] object-contain transition-transform duration-500 group-hover:scale-105"
+    />
+  </a>
+
+  <div class="flex flex-1 flex-col px-5 pb-5">
+    <h3 class="text-sm leading-snug font-semibold text-neutral-900">
+      <a href={href} class="hover:text-maroon-700 transition">
+        {p.shortTitle} — {variant.name}
+      </a>
+    </h3>
+
+    <div class="mt-2 flex items-baseline gap-1.5">
+      <span class="text-2xl font-bold tracking-tight text-neutral-900">
+        {formatMoney(tiers[0].pricePerUnit)}
+      </span>
+      <span class="text-sm text-neutral-500">/{p.unit}</span>
+    </div>
+    <p class="mt-0.5 text-xs text-neutral-500">
+      From {formatMoney(tiers[tiers.length - 1].pricePerUnit)} at volume
+    </p>
+
+    <div class="mt-4 space-y-2">
+      <AddToCartButton
+        productId={product.id}
+        variantId={variant.id}
+        title={p.title}
+        variantName={variant.name}
+        hex={variant.hex}
+        image={thumb.src}
+        sku={variant.sku}
+        unit={p.unit}
+        tiers={tiers}
+        href={href}
+      />
+      <a
+        href={href}
+        class="block rounded-lg border border-neutral-300 px-5 py-2.5 text-center text-sm font-semibold text-neutral-700 transition hover:border-neutral-500 hover:text-neutral-900"
+      >
+        More Details
+      </a>
+    </div>
+  </div>
+</article>

@@ -3,6 +3,8 @@
 import Meta from '@components/Meta.astro';
 import Navbar from '@components/sections/navbar&footer/Navbar.astro';
 import FooterSection from '@components/sections/navbar&footer/FooterSection.astro';
+import AnnouncementBanner from '@components/ui/banners/AnnouncementBanner.astro';
+import CartDrawer from '@components/cart/CartDrawer.astro';
 import { SITE } from '@data/constants';
 import '@styles/global.css';
 
@@ -15,6 +17,8 @@ const {
   customDescription = null,
   customOgTitle = null,
   hideFooter = false,
+  // Pages that render their own full-bleed hero opt out of the padded shell.
+  fullWidth = false,
 } = Astro.props;
 
 // Interface to type-check the properties
@@ -26,10 +30,11 @@ interface Props {
   customDescription?: string | null;
   customOgTitle?: string | null;
   hideFooter?: boolean;
+  fullWidth?: boolean;
 }
 ---
 
-<html lang={lang} class="scrollbar-hide lenis lenis-smooth scroll-pt-16">
+<html lang={lang} class="scrollbar-hide lenis lenis-smooth scroll-pt-28">
   <head>
     {/* Adding metadata to the HTML document */}
     <Meta
@@ -40,47 +45,36 @@ interface Props {
     />
     {/* Define the title of the page */}
     <title>{title}</title>
-    <script is:inline>
-      // Script to handle dark mode. It will check if the theme is stored in localStorage or if dark theme is preferred by system settings
-      if (
-        localStorage.getItem('hs_theme') === 'dark' ||
-        (!('hs_theme' in localStorage) &&
-          window.matchMedia('(prefers-color-scheme: dark)').matches)
-      ) {
-        document.documentElement.classList.add('dark');
-      } else {
-        document.documentElement.classList.remove('dark');
-      }
-    </script>
     <script>
       import '@scripts/lenisSmoothScroll.js';
-      import '@scripts/demoForms.js';
+      import { initAddToCart } from '@scripts/addToCart';
+      initAddToCart();
     </script>
   </head>
   <body
-    class="flex min-h-screen flex-col bg-neutral-200 selection:bg-yellow-400 selection:text-neutral-700 dark:bg-neutral-800"
+    class="selection:bg-maroon-700 flex min-h-screen flex-col bg-white text-neutral-800 selection:text-white"
   >
     <a
       href="#main-content"
-      class="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-100 focus:rounded-lg focus:bg-yellow-400 focus:px-4 focus:py-2 focus:text-neutral-800"
+      class="focus:bg-maroon-700 sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-100 focus:rounded-lg focus:px-4 focus:py-2 focus:text-white"
     >
       Skip to content
     </a>
-    {
-      /*
-    Setting up the main structure of the page.
-    The Navbar is placed at the top, with a slot for the main content and FooterSection at the bottom.
-    */
-    }
-    <div
-      class="mx-auto w-full max-w-(--breakpoint-2xl) grow px-4 sm:px-6 lg:px-8"
-    >
-      <Navbar />
-      <main id="main-content">
-        <slot />
-      </main>
-    </div>
+    <AnnouncementBanner />
+    <Navbar />
+    <main id="main-content" class="grow">
+      {
+        fullWidth ? (
+          <slot />
+        ) : (
+          <div class="mx-auto w-full max-w-(--breakpoint-2xl) px-4 sm:px-6 lg:px-8">
+            <slot />
+          </div>
+        )
+      }
+    </main>
     {!hideFooter && <FooterSection />}
+    <CartDrawer />
     <script>
       // https://preline.co
       import 'preline';

@@ -8,8 +8,6 @@
 @plugin '@tailwindcss/forms';
 @plugin '@tailwindcss/typography';
 
-@custom-variant dark (&:is(.dark *));
-
 @theme {
   /* https://tailwindcss.com/docs/colors#customizing-your-colors */
   --color-*: initial;
@@ -17,6 +15,45 @@
   --color-current: currentColor;
   --color-black: #000;
   --color-white: #fff;
+
+  /*
+    Shaw Safety brand scale, anchored on #9B1C2E (maroon-700).
+    This is the ONE place the brand color is defined — to retune the brand,
+    edit these eleven steps and nothing else.
+  */
+  --color-maroon-50: oklch(0.971 0.014 17.4);
+  --color-maroon-100: oklch(0.94 0.033 17.8);
+  --color-maroon-200: oklch(0.888 0.065 18.6);
+  --color-maroon-300: oklch(0.812 0.111 19.8);
+  --color-maroon-400: oklch(0.712 0.163 21.6);
+  --color-maroon-500: oklch(0.624 0.185 22.9);
+  --color-maroon-600: oklch(0.545 0.176 23.8);
+  --color-maroon-700: oklch(0.468 0.152 24.4);
+  --color-maroon-800: oklch(0.399 0.126 24.7);
+  --color-maroon-900: oklch(0.34 0.101 24.9);
+  --color-maroon-950: oklch(0.232 0.07 25.2);
+
+  /*
+    Semantic aliases. Components reference these rather than a numbered step,
+    so the brand can be re-pointed without touching component markup.
+  */
+  --color-brand: var(--color-maroon-700);
+  --color-brand-hover: var(--color-maroon-800);
+  --color-brand-ink: var(--color-maroon-950);
+  --color-brand-soft: var(--color-maroon-50);
+  /* Gradient stops for the wholesale/pricing cards. */
+  --color-brand-grad-from: oklch(0.4 0.132 24.5);
+  --color-brand-grad-to: oklch(0.582 0.192 27.5);
+
+  /*
+    Fluorescent product swatches. These are physical product colors, not
+    brand colors — they exist so the PDP color chips and card accents can
+    render the actual tie color. Do not use them for UI chrome.
+  */
+  --color-fluoro-yellow: oklch(0.93 0.22 118);
+  --color-fluoro-pink: oklch(0.72 0.22 15);
+  --color-fluoro-green: oklch(0.89 0.24 135);
+  --color-fluoro-orange: oklch(0.75 0.2 55);
 
   --color-gray-50: oklch(0.985 0.002 247.839);
   --color-gray-100: oklch(0.967 0.003 264.542);
@@ -30,18 +67,6 @@
   --color-gray-900: oklch(0.21 0.034 264.665);
   --color-gray-950: oklch(0.13 0.028 261.692);
 
-  --color-indigo-50: oklch(0.962 0.018 272.314);
-  --color-indigo-100: oklch(0.93 0.034 272.788);
-  --color-indigo-200: oklch(0.87 0.065 274.039);
-  --color-indigo-300: oklch(0.785 0.115 274.713);
-  --color-indigo-400: oklch(0.673 0.182 276.935);
-  --color-indigo-500: oklch(0.585 0.233 277.117);
-  --color-indigo-600: oklch(0.511 0.262 276.966);
-  --color-indigo-700: oklch(0.457 0.24 277.023);
-  --color-indigo-800: oklch(0.398 0.195 277.366);
-  --color-indigo-900: oklch(0.359 0.144 278.697);
-  --color-indigo-950: oklch(0.257 0.09 281.288);
-
   --color-neutral-50: oklch(0.985 0 0);
   --color-neutral-100: oklch(0.97 0 0);
   --color-neutral-200: oklch(0.922 0 0);
@@ -53,30 +78,6 @@
   --color-neutral-800: oklch(0.269 0 0);
   --color-neutral-900: oklch(0.205 0 0);
   --color-neutral-950: oklch(0.145 0 0);
-
-  --color-yellow-50: oklch(0.987 0.026 102.212);
-  --color-yellow-100: oklch(0.973 0.071 103.193);
-  --color-yellow-200: oklch(0.945 0.129 101.54);
-  --color-yellow-300: oklch(0.905 0.182 98.111);
-  --color-yellow-400: oklch(0.852 0.199 91.936);
-  --color-yellow-500: oklch(0.795 0.184 86.047);
-  --color-yellow-600: oklch(0.681 0.162 75.834);
-  --color-yellow-700: oklch(0.554 0.135 66.442);
-  --color-yellow-800: oklch(0.476 0.114 61.907);
-  --color-yellow-900: oklch(0.421 0.095 57.708);
-  --color-yellow-950: oklch(0.286 0.066 53.813);
-
-  --color-orange-50: oklch(0.98 0.016 73.684);
-  --color-orange-100: oklch(0.954 0.038 75.164);
-  --color-orange-200: oklch(0.901 0.076 70.697);
-  --color-orange-300: oklch(70.72% 0.182 40.56);
-  --color-orange-400: oklch(67.4% 0.2072 39.23);
-  --color-orange-500: oklch(61.86% 0.1946 38.88);
-  --color-orange-600: oklch(0.646 0.222 41.116);
-  --color-orange-700: oklch(0.553 0.195 38.402);
-  --color-orange-800: oklch(0.47 0.157 37.304);
-  --color-orange-900: oklch(0.408 0.123 38.172);
-  --color-orange-950: oklch(0.266 0.079 36.259);
 
   --color-red-50: oklch(0.971 0.013 17.38);
   --color-red-100: oklch(0.936 0.032 17.717);
@@ -101,6 +102,48 @@
   --color-zinc-800: oklch(0.274 0.006 286.033);
   --color-zinc-900: oklch(0.21 0.006 285.885);
   --color-zinc-950: oklch(0.141 0.005 285.823);
+
+  /* Stock / success affordances only. */
+  --color-green-50: oklch(0.982 0.018 155.826);
+  --color-green-100: oklch(0.962 0.044 156.743);
+  --color-green-500: oklch(0.723 0.219 149.579);
+  --color-green-600: oklch(0.627 0.194 149.214);
+  --color-green-700: oklch(0.527 0.154 150.069);
+
+  --animate-marquee: marquee 40s linear infinite;
+  --animate-rise: rise 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    /* The track renders its content twice; -50% lands on the seam. */
+    transform: translateX(-50%);
+  }
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(1.25rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 /*

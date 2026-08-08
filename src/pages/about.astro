@@ -1,0 +1,108 @@
+---
+import MainLayout from '@/layouts/MainLayout.astro';
+import SectionHeading from '@components/ui/blocks/SectionHeading.astro';
+import HeroSectionAlt from '@components/sections/landing/HeroSectionAlt.astro';
+import Icon from '@components/ui/icons/Icon.astro';
+import { SITE } from '@data/constants';
+
+const description =
+  'Shaw Safety supplies UL 21S listed security zip ties and ANSI Class 2 hi-vis vests direct to intermodal hubs and fleets, at published wholesale pricing with next-business-day dispatch.';
+
+const structuredData = {
+  '@context': 'https://schema.org',
+  '@type': 'AboutPage',
+  '@id': `${SITE.url}/about`,
+  url: `${SITE.url}/about`,
+  name: `About | ${SITE.title}`,
+  description,
+  inLanguage: 'en-US',
+};
+
+const principles = [
+  {
+    icon: 'tag',
+    title: 'Published Pricing',
+    body: 'Every price and every volume tier is on the product page. Nothing is gated behind an account or a quote, because a dispatcher reordering seals should not have to schedule a call to learn what they cost.',
+  },
+  {
+    icon: 'shieldCheck',
+    title: 'One Spec That Covers The Work',
+    body: 'We do not carry twelve near-identical ties. We carry the 11-inch, 75-lb, UL 21S listed tie that intermodal work actually calls for, in the four colors fleets use to separate lanes and shifts.',
+  },
+  {
+    icon: 'truck',
+    title: 'Stock, Not Lead Times',
+    body: 'Seals in this category are routinely quoted at four to six weeks. Ours ship the next business day because we hold them, rather than ordering them once you do.',
+  },
+  {
+    icon: 'container',
+    title: 'Built For Intermodal',
+    body: 'Length, tensile rating, and visibility are all chosen against container locking mechanisms and yard conditions — not adapted from a general-purpose cable tie.',
+  },
+];
+---
+
+<MainLayout
+  title={`About | ${SITE.title}`}
+  customDescription={description}
+  structuredData={structuredData}
+>
+  <section class="py-14 lg:py-20">
+    <SectionHeading
+      title="Why Shaw Safety"
+      subTitle="We sell two things to people who reorder them every month. That focus is the whole business model."
+    />
+  </section>
+
+  <section class="pb-16">
+    <div
+      class="mx-auto max-w-3xl space-y-5 text-lg leading-relaxed text-neutral-700"
+    >
+      <p>
+        Securing a container is not a complicated purchase. A yard needs a tie
+        that meets the spec, that an inspector can read from a distance, and
+        that arrives before the next load does. Most of the cost in this
+        category comes from everything wrapped around that: quote cycles,
+        account minimums, distributor margin, and lead times measured in weeks.
+      </p>
+      <p>
+        Shaw Safety strips that out. We stock a short catalogue, publish the
+        price ladder in full, and ship from inventory the next business day. The
+        tie is the same one you are buying today. The paperwork around it is
+        not.
+      </p>
+    </div>
+  </section>
+
+  <section class="border-t border-neutral-200 py-16">
+    <h2 class="text-2xl font-bold tracking-tight text-neutral-900">
+      How We Operate
+    </h2>
+    <div class="mt-8 grid gap-x-12 gap-y-9 sm:grid-cols-2">
+      {
+        principles.map(item => (
+          <div class="flex gap-4">
+            <span class="bg-maroon-50 text-maroon-700 flex h-11 w-11 shrink-0 items-center justify-center rounded-lg">
+              <Icon name={item.icon} class="h-5 w-5" />
+            </span>
+            <div>
+              <h3 class="font-bold text-neutral-900">{item.title}</h3>
+              <p class="mt-1.5 text-sm leading-relaxed text-neutral-600">
+                {item.body}
+              </p>
+            </div>
+          </div>
+        ))
+      }
+    </div>
+  </section>
+
+  <div class="pb-20">
+    <HeroSectionAlt
+      title="Same Compliance. Same Visibility. Lower Price."
+      subTitle="Browse the catalogue, or send us your seal specification and we will confirm the match before you order."
+      ctaLabel="Browse All Products"
+      ctaHref="/products"
+    />
+  </div>
+</MainLayout>

@@ -1,0 +1,396 @@
+---
+import { getCollection } from 'astro:content';
+import MainLayout from '@/layouts/MainLayout.astro';
+import PricingSection from '@components/sections/pricing/PricingSection.astro';
+import SectionHeading from '@components/ui/blocks/SectionHeading.astro';
+import Icon from '@components/ui/icons/Icon.astro';
+import { SITE } from '@data/constants';
+
+const products = (await getCollection('products')).sort(
+  (a, b) => a.data.order - b.data.order
+);
+
+/** Everything the calculator needs, flattened to one option per variant. */
+const calcOptions = products.flatMap(p =>
+  p.data.variants.map(v => ({
+    id: `${p.id}::${v.id}`,
+    label: `${p.data.shortTitle} — ${v.name}`,
+    unit: p.data.unit,
+    packSize: p.data.packSize,
+    subUnit: p.data.subUnit ?? null,
+    tiers: v.tiers ?? p.data.tiers,
+  }))
+);
+
+const description =
+  'Published wholesale pricing on Shaw Safety zip ties and hi-vis vests. Volume discounts apply automatically at checkout, with net terms available on larger orders.';
+
+const structuredData = {
+  '@context': 'https://schema.org',
+  '@type': 'WebPage',
+  '@id': `${SITE.url}/wholesale`,
+  url: `${SITE.url}/wholesale`,
+  name: `Wholesale Pricing | ${SITE.title}`,
+  description,
+  inLanguage: 'en-US',
+};
+
+const reasons = [
+  {
+    icon: 'tag',
+    title: 'No Negotiation',
+    body: 'The ladder is published. You pay the tier your quantity lands in, whether you call us or never speak to anyone.',
+  },
+  {
+    icon: 'box',
+    title: 'Mixed Colors Count',
+    body: 'Quantity totals across every color and SKU in your order, so a mixed pallet reaches the same tier a single-color one would.',
+  },
+  {
+    icon: 'truck',
+    title: 'Dedicated Fulfillment',
+    body: 'Wholesale orders route to their own pick queue. Order before 5pm and it still leaves the next business day.',
+  },
+  {
+    icon: 'clock',
+    title: 'Net Terms Available',
+    body: 'Established fleets and terminals can request net 30. Send your AP contact with a quote request to start.',
+  },
+];
+---
+
+<MainLayout
+  title={`Wholesale Pricing | ${SITE.title}`}
+  customDescription={description}
+  structuredData={structuredData}
+>
+  <section class="py-14 lg:py-20">
+    <SectionHeading
+      title="Wholesale Pricing"
+      subTitle="We publish the whole ladder. No account gate, no minimum order, no discovery call between you and a price."
+    />
+  </section>
+
+  <PricingSection
+    title="Two Tiers, Published Up Front"
+    subTitle="Discounts apply automatically at checkout. The deeper tier is not a negotiated rate — it is the price at that quantity."
+    showCta={false}
+  />
+
+  {/* ── Volume calculator ─────────────────────────────────────────────── */}
+  <section class="py-8">
+    <div
+      class="rounded-2xl border border-neutral-200 bg-neutral-50 p-6 sm:p-10"
+    >
+      <h2 class="text-2xl font-bold tracking-tight text-neutral-900">
+        Volume Calculator
+      </h2>
+      <p class="mt-2 text-neutral-600">
+        Pick a product and a quantity to see the tier you land in and what the
+        order actually costs.
+      </p>
+
+      <div class="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-4 lg:items-end">
+        <div class="lg:col-span-2">
+          <label
+            for="calc-product"
+            class="block text-sm font-medium text-neutral-700">Product</label
+          >
+          <select
+            id="calc-product"
+            class="focus:border-maroon-700 focus:ring-maroon-700 mt-1.5 w-full rounded-lg border-neutral-300 text-sm"
+          >
+            {
+              calcOptions.map(option => (
+                <option value={option.id}>{option.label}</option>
+              ))
+            }
+          </select>
+        </div>
+
+        <div>
+          <label
+            for="calc-qty"
+            class="block text-sm font-medium text-neutral-700"
+            >Quantity (packs)</label
+          >
+          <input
+            id="calc-qty"
+            type="number"
+            min="1"
+            value="100"
+            class="focus:border-maroon-700 focus:ring-maroon-700 mt-1.5 w-full rounded-lg border-neutral-300 text-sm"
+          />
+        </div>
+
+        <div class="rounded-lg border-2 border-neutral-900 bg-white p-4">
+          <p class="text-xs font-bold tracking-wide text-neutral-500 uppercase">
+            Order total
+          </p>
+          <p
+            id="calc-total"
+            class="mt-1 text-3xl font-bold tracking-tight text-neutral-900"
+          >
+          </p>
+        </div>
+      </div>
+
+      <dl class="mt-6 grid gap-4 sm:grid-cols-3">
+        <div class="rounded-lg bg-white p-4">
+          <dt
+            class="text-xs font-bold tracking-wide text-neutral-500 uppercase"
+          >
+            Price per pack
+          </dt>
+          <dd id="calc-unit" class="mt-1 text-xl font-bold text-neutral-900">
+          </dd>
+        </div>
+        <div class="rounded-lg bg-white p-4">
+          <dt
+            class="text-xs font-bold tracking-wide text-neutral-500 uppercase"
+          >
+            You save
+          </dt>
+          <dd id="calc-savings" class="mt-1 text-xl font-bold text-green-700">
+          </dd>
+        </div>
+        <div class="rounded-lg bg-white p-4">
+          <dt
+            class="text-xs font-bold tracking-wide text-neutral-500 uppercase"
+          >
+            Total units
+          </dt>
+          <dd id="calc-units" class="mt-1 text-xl font-bold text-neutral-900">
+          </dd>
+        </div>
+      </dl>
+
+      <p
+        id="calc-nudge"
+        class="border-maroon-200 bg-maroon-50 text-maroon-900 mt-4 hidden rounded-lg border px-3.5 py-2.5 text-sm font-medium"
+      >
+      </p>
+    </div>
+  </section>
+
+  <section class="py-16">
+    <h2 class="text-2xl font-bold tracking-tight text-neutral-900">
+      Why Buy Direct
+    </h2>
+    <div class="mt-8 grid gap-x-10 gap-y-8 sm:grid-cols-2">
+      {
+        reasons.map(reason => (
+          <div class="flex gap-3.5">
+            <span class="bg-maroon-50 text-maroon-700 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg">
+              <Icon name={reason.icon} class="h-5 w-5" />
+            </span>
+            <div>
+              <h3 class="text-sm font-bold tracking-wide text-neutral-900 uppercase">
+                {reason.title}
+              </h3>
+              <p class="mt-1 text-sm leading-relaxed text-neutral-600">
+                {reason.body}
+              </p>
+            </div>
+          </div>
+        ))
+      }
+    </div>
+  </section>
+
+  {/* ── Quote request ─────────────────────────────────────────────────── */}
+  <section id="quote" class="scroll-mt-32 pb-20">
+    <div
+      class="from-brand-grad-from to-brand-grad-to grid gap-10 rounded-2xl bg-linear-to-tr p-8 lg:grid-cols-2 lg:gap-14 lg:p-12"
+    >
+      <div>
+        <h2 class="text-3xl font-bold tracking-tight text-white sm:text-4xl">
+          Request a Bulk Quote
+        </h2>
+        <p class="mt-4 text-white/85">
+          Pallet-scale orders, mixed sizing, printed ties, or serialized seals —
+          tell us what the job needs and we will come back with pricing and a
+          lead time within one business day.
+        </p>
+        <ul class="mt-8 space-y-3">
+          {
+            [
+              'Printed or serialized ties',
+              'Mixed color and size breakdowns',
+              'Freight quotes on pallet orders',
+              'Net 30 terms on approval',
+            ].map(item => (
+              <li class="flex items-center gap-2.5 text-sm text-white/90">
+                <Icon name="checkCircle" class="h-4 w-4 shrink-0 text-white" />
+                {item}
+              </li>
+            ))
+          }
+        </ul>
+      </div>
+
+      <form
+        id="quote-form"
+        class="space-y-4 rounded-xl bg-white p-6"
+        novalidate
+      >
+        <div class="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label
+              for="quote-name"
+              class="block text-sm font-medium text-neutral-700">Name</label
+            >
+            <input
+              id="quote-name"
+              name="name"
+              type="text"
+              required
+              class="focus:border-maroon-700 focus:ring-maroon-700 mt-1.5 w-full rounded-lg border-neutral-300 text-sm"
+            />
+          </div>
+          <div>
+            <label
+              for="quote-company"
+              class="block text-sm font-medium text-neutral-700">Company</label
+            >
+            <input
+              id="quote-company"
+              name="company"
+              type="text"
+              required
+              class="focus:border-maroon-700 focus:ring-maroon-700 mt-1.5 w-full rounded-lg border-neutral-300 text-sm"
+            />
+          </div>
+        </div>
+        <div>
+          <label
+            for="quote-email"
+            class="block text-sm font-medium text-neutral-700">Email</label
+          >
+          <input
+            id="quote-email"
+            name="email"
+            type="email"
+            required
+            class="focus:border-maroon-700 focus:ring-maroon-700 mt-1.5 w-full rounded-lg border-neutral-300 text-sm"
+          />
+        </div>
+        <div>
+          <label
+            for="quote-details"
+            class="block text-sm font-medium text-neutral-700"
+            >Quantities and requirements</label
+          >
+          <textarea
+            id="quote-details"
+            name="details"
+            rows="4"
+            required
+            placeholder="e.g. 400 packs, mixed yellow and green, monthly standing order"
+            class="focus:border-maroon-700 focus:ring-maroon-700 mt-1.5 w-full rounded-lg border-neutral-300 text-sm"
+          ></textarea>
+        </div>
+        <button
+          type="submit"
+          class="hover:bg-maroon-800 focus-visible:ring-maroon-700 w-full rounded-lg bg-neutral-900 px-5 py-3 text-sm font-bold text-white transition focus:outline-hidden focus-visible:ring-2 focus-visible:ring-offset-2"
+        >
+          Request Quote
+        </button>
+        <p
+          id="quote-status"
+          class="bg-maroon-50 text-maroon-900 hidden rounded-lg px-3.5 py-2.5 text-sm font-medium"
+          role="status"
+        >
+        </p>
+      </form>
+    </div>
+  </section>
+</MainLayout>
+
+<script is:inline define:vars={{ calcOptions }}>
+  window.__shawCalcOptions = calcOptions;
+</script>
+
+<script>
+  import {
+    formatMoney,
+    lineTotal,
+    nextTierNudge,
+    resolveTier,
+    roundMoney,
+    type Tier,
+  } from '@scripts/pricing';
+
+  interface CalcOption {
+    id: string;
+    label: string;
+    unit: string;
+    packSize: number;
+    subUnit: string | null;
+    tiers: Tier[];
+  }
+
+  const options: CalcOption[] =
+    (window as unknown as { __shawCalcOptions?: CalcOption[] })
+      .__shawCalcOptions ?? [];
+
+  const select = document.getElementById(
+    'calc-product'
+  ) as HTMLSelectElement | null;
+  const qtyInput = document.getElementById(
+    'calc-qty'
+  ) as HTMLInputElement | null;
+  const totalEl = document.getElementById('calc-total');
+  const unitEl = document.getElementById('calc-unit');
+  const savingsEl = document.getElementById('calc-savings');
+  const unitsEl = document.getElementById('calc-units');
+  const nudgeEl = document.getElementById('calc-nudge');
+
+  const render = () => {
+    const option = options.find(o => o.id === select?.value) ?? options[0];
+    if (!option) return;
+    const qty = Math.max(1, Math.floor(Number(qtyInput?.value) || 1));
+    const unitPrice = resolveTier(option.tiers, qty).pricePerUnit;
+    const total = lineTotal(option.tiers, qty);
+    const saved = roundMoney(option.tiers[0].pricePerUnit * qty - total);
+
+    if (totalEl) totalEl.textContent = formatMoney(total);
+    if (unitEl) unitEl.textContent = formatMoney(unitPrice);
+    if (savingsEl) savingsEl.textContent = saved > 0 ? formatMoney(saved) : '—';
+    if (unitsEl)
+      unitsEl.textContent = `${(qty * option.packSize).toLocaleString('en-US')} ${
+        option.subUnit ? `${option.subUnit}s` : 'units'
+      }`;
+
+    if (nudgeEl) {
+      const nudge = nextTierNudge(option.tiers, qty);
+      if (nudge && nudge.unitsAway > 0) {
+        nudgeEl.textContent = `Add ${nudge.unitsAway} more ${option.unit}${
+          nudge.unitsAway === 1 ? '' : 's'
+        } to reach ${formatMoney(nudge.pricePerUnit)} per ${option.unit} — ${nudge.percent}% off.`;
+        nudgeEl.classList.remove('hidden');
+      } else {
+        nudgeEl.classList.add('hidden');
+      }
+    }
+  };
+
+  select?.addEventListener('change', render);
+  qtyInput?.addEventListener('input', render);
+  render();
+
+  const form = document.getElementById('quote-form') as HTMLFormElement | null;
+  const status = document.getElementById('quote-status');
+  form?.addEventListener('submit', event => {
+    event.preventDefault();
+    if (!form.checkValidity()) {
+      form.reportValidity();
+      return;
+    }
+    if (status) {
+      status.textContent =
+        'This form is not connected to an inbox yet. Email sales@shawsafety.com with your quantities and we will quote it the same day.';
+      status.classList.remove('hidden');
+    }
+  });
+</script>

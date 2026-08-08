@@ -1,29 +1,33 @@
 {
-  "subTitle": "Ask us anything about our brand and products, and get factual responses.",
+  "subTitle": "Straight answers about compliance, volume pricing, and how fast your order leaves our dock.",
   "faqs": [
     {
-      "question": "What types of tools are included in the Starter Kit?",
-      "answer": "The Starter Kit features essential hand and power tools for diverse DIY projects, including hammers, drills, screwdrivers, and a variety of fasteners. It's a curated selection to help beginners and experienced DIYers alike tackle most home improvement tasks."
+      "question": "Are these ties approved for intermodal container security?",
+      "answer": "Yes. Our 11-inch fluorescent tie is UL 21S listed and DOT compliant, and its length and tensile rating are sized for standard intermodal container locking mechanisms. If your terminal has a written seal specification, send it over and we will confirm the match in writing before you order."
     },
     {
-      "question": "Can I upgrade from the Starter Kit to the Professional Toolbox?",
-      "answer": "Absolutely! You can upgrade to the Professional Toolbox at any time to access a wider range of high-quality tools, enjoy priority customer support, and receive exclusive content. Contact our support team for a seamless transition."
+      "question": "How does volume pricing work?",
+      "answer": "The discount is published on every product page and applies automatically at checkout. Order 1–99 packs and you pay retail; 100–199 packs drops the price roughly 11%; 200 packs or more drops it roughly 19%. There is no account to create, no minimum order, and no sales call in between."
     },
     {
-      "question": "What discounts are available for bulk orders through the Professional Toolbox plan?",
-      "answer": "Professional Toolbox members are entitled to exclusive discounts on bulk orders, the percentage of which may vary depending on the order volume. Get in touch with us to discuss your needs, and we'll provide a tailored discount structure."
+      "question": "Do mixed colors count toward the same volume tier?",
+      "answer": "They do. Quantity is totaled across every color in your cart, so ordering 50 yellow and 50 pink reaches the 100-pack tier just as 100 yellow would."
     },
     {
-      "question": "What kind of customer support can I expect?",
-      "answer": "All our customers receive dedicated email support. With the Starter Kit, you'll receive our standard support, while the Professional Toolbox plan upgrades you to priority support, meaning faster response times and specialized assistance."
+      "question": "When will my order ship?",
+      "answer": "Orders placed before 5pm ship the next business day from stock. Custom and printed seals ship within 24 hours rather than the multi-week lead times common elsewhere in this category."
     },
     {
-      "question": "How current are the online resources and tutorials?",
-      "answer": "We regularly update our online resources and tutorials to reflect the latest trends in DIY and construction, as well as introductions to new tools and techniques. Our material aims to be comprehensive and user-friendly for all skill levels."
+      "question": "What is the difference between the four colors?",
+      "answer": "Nothing but the pigment. All four are the same 11-inch, 75-lb tensile, UL 21S listed tie. Fleets typically assign a color per lane, per shift, or per month so a broken seal is obvious at a glance. Fluorescent yellow is our highest-volume color and is priced as the lead-in SKU."
     },
     {
-      "question": "Does ScrewFast offer services for large-scale construction projects?",
-      "answer": "Yes, our Enterprise Solutions are designed for larger companies requiring comprehensive services. We provide consultation, planning, and supply of high-grade tools and materials, as well as staffing solutions for substantial construction needs. Contact us for a customized quote."
+      "question": "Can I get our logo or a serial number printed on the ties?",
+      "answer": "Yes, on bulk orders. Send a bulk quote request with your artwork or numbering scheme and we will confirm pricing and lead time within one business day."
+    },
+    {
+      "question": "What is your return policy?",
+      "answer": "Unopened packs can be returned within 30 days for a full refund. If a tie fails to meet its published spec, tell us and we will replace the affected lot at our cost."
     }
   ]
 }
