@@ -50,15 +50,25 @@ function json(body: unknown, status: number): Response {
  * whether the key is configured, which is the one piece of setup worth
  * checking from outside — the key itself is never echoed.
  */
-export const GET: APIRoute = () =>
-  json(
+export const GET: APIRoute = () => {
+  const key = readEnv('ELEVENLABS_API_KEY');
+  return json(
     {
       ok: false,
       error: 'Method not allowed. POST audio as multipart/form-data.',
-      configured: Boolean(readEnv('ELEVENLABS_API_KEY')),
+      configured: Boolean(key),
+      /*
+       * Shape only, never the value. A key set to something that is not an
+       * ElevenLabs key at all — a webhook secret, a token from another
+       * service — is indistinguishable from a correct one until a real
+       * request fails, and the failure reads like an audio problem. This
+       * makes that visible without a recording.
+       */
+      keyLooksValid: key ? key.startsWith('sk_') : null,
     },
     405
   );
+};
 
 /**
  * Strip parameters from a media type: `audio/webm;codecs=opus` to `audio/webm`.
@@ -155,6 +165,7 @@ export const POST: APIRoute = async ({ request }) => {
      * does not say what was sent — an earlier round of this failed with a bare
      * `400 {"detail":...}` and no way to tell which field it objected to.
      */
+    const body = await response.text().catch(() => '(no body)');
     console.error(
       `[transcribe] ElevenLabs returned ${response.status}`,
       JSON.stringify({
@@ -165,9 +176,40 @@ export const POST: APIRoute = async ({ request }) => {
           bytes: clean.size,
           model: MODEL_ID,
         },
-        body: await response.text().catch(() => '(no body)'),
+        body,
       })
     );
+
+    /*
+     * A rejected key is a configuration fault, not a bad recording, and
+     * reporting it as the latter is actively misleading: it sends whoever is
+     * debugging to look at audio formats while the real problem is one
+     * environment variable. ElevenLabs signals this as 401/403, and also as a
+     * 400 carrying an authentication_error — hence matching the body too.
+     *
+     * Reported to the visitor exactly like a missing key, because from where
+     * they stand it is the same thing: dictation is not set up, and no amount
+     * of trying again will help.
+     */
+    if (
+      response.status === 401 ||
+      response.status === 403 ||
+      /authentication_error|invalid_api_key/i.test(body)
+    ) {
+      console.error(
+        '[transcribe] ELEVENLABS_API_KEY was rejected. Check the value in ' +
+          'Vercel — an ElevenLabs key begins with "sk_". Dictation stays off ' +
+          'until it is corrected.'
+      );
+      return json(
+        {
+          ok: false,
+          error: 'Dictation is not configured. Please type instead.',
+        },
+        503
+      );
+    }
+
     return json({ ok: false, error: 'Could not transcribe that audio.' }, 502);
   }
 

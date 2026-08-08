@@ -234,11 +234,39 @@ Behaviour worth knowing:
   secure context) nothing is rendered and the form works by typing.
 - **With no API key the button reports that dictation is unavailable** and tells
   the visitor to type. It never fails silently.
+- **A rejected key is reported as misconfiguration, not as a bad recording.**
+  ElevenLabs signals this as 401/403 or as a 400 carrying
+  `authentication_error`; all three return 503 and the "not configured" message,
+  because from the visitor's side it is the same thing — dictation is not set up
+  and retrying will not help. Getting this wrong is expensive: an invalid key
+  once surfaced as "Could not transcribe that audio", which sent two people
+  hunting through audio formats for a problem that was one environment
+  variable.
 - **`GET /api/transcribe` answers 405** rather than falling through to the
   router's 404. Opening the endpoint in a browser is the first thing anyone does
   when dictation misbehaves, and an unhandled GET logs a warning that reads like
-  a routing fault. The response also reports whether the key is configured —
-  never the key itself — which is the one setting worth checking from outside.
+  a routing fault. It reports `configured` and `keyLooksValid` — shape only,
+  never the value. A key set to something that is not an ElevenLabs key at all
+  (a webhook secret, a token from another service) is otherwise
+  indistinguishable from a correct one until a real recording fails:
+
+  ```
+  {"configured":true,"keyLooksValid":false}   # set, but not an ElevenLabs key
+  {"configured":true,"keyLooksValid":true}    # right shape
+  {"configured":false,"keyLooksValid":null}   # not set
+  ```
+
+### Getting the key right
+
+`ELEVENLABS_API_KEY` comes from **ElevenLabs → Profile → API Keys** and begins
+with `sk_`. It is not a webhook signing secret and not a hash from any other
+dashboard — a 64-character hex string is a sure sign the wrong value was
+pasted. Server-only: no `PUBLIC_` prefix, and `api.elevenlabs.io` cannot be
+called from the browser anyway, which is the reason this route exists.
+
+The model is `scribe_v1`, set as `MODEL_ID` at the top of the route. `scribe_v2`
+is a drop-in change if the account has it.
+
 - **An upstream rejection logs what was sent** (filename, content type, size,
   model) next to the response body. The body alone does not say which field was
   objected to, which is what made the content-type bug above so slow to place.
