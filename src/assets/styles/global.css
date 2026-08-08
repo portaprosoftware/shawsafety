@@ -8,7 +8,61 @@
 @plugin '@tailwindcss/forms';
 @plugin '@tailwindcss/typography';
 
+/*
+  TeX Gyre Heros — self-hosted. The family is a GUST/URW Helvetica clone under
+  the GUST Font License; the unmodified upstream OTFs (v2.004) were converted
+  to WOFF2 and live in ../fonts/ alongside GUST-FONT-LICENSE.txt. They are
+  referenced through the bundler (not served from /public) so Vite fingerprints
+  them into /_astro/ — the filename changes whenever the bytes do, which is what
+  makes them safe to cache hard.
+
+  The family ships two weights only, so the ranges below cover the whole
+  Tailwind weight scale without ever triggering synthetic (smeared) bolding:
+  anything up to `font-medium` resolves to the regular cut, `font-semibold`
+  and heavier resolve to the bold cut.
+*/
+@font-face {
+  font-family: 'TeX Gyre Heros';
+  src: url('../fonts/texgyreheros-regular.woff2') format('woff2');
+  font-weight: 100 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'TeX Gyre Heros';
+  src: url('../fonts/texgyreheros-italic.woff2') format('woff2');
+  font-weight: 100 500;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'TeX Gyre Heros';
+  src: url('../fonts/texgyreheros-bold.woff2') format('woff2');
+  font-weight: 600 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'TeX Gyre Heros';
+  src: url('../fonts/texgyreheros-bolditalic.woff2') format('woff2');
+  font-weight: 600 900;
+  font-style: italic;
+  font-display: swap;
+}
+
 @theme {
+  /*
+    Body copy and every `font-sans` utility. Helvetica/Arial lead the fallback
+    stack because they are metrically close to Heros, so the swap when the
+    webfont lands shifts layout as little as possible.
+  */
+  --font-sans:
+    'TeX Gyre Heros', Helvetica, Arial, ui-sans-serif, system-ui, sans-serif,
+    'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+
   /* https://tailwindcss.com/docs/colors#customizing-your-colors */
   --color-*: initial;
   --color-transparent: transparent;
