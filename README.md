@@ -67,38 +67,24 @@ The contact form and the wholesale quote form both POST to `/api/contact`,
 which sends the enquiry via [Resend](https://resend.com).
 
 This is why the project has the Vercel adapter. Pages are still fully
-prerendered — `output: 'static'` — and only the two routes under
-`src/pages/api/` opt out with `export const prerender = false` and run as
-serverless functions. A server is unavoidable here: the Resend API key must
+prerendered — `output: 'static'` — and only `src/pages/api/contact.ts` opts out
+with `export const prerender = false` and runs as a serverless function. A server is unavoidable here: the Resend API key must
 never reach the browser.
 
 ### Environment variables
 
 Set in Vercel → Project → Settings → Environment Variables. See `.env.example`.
 
-| Variable                | Required | Purpose                                                                              |
-| ----------------------- | -------- | ------------------------------------------------------------------------------------ |
-| `RESEND_API_KEY`        | yes      | Authenticates the send. Server-only — never prefix with `PUBLIC_`.                   |
-| `RESEND_FROM`           | yes      | From address. Must be on a domain verified in Resend, or the send is rejected.       |
-| `CONTACT_TO`            | no       | Where enquiries are delivered. Defaults to `sales@shawsafety.com`.                   |
-| `RESEND_WEBHOOK_SECRET` | no       | Verifies inbound delivery events at `/api/resend-webhook`. Plays no part in sending. |
+| Variable         | Required | Purpose                                                                                                    |
+| ---------------- | -------- | ---------------------------------------------------------------------------------------------------------- |
+| `RESEND_API_KEY` | yes      | Authenticates the send. Server-only — never prefix with `PUBLIC_`.                                         |
+| `RESEND_FROM`    | yes      | From address. Must be on a domain verified in Resend, or the send is rejected.                             |
+| `CONTACT_TO`     | no       | Where enquiries are delivered. Comma-separated for several recipients. Defaults to `sales@shawsafety.com`. |
 
 Read through `src/utils/env.ts`, which prefers `process.env` over
 `import.meta.env`. Vite can inline `import.meta.env` at build time, which would
 freeze a secret into the bundle — rotating the key in Vercel would then have no
 effect until the next deploy.
-
-### Delivery events
-
-`RESEND_WEBHOOK_SECRET` is only for _receiving_ events (delivered, bounced,
-complained). Add a webhook in Resend pointing at
-`https://shawsafety.com/api/resend-webhook` and paste its signing secret.
-
-The endpoint verifies the Svix-format signature: HMAC-SHA256 over
-`${id}.${timestamp}.${body}`, constant-time compared, with a five-minute
-timestamp tolerance to bound replays. It accepts several space-separated
-signatures so the secret can be rotated without downtime. Events are logged to
-the Vercel function log; persisting them would need a datastore.
 
 ### Behaviour worth knowing
 

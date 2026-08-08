@@ -8,7 +8,8 @@
  * Environment (set in Vercel → Project → Settings → Environment Variables):
  *   RESEND_API_KEY  required, `re_...`
  *   RESEND_FROM     required, must be an address on a domain verified in Resend
- *   CONTACT_TO      optional, defaults to sales@shawsafety.com
+ *   CONTACT_TO      optional, comma-separated recipients. Defaults to
+ *                   sales@shawsafety.com.
  */
 import type { APIRoute } from 'astro';
 import { readEnv } from '@utils/env';
@@ -134,15 +135,39 @@ function safeHeaderValue(value: string): string | null {
   return /[\r\n]/.test(value) ? null : value;
 }
 
+/** Resend rejects a request with more recipients than this. */
+const MAX_RECIPIENTS = 50;
+
+/**
+ * Parse CONTACT_TO into a recipient list.
+ *
+ * Accepts a comma-separated string so notifications can reach several people
+ * without a code change. Invalid entries are dropped rather than passed
+ * through — one typo would otherwise make Resend reject the whole send, taking
+ * the valid recipients down with it.
+ */
+function parseRecipients(raw: string): string[] {
+  return raw
+    .split(',')
+    .map(entry => entry.trim())
+    .filter(entry => entry && looksLikeEmail(entry))
+    .slice(0, MAX_RECIPIENTS);
+}
+
 export const POST: APIRoute = async ({ request }) => {
   const apiKey = readEnv('RESEND_API_KEY');
   const from = readEnv('RESEND_FROM');
-  const to = readEnv('CONTACT_TO') || 'sales@shawsafety.com';
+  const recipients = parseRecipients(
+    readEnv('CONTACT_TO') || 'sales@shawsafety.com'
+  );
 
-  if (!apiKey || !from) {
+  // No valid recipient means the enquiry would vanish. Treat it as
+  // misconfiguration rather than sending into the void.
+  if (!apiKey || !from || recipients.length === 0) {
     // A misconfigured deploy must not look like a delivered message.
     console.error(
-      '[contact] Missing RESEND_API_KEY or RESEND_FROM; refusing to accept submission.'
+      '[contact] Misconfigured: check RESEND_API_KEY, RESEND_FROM, and that ' +
+        'CONTACT_TO holds at least one valid address. Refusing the submission.'
     );
     return respond(
       request,
@@ -264,7 +289,7 @@ export const POST: APIRoute = async ({ request }) => {
       },
       body: JSON.stringify({
         from,
-        to: [to],
+        to: recipients,
         subject,
         html,
         text,
