@@ -241,14 +241,14 @@ export const POST: APIRoute = async ({ request }) => {
    */
   const caller = clientKey(request);
   const now = Date.now();
-  const callerLimit = check(caller, PER_CALLER, { now, record: false });
+  const callerLimit = await check(caller, PER_CALLER, { now, record: false });
   const limited = callerLimit.allowed
-    ? check(GLOBAL_KEY, GLOBAL, { now, record: false })
+    ? await check(GLOBAL_KEY, GLOBAL, { now, record: false })
     : callerLimit;
 
   if (limited.allowed) {
-    check(caller, PER_CALLER, { now });
-    check(GLOBAL_KEY, GLOBAL, { now });
+    await check(caller, PER_CALLER, { now });
+    await check(GLOBAL_KEY, GLOBAL, { now });
   }
 
   if (!limited.allowed) {

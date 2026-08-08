@@ -43,6 +43,30 @@ import Icon from '@components/ui/icons/Icon.astro';
       <Icon name="stop" class="h-4 w-4 text-red-600" />
     </span>
     <span data-voice-label class="sr-only">Speak</span>
+
+    {
+      /*
+      Radio-wave rings while recording. Two staggered animate-ping layers so
+      it reads as an emanating wave, not a single throb. Positioned as
+      children of the (already position:absolute) button, so `absolute inset-0`
+      resolves against the button box and the pulse extends into the space
+      around it. aria-hidden and pointer-events:none so nothing interferes
+      with focus or the click path; class-hidden when idle so the paint cost
+      is zero the rest of the time.
+    */
+    }
+    <span
+      data-voice-rings
+      aria-hidden="true"
+      class="pointer-events-none absolute inset-0 hidden"
+    >
+      <span
+        class="absolute inset-0 animate-ping rounded-lg ring-2 ring-red-500/60"
+      ></span>
+      <span
+        class="absolute inset-0 animate-ping rounded-lg ring-2 ring-red-500/40"
+        style="animation-delay:0.6s"></span>
+    </span>
   </button>
 
   {/* aria-live so the state change is announced, not just drawn. */}
@@ -65,8 +89,17 @@ import Icon from '@components/ui/icons/Icon.astro';
    */
   import { toWav } from '@scripts/wavEncoder';
 
-  /** Auto-stop, in ms. A forgotten open mic is a bill and a privacy problem. */
-  const MAX_RECORDING_MS = 120_000;
+  /**
+   * Auto-stop, in ms.
+   *
+   * A forgotten open mic is a bill and a privacy problem on an
+   * unauthenticated endpoint. Ten seconds is enough for one thought at a form
+   * field; if more is needed the visitor presses again. This deliberately
+   * favours cost/abuse control over long dictations — a two-minute recording
+   * sent by accident is a bigger loss than a truncated one the visitor
+   * immediately notices and continues.
+   */
+  const MAX_RECORDING_MS = 10_000;
 
   interface Elements {
     button: HTMLButtonElement;
@@ -74,6 +107,7 @@ import Icon from '@components/ui/icons/Icon.astro';
     status: HTMLElement;
     idle: HTMLElement;
     recording: HTMLElement;
+    rings: HTMLElement;
   }
 
   /**
@@ -126,6 +160,7 @@ import Icon from '@components/ui/icons/Icon.astro';
       status: fragment.querySelector('[data-voice-status]')!,
       idle: fragment.querySelector('[data-voice-icon-idle]')!,
       recording: fragment.querySelector('[data-voice-icon-recording]')!,
+      rings: fragment.querySelector('[data-voice-rings]')!,
     };
 
     /*
@@ -175,6 +210,7 @@ import Icon from '@components/ui/icons/Icon.astro';
       el.button.setAttribute('aria-pressed', String(on));
       el.button.classList.toggle('border-red-400', on);
       el.button.classList.toggle('bg-red-50', on);
+      el.rings.classList.toggle('hidden', !on);
     };
 
     /** Drop the mic. Without this the browser keeps showing "recording". */
@@ -186,10 +222,14 @@ import Icon from '@components/ui/icons/Icon.astro';
     };
 
     const tick = () => {
-      const seconds = Math.floor((Date.now() - startedAt) / 1000);
-      const mm = String(Math.floor(seconds / 60)).padStart(2, '0');
-      const ss = String(seconds % 60).padStart(2, '0');
-      setStatus(`Recording ${mm}:${ss} — click Stop when finished`);
+      // Count down rather than up: the cap matters here, and a countdown makes
+      // it obvious the recording will stop on its own.
+      const elapsed = Math.floor((Date.now() - startedAt) / 1000);
+      const remaining = Math.max(
+        0,
+        Math.ceil(MAX_RECORDING_MS / 1000) - elapsed
+      );
+      setStatus(`Recording — ${remaining}s left. Press Stop when finished.`);
     };
 
     const transcribe = async (recorded: Blob) => {
@@ -298,7 +338,9 @@ import Icon from '@components/ui/icons/Icon.astro';
       timer = window.setInterval(tick, 1000);
       autoStop = window.setTimeout(() => {
         stop();
-        setStatus('Reached the 2 minute limit — transcribing what was said.');
+        setStatus(
+          'Ten second limit reached — transcribing. Press again for more.'
+        );
       }, MAX_RECORDING_MS);
     };
 
