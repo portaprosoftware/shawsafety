@@ -338,11 +338,33 @@ using different colours means updating `bands` in that component**, or the key
 and the map will disagree. The map also links to a 3000px render, because at
 phone width the state labels are a few pixels tall.
 
-### Hero image
+## Hero video
 
-Optional. Drop any `hero-image.{jpg,png,webp,avif}` into `src/images/` and the
-landing page picks it up; with no file the hero falls back to the brand
-gradient, which stands on its own.
+The landing page hero is a Gumlet-hosted background video, embedded as an
+iframe in `src/components/sections/landing/HeroSection.astro`. The video id
+lives in `VIDEO_SRC` at the top of that file; `background=true` is what makes
+the player chromeless, muted and looping.
+
+Three things will each break it on their own:
+
+- **`frame-src` in `vercel.json` must list `https://play.gumlet.io`.** The CSP
+  otherwise blocks the frame outright and the hero drops to the gradient with
+  only a console message to say why. Changing video host means changing both
+  files.
+- **The frame is sized to cover, not fit.** The hero is a wide, short band and
+  the video is 16:9, so a frame filling the box would letterbox. The `max()`
+  expressions take the larger of "full width" and "the width a full-height 16:9
+  frame needs", in container-query units against the `[container-type:size]`
+  wrapper. A different aspect ratio means changing the `16/9` and `9/16` in
+  those two expressions.
+- **The iframe is injected by script, not rendered in the markup**, and only
+  when the visitor has not asked for reduced motion. A cross-origin player
+  cannot be paused from this page, so not starting it is the only way to honour
+  that preference. Reduced motion, or no JavaScript, gets the brand gradient —
+  which the hero was designed to stand on.
+
+There is no longer a `hero-image.*` fallback; the gradient is the fallback. The
+previous photo was deleted rather than left behind as an unreferenced asset.
 
 ## Brand assets
 
