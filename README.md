@@ -169,8 +169,17 @@ Set in Vercel → Project → Settings → Environment Variables. See `.env.exam
 | Variable         | Required | Purpose                                                                                                    |
 | ---------------- | -------- | ---------------------------------------------------------------------------------------------------------- |
 | `RESEND_API_KEY` | yes      | Authenticates the send. Server-only — never prefix with `PUBLIC_`.                                         |
-| `RESEND_FROM`    | yes      | From address. Must be on a domain verified in Resend, or the send is rejected.                             |
+| `RESEND_FROM`    | yes      | From address. Must be on `mail.portaprosoftware.com`, the domain verified in Resend — see the note below.   |
 | `CONTACT_TO`     | no       | Where enquiries are delivered. Comma-separated for several recipients. Defaults to `sales@shawsafety.com`. |
+
+The sending domain verified in Resend is the subdomain
+`mail.portaprosoftware.com`. The apex `portaprosoftware.com` is **not** verified,
+so a From address like `shaw-safety@portaprosoftware.com` is rejected with a 403
+(`The portaprosoftware.com domain is not verified`) even though that alias
+receives and sends mail fine elsewhere — Resend checks its own domain list, not
+whether the mailbox exists. Use `something@mail.portaprosoftware.com`. The
+address does not need to be a real mailbox: replies reach the customer through
+`Reply-To`, and enquiries are delivered to `CONTACT_TO`.
 
 Read through `src/utils/env.ts`, which prefers `process.env` over
 `import.meta.env`. Vite can inline `import.meta.env` at build time, which would
