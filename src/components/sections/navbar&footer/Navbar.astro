@@ -19,7 +19,13 @@ const searchIndex = products.flatMap(p =>
   }))
 );
 
-const pathname = Astro.url.pathname;
+/*
+ * Pages build to directories, so `Astro.url.pathname` arrives as `/wholesale/`
+ * while the links below are written `/wholesale`. Without trimming the trailing
+ * slash the current-page comparisons never match and `aria-current` is never
+ * emitted on any page.
+ */
+const pathname = Astro.url.pathname.replace(/\/+$/, '') || '/';
 ---
 
 <header
@@ -81,6 +87,24 @@ const pathname = Astro.url.pathname;
     </div>
 
     <div class="ml-auto flex items-center gap-1 md:ml-0">
+      {
+        /*
+         * Same destination as the footer's Contact link — this just surfaces it
+         * without a scroll to the bottom of the page. Outlined rather than
+         * solid so it reads as secondary to the product CTAs it sits beside.
+         * Below `lg` it gives way to the entry in the mobile menu.
+         */
+      }
+      <a
+        href="/contact"
+        aria-current={pathname === '/contact' ? 'page' : undefined}
+        class:list={[
+          'border-maroon-700 text-maroon-700 hover:bg-maroon-700 focus-visible:ring-maroon-700 hidden shrink-0 rounded-lg border px-3.5 py-2 text-sm font-semibold transition hover:text-white focus:outline-hidden focus-visible:ring-2 lg:inline-flex',
+          pathname === '/contact' ? 'bg-maroon-700 text-white' : '',
+        ]}
+      >
+        Contact
+      </a>
       <CartButton />
       <button
         type="button"
@@ -109,6 +133,14 @@ const pathname = Astro.url.pathname;
           </li>
         ))
       }
+      <li class="pt-1">
+        <a
+          href="/contact"
+          class="border-maroon-700 text-maroon-700 hover:bg-maroon-700 block rounded-lg border px-3 py-2.5 text-center text-sm font-semibold transition hover:text-white"
+        >
+          Contact
+        </a>
+      </li>
     </ul>
   </div>
 </header>
