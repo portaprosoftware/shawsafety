@@ -2,6 +2,8 @@
 import { getImage } from 'astro:assets';
 import { OG, SEO, SITE } from '@data/constants';
 import faviconSrc from '@images/icon.png';
+// Pre-flattened: iOS composites transparent home-screen icons onto black.
+import appleIconSrc from '@images/icon-apple.png';
 
 // Default properties for the Meta component. These values are used if props are not provided.
 // 'meta' sets a default description meta tag to describe the page content.
@@ -42,7 +44,7 @@ const socialImage = Astro.url.origin + socialImageRes.src; // Get the full URL o
 
 // Generate and optimize the favicon images
 const appleTouchIcon = await getImage({
-  src: faviconSrc,
+  src: appleIconSrc,
   width: 180,
   height: 180,
   format: 'png',

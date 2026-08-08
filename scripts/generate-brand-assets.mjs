@@ -24,9 +24,9 @@ const meta = await sharp(source).metadata();
 console.log(`Source logo: ${meta.width}x${meta.height} ${meta.format}`);
 
 /*
- * The uploaded file is a JPEG despite its .png extension. Everything
- * downstream detects format by content so it works, but the mismatch is a
- * trap for anything that trusts the extension — re-encode it as a real PNG.
+ * Exports named .png are sometimes actually JPEGs. Everything downstream
+ * detects format by content so it still works, but the mismatch misleads
+ * anything that trusts the extension — normalize it.
  */
 if (meta.format !== 'png') {
   await writeFile(`${images}/icon.png`, await sharp(source).png().toBuffer());
@@ -34,9 +34,34 @@ if (meta.format !== 'png') {
 }
 
 /*
+ * Apple touch icon. iOS does not honour transparency on home-screen icons —
+ * it composites them onto black — so this one is explicitly flattened onto
+ * white. Generated separately rather than reusing icon.png, which may well
+ * have an alpha channel.
+ */
+const APPLE = 180;
+await sharp({
+  create: { width: APPLE, height: APPLE, channels: 4, background: '#ffffff' },
+})
+  .composite([
+    {
+      input: await sharp(source)
+        .resize(Math.round(APPLE * 0.82), Math.round(APPLE * 0.82), {
+          fit: 'contain',
+          background: { r: 255, g: 255, b: 255, alpha: 0 },
+        })
+        .toBuffer(),
+      gravity: 'center',
+    },
+  ])
+  .flatten({ background: '#ffffff' })
+  .png()
+  .toFile(`${images}/icon-apple.png`);
+
+/*
  * Maskable icon: Android crops to a circle, so the mark sits at ~62% of the
- * canvas with the rest as bleed. The logo is dark on white, so the plate stays
- * white — inverting it onto maroon would wreck the contrast it was drawn for.
+ * canvas with the rest as bleed. Flattened onto white for the same reason as
+ * above — a transparent maskable icon renders as a blank plate.
  */
 const MASKABLE = 1024;
 const markSize = Math.round(MASKABLE * 0.62);
@@ -53,6 +78,7 @@ await sharp({
   },
 })
   .composite([{ input: mark, gravity: 'center' }])
+  .flatten({ background: '#ffffff' })
   .png()
   .toFile(`${images}/icon-maskable.png`);
 
@@ -86,7 +112,10 @@ await sharp({
     { input: logo, left: 120, top: Math.round((H - logoSize) / 2) },
     { input: text, left: 0, top: 0 },
   ])
+  .flatten({ background: '#ffffff' })
   .png()
   .toFile(`${images}/social.png`);
 
-console.log('Wrote icon-maskable.png (1024) and social.png (1200x600)');
+console.log(
+  'Wrote icon-apple.png (180), icon-maskable.png (1024), social.png (1200x600)'
+);
