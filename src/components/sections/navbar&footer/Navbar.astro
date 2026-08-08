@@ -34,7 +34,10 @@ const pathname = Astro.url.pathname;
       class="text-maroon-700 hover:text-maroon-800 focus-visible:ring-maroon-700 shrink-0 transition focus:outline-hidden focus-visible:ring-2"
       aria-label="Shaw Safety home"
     >
-      <BrandLogo class="h-7 w-auto sm:h-8" />
+      {
+        /* The anchor is already labelled, so the logo is not described again. */
+      }
+      <BrandLogo class="h-7 w-auto sm:h-8" alt="" />
     </a>
 
     <ul class="hidden items-center gap-1 lg:flex">
