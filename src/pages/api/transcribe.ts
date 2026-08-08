@@ -48,12 +48,14 @@ const MODEL_ID = 'scribe_v2';
 /**
  * Ceiling on an upload, in bytes.
  *
- * Opus at the browser's default bitrate runs well under 1MB/minute, so this is
- * roughly twenty minutes of speech — far more than anyone dictates into a
- * quote form, while still bounding what an unauthenticated caller can push
- * through a billable API.
+ * The client sends 16 kHz mono 16-bit WAV capped at ten seconds by the UI,
+ * which is around 320 KB plus header. 2 MB is comfortably above that — it
+ * covers a legitimate recording that Safari happened to send at a higher
+ * rate, or an encoder we later swap in that spends more bytes — while still
+ * refusing anything an attacker would send to burn credits or bandwidth
+ * against this unauthenticated endpoint.
  */
-const MAX_AUDIO_BYTES = 10 * 1024 * 1024;
+const MAX_AUDIO_BYTES = 2 * 1024 * 1024;
 
 /** Give up rather than hold a serverless function open indefinitely. */
 const UPSTREAM_TIMEOUT_MS = 30_000;

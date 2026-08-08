@@ -14,7 +14,7 @@
  * upstream, so sending 48 kHz stereo just pays for bytes that get discarded.
  *
  * The trade is size: PCM is roughly ten times Opus, about 32 KB per second of
- * speech. At the two-minute recording cap that is under 4 MB.
+ * speech. At the ten-second recording cap that is under 350 KB.
  */
 
 /** What speech models run at. Higher buys nothing and costs upload. */

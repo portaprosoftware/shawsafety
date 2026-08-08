@@ -208,7 +208,7 @@ accepted `audio/webm` into a rejection — every transcription came back
 WAV has one canonical type, no codec parameter, and is accepted everywhere. 16
 kHz mono is also what speech models resample to anyway, so sending 48 kHz
 stereo pays for bytes that get thrown away. The cost is size: PCM is roughly ten
-times Opus, about 32 KB per second, so the two-minute cap is under 4 MB.
+times Opus, about 32 KB per second, so the ten-second cap is under 350 KB.
 
 The server re-wraps the upload rather than forwarding the received `File`, which
 would carry its original type through, and strips any parameters as a second
@@ -225,8 +225,16 @@ Behaviour worth knowing:
   text. Dictation adds to a draft rather than replacing it.
 - **Nothing is stored.** The audio blob is discarded once the text returns; it
   is never written to disk on either side.
-- **Recording stops itself after two minutes.** A forgotten open mic is both a
-  bill and a privacy problem.
+- **Recording stops itself after ten seconds**, with a live countdown in the
+  status line. A forgotten open mic is a bill and a privacy problem on an
+  unauthenticated endpoint, and ten seconds is enough for one thought at a
+  form field — needing more means pressing again, which is deliberate. The
+  cap is `MAX_RECORDING_MS` at the top of the client script if it ever needs
+  to change.
+- **The button pulses with radio-wave rings while recording**, driven by two
+  staggered `animate-ping` layers. The rings sit inside the wrapper (not the
+  button itself) so `animate-ping`'s scale is not clipped, and they are hidden
+  outright when idle so the paint cost is zero the rest of the time.
 - **The microphone is released on every exit path** — stop, error, or leaving
   the page — so the browser's recording indicator always clears.
 - **An unusable button is never shown.** Where `MediaRecorder` or `getUserMedia`
