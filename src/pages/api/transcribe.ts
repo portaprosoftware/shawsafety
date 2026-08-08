@@ -7,12 +7,32 @@
  * devtools, and it is a billable credential.
  *
  * Environment (set in Vercel → Project → Settings → Environment Variables):
- *   ELEVENLABS_API_KEY  required. Server-only; never prefix with PUBLIC_.
+ *   SHAW_ELEVENLABS     required. Server-only; never prefix with PUBLIC_.
+ *   ELEVENLABS_API_KEY  optional fallback, checked only if the above is unset.
  */
 import type { APIRoute } from 'astro';
 import { readEnv } from '@utils/env';
 
 export const prerender = false;
+
+/**
+ * Where the key is read from, in order.
+ *
+ * Two names rather than one because both exist in the project right now.
+ * Ordered, not merged: whichever is found first wins outright, so there is
+ * always a single answer to "which key is live" — and `GET` reports which,
+ * since two configured keys mean a failure could belong to either.
+ */
+const KEY_VARS = ['SHAW_ELEVENLABS', 'ELEVENLABS_API_KEY'] as const;
+
+/** The first key variable that is actually set, with its name. */
+function resolveKey(): { name: string; value: string } | null {
+  for (const name of KEY_VARS) {
+    const value = readEnv(name);
+    if (value) return { name, value };
+  }
+  return null;
+}
 
 const ELEVENLABS_STT_URL = 'https://api.elevenlabs.io/v1/speech-to-text';
 
@@ -57,12 +77,18 @@ function json(body: unknown, status: number): Response {
  * checking from outside — the key itself is never echoed.
  */
 export const GET: APIRoute = () => {
-  const key = readEnv('ELEVENLABS_API_KEY');
+  const key = resolveKey();
   return json(
     {
       ok: false,
       error: 'Method not allowed. POST audio as multipart/form-data.',
       configured: Boolean(key),
+      /*
+       * Which variable supplied it. With two names in play, "the key is
+       * wrong" is not actionable without knowing which one is being read —
+       * fixing the wrong variable looks exactly like the fix not working.
+       */
+      keySource: key?.name ?? null,
       /*
        * Shape only, never the value. A key set to something that is not an
        * ElevenLabs key at all — a webhook secret, a token from another
@@ -70,7 +96,7 @@ export const GET: APIRoute = () => {
        * request fails, and the failure reads like an audio problem. This
        * makes that visible without a recording.
        */
-      keyLooksValid: key ? key.startsWith('sk_') : null,
+      keyLooksValid: key ? key.value.startsWith('sk_') : null,
     },
     405
   );
@@ -88,15 +114,15 @@ function baseType(type: string): string {
 }
 
 export const POST: APIRoute = async ({ request }) => {
-  const apiKey = readEnv('ELEVENLABS_API_KEY');
+  const key = resolveKey();
 
   /*
    * Misconfiguration is reported as such rather than as a transcription
    * failure: without this the button would look broken to a visitor and
    * mysterious to whoever has to debug it.
    */
-  if (!apiKey) {
-    console.error('[transcribe] ELEVENLABS_API_KEY is not set');
+  if (!key) {
+    console.error(`[transcribe] no API key set. Tried: ${KEY_VARS.join(', ')}`);
     return json(
       { ok: false, error: 'Dictation is not configured. Please type instead.' },
       503
@@ -150,7 +176,7 @@ export const POST: APIRoute = async ({ request }) => {
   try {
     response = await fetch(ELEVENLABS_STT_URL, {
       method: 'POST',
-      headers: { 'xi-api-key': apiKey },
+      headers: { 'xi-api-key': key.value },
       body: upstream,
       signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
     });
@@ -203,9 +229,9 @@ export const POST: APIRoute = async ({ request }) => {
       /authentication_error|invalid_api_key/i.test(body)
     ) {
       console.error(
-        '[transcribe] ELEVENLABS_API_KEY was rejected. Check the value in ' +
-          'Vercel — an ElevenLabs key begins with "sk_". Dictation stays off ' +
-          'until it is corrected.'
+        `[transcribe] the key in ${key.name} was rejected by ElevenLabs. ` +
+          'Check that value in Vercel — an ElevenLabs key begins with "sk_". ' +
+          'Dictation stays off until it is corrected.'
       );
       return json(
         {

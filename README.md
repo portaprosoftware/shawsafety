@@ -215,9 +215,9 @@ would carry its original type through, and strips any parameters as a second
 line of defence. If the browser cannot decode its own recording, the original
 blob is sent unconverted — a failed conversion is no reason to discard audio.
 
-| Variable             | Required | Purpose                                              |
-| -------------------- | -------- | ---------------------------------------------------- |
-| `ELEVENLABS_API_KEY` | no       | Transcription. Server-only — never prefix `PUBLIC_`. |
+| Variable          | Required | Purpose                                              |
+| ----------------- | -------- | ---------------------------------------------------- |
+| `SHAW_ELEVENLABS` | no       | Transcription. Server-only — never prefix `PUBLIC_`. |
 
 Behaviour worth knowing:
 
@@ -251,15 +251,21 @@ Behaviour worth knowing:
   indistinguishable from a correct one until a real recording fails:
 
   ```
-  {"configured":true,"keyLooksValid":false}   # set, but not an ElevenLabs key
-  {"configured":true,"keyLooksValid":true}    # right shape
-  {"configured":false,"keyLooksValid":null}   # not set
+  {"configured":true,"keySource":"SHAW_ELEVENLABS","keyLooksValid":true}
+  {"configured":true,"keySource":"SHAW_ELEVENLABS","keyLooksValid":false}
+  {"configured":false,"keySource":null,"keyLooksValid":null}
   ```
+
+  `keySource` matters when both variables are set: fixing the one that is not
+  being read looks exactly like the fix not working.
 
 ### Getting the key right
 
-`ELEVENLABS_API_KEY` comes from **ElevenLabs → Profile → API Keys** and begins
-with `sk_`. It is not a webhook signing secret and not a hash from any other
+`SHAW_ELEVENLABS` comes from **ElevenLabs → Profile → API Keys** and begins
+with `sk_`. `ELEVENLABS_API_KEY` is still read as a fallback, but only when
+`SHAW_ELEVENLABS` is unset — whichever is found first wins outright, so there
+is always one answer to "which key is live", and `GET /api/transcribe` reports
+it as `keySource`. It is not a webhook signing secret and not a hash from any other
 dashboard — a 64-character hex string is a sure sign the wrong value was
 pasted. Server-only: no `PUBLIC_` prefix, and `api.elevenlabs.io` cannot be
 called from the browser anyway, which is the reason this route exists.
