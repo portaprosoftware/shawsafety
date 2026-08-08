@@ -1,27 +1,28 @@
 ---
-import { getImage } from 'astro:assets';
-import type { ImageMetadata } from 'astro';
 import Icon from '@components/ui/icons/Icon.astro';
 
 /**
- * The hero photo is optional. Drop any image named `hero-image.*` into
- * src/images/ and it is picked up automatically; with no file present the
- * section falls back to the brand gradient alone, which still reads well.
- * Globbed rather than imported so a missing file cannot break the build.
+ * Background video for the hero, hosted on Gumlet.
+ *
+ * `background=true` gives a chromeless, muted, looping player with no
+ * controls — it is decoration behind the headline, not something anyone is
+ * meant to interact with, which is also why the wrapper is aria-hidden.
+ *
+ * Adding a host here is not enough on its own: the `frame-src` directive in
+ * vercel.json must allow it too, or the browser blocks the frame outright and
+ * the hero silently falls back to the gradient.
  */
-const heroMatches = import.meta.glob<{ default: ImageMetadata }>(
-  '/src/images/hero-image.{jpg,jpeg,png,webp,avif}',
-  { eager: true }
-);
-const heroSource = Object.values(heroMatches)[0]?.default;
-const heroPhoto = heroSource
-  ? await getImage({ src: heroSource, width: 2000, height: 1000 })
-  : null;
+const VIDEO_SRC =
+  'https://play.gumlet.io/embed/6a77412da219b0caeb44e90c' +
+  '?background=true&autoplay=true&loop=true&disable_player_controls=true';
 ---
 
 <section class="relative overflow-hidden">
   <div class="relative isolate min-h-[520px] lg:min-h-[640px]">
-    {/* Base wash, visible on its own when no hero photo is present. */}
+    {
+      /* Base wash. Shows through until the video loads, and stands alone
+        whenever it does not: reduced motion, no JavaScript, or a blocked frame. */
+    }
     <div
       class="from-maroon-950 via-maroon-900 to-maroon-700 absolute inset-0 bg-linear-to-br"
       aria-hidden="true"
@@ -29,20 +30,47 @@ const heroPhoto = heroSource
     </div>
 
     {
-      heroPhoto && (
-        <img
-          id="hero-photo"
-          src={heroPhoto.src}
-          alt="Intermodal container on a highway at sunset"
-          width="2000"
-          height="1000"
-          loading="eager"
-          class="absolute inset-0 h-[118%] w-full object-cover"
-        />
-      )
-    }
+      /*
+      The frame is injected by the script below rather than rendered here, so
+      that a visitor who has asked for reduced motion never loads it at all.
+      A cross-origin player cannot be paused from this page, so declining to
+      start it is the only way to honour that preference — WCAG 2.2.2 wants
+      motion that runs beyond five seconds to be stoppable.
 
-    {/* Brand scrim: keeps the headline legible over any part of the photo. */}
+      `container-type: size` makes cqw/cqh below resolve against this box.
+    */
+    }
+    <div
+      data-hero-video-slot
+      class="[container-type:size] absolute inset-0 overflow-hidden"
+      aria-hidden="true"
+    >
+    </div>
+
+    <template data-hero-video>
+      {
+        /*
+        Sized to cover rather than fit. The hero is a wide, short band and the
+        video is 16:9, so letting the frame fill the box would letterbox it.
+        Taking the larger of "full width" and "the width a full-height 16:9
+        frame needs" (and the same for height) guarantees the video overflows
+        on one axis instead — the standard cover trick, done in container units
+        so it follows this box rather than the viewport.
+      */
+      }
+      <iframe
+        title="Gumlet video player"
+        src={VIDEO_SRC}
+        loading="lazy"
+        referrerpolicy="origin"
+        allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture; fullscreen; clipboard-write;"
+        class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 border-none"
+        style="width:max(100cqw,calc(100cqh*16/9));height:max(100cqh,calc(100cqw*9/16))"
+      >
+      </iframe>
+    </template>
+
+    {/* Brand scrim: keeps the headline legible over any frame of the video. */}
     <div
       class="from-maroon-950/92 via-maroon-950/55 absolute inset-0 bg-linear-to-r to-transparent"
       aria-hidden="true"
@@ -112,25 +140,18 @@ const heroPhoto = heroSource
       stagger: 0.09,
     });
 
-    // Slow parallax drift on the photo. The image is rendered at 118% height
-    // so there is headroom to travel without exposing an edge.
-    const photo = document.getElementById('hero-photo');
-    if (photo) {
-      let ticking = false;
-      const update = () => {
-        const offset = Math.min(window.scrollY, 700) * 0.16;
-        gsap.set(photo, { y: -offset });
-        ticking = false;
-      };
-      window.addEventListener(
-        'scroll',
-        () => {
-          if (ticking) return;
-          ticking = true;
-          requestAnimationFrame(update);
-        },
-        { passive: true }
-      );
+    /*
+     * Start the background video only once motion is known to be welcome.
+     * Injecting it rather than shipping it in the markup means a visitor who
+     * prefers reduced motion pays nothing for it — no frame, no request, no
+     * player — and simply sees the brand gradient, which the hero was designed
+     * to stand on anyway.
+     */
+    const slot = document.querySelector('[data-hero-video-slot]');
+    const template =
+      document.querySelector<HTMLTemplateElement>('[data-hero-video]');
+    if (slot && template) {
+      slot.appendChild(template.content.cloneNode(true));
     }
   }
 </script>

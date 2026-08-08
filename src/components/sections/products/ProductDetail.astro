@@ -406,19 +406,12 @@ const clientData = {
       <div class="flex items-center gap-2">
         {
           /*
-          The drawing is finely annotated, so a way to view it at full size is
-          not optional — the fitted view is only a preview.
+          There was an "Open full size" link here. It was removed because it
+          did not deliver: the spec renders at 1600px into a modal already
+          close to that wide, so the new tab was barely larger than the view
+          it replaced — a control that costs a tab and returns nothing.
         */
         }
-        <a
-          id="spec-fullsize"
-          href="#"
-          target="_blank"
-          rel="noopener"
-          class="text-maroon-700 hover:text-maroon-800 rounded px-2 py-1 text-xs font-semibold underline underline-offset-4"
-        >
-          Open full size
-        </a>
         <button
           type="button"
           id="spec-close"
@@ -620,8 +613,6 @@ const clientData = {
         specImg.src = variant.spec;
         specImg.alt = `Specification drawing for ${data.title} in ${variant.name}`;
       }
-      const specLink = $('spec-fullsize') as HTMLAnchorElement | null;
-      if (specLink && variant.spec) specLink.href = variant.spec;
       const specVariant = $('spec-variant');
       if (specVariant) specVariant.textContent = variant.name;
 

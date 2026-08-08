@@ -41,6 +41,36 @@ function json(body: unknown, status: number): Response {
   });
 }
 
+/**
+ * Answer GET rather than letting the router 404.
+ *
+ * Opening the endpoint in a browser is the first thing anyone does when
+ * dictation misbehaves, and an unhandled GET logs a router warning that looks
+ * like a routing fault rather than someone visiting a POST-only URL. Reports
+ * whether the key is configured, which is the one piece of setup worth
+ * checking from outside — the key itself is never echoed.
+ */
+export const GET: APIRoute = () =>
+  json(
+    {
+      ok: false,
+      error: 'Method not allowed. POST audio as multipart/form-data.',
+      configured: Boolean(readEnv('ELEVENLABS_API_KEY')),
+    },
+    405
+  );
+
+/**
+ * Strip parameters from a media type: `audio/webm;codecs=opus` to `audio/webm`.
+ *
+ * A validator matching against an allowlist compares the whole string, so the
+ * codec parameter the browser attaches turns an accepted type into a rejected
+ * one — and the resulting 400 says nothing about why.
+ */
+function baseType(type: string): string {
+  return type.split(';')[0]!.trim().toLowerCase();
+}
+
 export const POST: APIRoute = async ({ request }) => {
   const apiKey = readEnv('ELEVENLABS_API_KEY');
 
@@ -85,8 +115,19 @@ export const POST: APIRoute = async ({ request }) => {
     return json({ ok: false, error: 'That is not an audio recording.' }, 415);
   }
 
+  /*
+   * Re-wrap rather than forwarding the File as received. Appending it directly
+   * carries its original content type through, parameters and all, and
+   * `audio/webm;codecs=opus` is not the same string as `audio/webm` to a
+   * validator doing an allowlist match.
+   */
+  const filename = audio.name || 'recording.wav';
+  const clean = new Blob([await audio.arrayBuffer()], {
+    type: baseType(audio.type) || 'audio/wav',
+  });
+
   const upstream = new FormData();
-  upstream.append('file', audio, audio.name || 'recording.webm');
+  upstream.append('file', clean, filename);
   upstream.append('model_id', MODEL_ID);
 
   let response: Response;
@@ -109,10 +150,23 @@ export const POST: APIRoute = async ({ request }) => {
     /*
      * Logged, not returned: an upstream error body can name the account or
      * quota state, which is nothing a visitor should see.
+     *
+     * The request shape is logged alongside it because the body on its own
+     * does not say what was sent — an earlier round of this failed with a bare
+     * `400 {"detail":...}` and no way to tell which field it objected to.
      */
     console.error(
-      `[transcribe] ElevenLabs returned ${response.status}:`,
-      await response.text().catch(() => '(no body)')
+      `[transcribe] ElevenLabs returned ${response.status}`,
+      JSON.stringify({
+        sent: {
+          filename,
+          contentType: clean.type,
+          originalType: audio.type,
+          bytes: clean.size,
+          model: MODEL_ID,
+        },
+        body: await response.text().catch(() => '(no body)'),
+      })
     );
     return json({ ok: false, error: 'Could not transcribe that audio.' }, 502);
   }
