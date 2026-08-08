@@ -126,8 +126,10 @@ Two behaviours worth knowing:
 
 ### CSRF
 
-Astro rejects cross-site form POSTs, so `/api/contact` requires a matching
-`Origin` header — browsers send one, `curl` does not. JSON endpoints
+Astro rejects cross-site form POSTs, so `/api/contact` and `/api/transcribe`
+both require a matching `Origin` header — browsers send one, `curl` does not.
+That protection is a side effect of their content type (form-encoded and
+multipart respectively), not something either route asks for. JSON endpoints
 (`/api/checkout`, `/api/stripe-webhook`) are exempt, which is why Stripe can
 post to the webhook.
 
@@ -175,6 +177,48 @@ effect until the next deploy.
 There is no rate limiting — a public endpoint will eventually attract abuse.
 Adding it needs shared state (Vercel KV, Upstash, or Resend's own limits).
 
+## Dictation
+
+Every `<textarea>` gets a **Speak** button that records audio and transcribes it
+into the field. Single-line inputs deliberately do not: a name or an email is
+faster to type than to speak and correct.
+
+`src/components/ui/blocks/VoiceInput.astro` finds the textareas itself, so
+adding a field needs no wiring — drop the component on the page once and every
+multi-line field on it is covered, including ones added later.
+
+The browser posts the recording to `/api/transcribe`, which forwards it to
+ElevenLabs' `scribe_v1` model. The route exists solely to keep the key server-
+side; calling ElevenLabs from the page would publish a billable credential to
+anyone who opens devtools.
+
+| Variable             | Required | Purpose                                              |
+| -------------------- | -------- | ---------------------------------------------------- |
+| `ELEVENLABS_API_KEY` | no       | Transcription. Server-only — never prefix `PUBLIC_`. |
+
+Behaviour worth knowing:
+
+- **Text is inserted at the caret**, not appended, and spaced off surrounding
+  text. Dictation adds to a draft rather than replacing it.
+- **Nothing is stored.** The audio blob is discarded once the text returns; it
+  is never written to disk on either side.
+- **Recording stops itself after two minutes.** A forgotten open mic is both a
+  bill and a privacy problem.
+- **The microphone is released on every exit path** — stop, error, or leaving
+  the page — so the browser's recording indicator always clears.
+- **An unusable button is never shown.** Where `MediaRecorder` or `getUserMedia`
+  is missing (notably any plain-HTTP origin, since getUserMedia requires a
+  secure context) nothing is rendered and the form works by typing.
+- **With no API key the button reports that dictation is unavailable** and tells
+  the visitor to type. It never fails silently.
+
+`Permissions-Policy` in `vercel.json` must keep `microphone=(self)`. Dropping it
+is the non-obvious way to break this — the button renders and the permission
+prompt never appears.
+
+Like `/api/contact`, this endpoint is unauthenticated and unthrottled, and it
+spends money per call. Rate limiting matters more here than on the mail form.
+
 ## Product images
 
 Images live in `src/images/products/` and are committed to the repo. They go
@@ -191,6 +235,12 @@ keep an exact, unhashed path.
 content edit. Frontmatter references an extension-less stem
 (`tie-fluorescent-pink-1`), and `src/utils/productImages.ts` matches it against
 whatever real file exists in any supported format.
+
+The `products/` subfolder is not optional. `src/images/` itself holds brand
+assets and is not scanned, so a product photo landing there is invisible — the
+page keeps showing the placeholder and the build still reports the file as
+missing. That report is the tell: if a photo you just added is still listed as
+missing, check which folder it is in before anything else.
 
 **A missing photo does not break the build.** It renders a placeholder naming
 the file to add. (The collection used to use Astro's `image()` helper, which

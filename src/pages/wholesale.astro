@@ -4,6 +4,7 @@ import MainLayout from '@/layouts/MainLayout.astro';
 import PricingSection from '@components/sections/pricing/PricingSection.astro';
 import SectionHeading from '@components/ui/blocks/SectionHeading.astro';
 import Icon from '@components/ui/icons/Icon.astro';
+import VoiceInput from '@components/ui/blocks/VoiceInput.astro';
 import { SITE } from '@data/constants';
 
 const products = (await getCollection('products')).sort(
@@ -321,6 +322,8 @@ const reasons = [
       </form>
     </div>
   </section>
+
+  <VoiceInput />
 </MainLayout>
 
 <script is:inline define:vars={{ calcOptions }}>

@@ -1,0 +1,297 @@
+---
+/**
+ * Dictation for multi-line form fields.
+ *
+ * Drop this component on any page that has a `<textarea>` and every one of
+ * them gets a microphone — there is no per-field markup to add or keep in
+ * sync, so a field added later is covered automatically. Single-line inputs
+ * are deliberately left alone: a name or an email address is faster to type
+ * than to speak and correct.
+ */
+import Icon from '@components/ui/icons/Icon.astro';
+---
+
+{
+  /*
+  The button is built from this template rather than written in JavaScript, so
+  the icons stay in the registry with every other icon instead of becoming a
+  second copy of the same paths inlined in a script.
+
+  Hidden until the script clones it — and if the browser cannot record, it is
+  never cloned, so no dead control is shown.
+*/
+}
+<template data-voice-template>
+  <div class="mt-2 flex items-center gap-3">
+    <button
+      type="button"
+      data-voice-button
+      class="focus-visible:ring-maroon-700 inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-neutral-300 px-2.5 py-1.5 text-xs font-semibold text-neutral-700 transition hover:border-neutral-400 hover:bg-neutral-50 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+    >
+      <span data-voice-icon-idle class="contents">
+        <Icon name="microphone" class="h-3.5 w-3.5" strokeWidth={2} />
+      </span>
+      <span data-voice-icon-recording class="contents hidden">
+        <Icon name="stop" class="h-3.5 w-3.5 text-red-600" />
+      </span>
+      <span data-voice-label>Speak</span>
+    </button>
+
+    {/* aria-live so the state change is announced, not just drawn. */}
+    <p
+      data-voice-status
+      class="text-xs text-neutral-500"
+      role="status"
+      aria-live="polite"
+    >
+    </p>
+  </div>
+</template>
+
+<script>
+  /**
+   * Wires a dictation control to every textarea on the page.
+   *
+   * Audio is recorded in the browser and posted to /api/transcribe, which
+   * holds the ElevenLabs key. Nothing is stored: the blob is discarded once
+   * the text comes back.
+   */
+
+  /** Auto-stop, in ms. A forgotten open mic is a bill and a privacy problem. */
+  const MAX_RECORDING_MS = 120_000;
+
+  interface Elements {
+    button: HTMLButtonElement;
+    label: HTMLElement;
+    status: HTMLElement;
+    idle: HTMLElement;
+    recording: HTMLElement;
+  }
+
+  /**
+   * Pick a container the browser will actually produce.
+   *
+   * Chrome and Firefox record WebM/Opus; Safari ignores the request and gives
+   * MP4. Passing an unsupported type throws, so an empty string (meaning "your
+   * default") is the honest fallback rather than a guess.
+   */
+  function preferredMimeType(): string {
+    const candidates = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4'];
+    return candidates.find(type => MediaRecorder.isTypeSupported(type)) ?? '';
+  }
+
+  /**
+   * Insert transcribed text at the caret, keeping whatever is already typed.
+   *
+   * Dictation is for adding to a field, not replacing it — someone who typed
+   * two sentences and then spoke a third should end up with three.
+   */
+  function insertAtCaret(field: HTMLTextAreaElement, text: string): void {
+    const start = field.selectionStart ?? field.value.length;
+    const end = field.selectionEnd ?? start;
+    const before = field.value.slice(0, start);
+    const after = field.value.slice(end);
+
+    // Space out from adjacent text, so speaking twice does not run words
+    // together — but never open the field with a leading space.
+    const lead = before && !/\s$/.test(before) ? ' ' : '';
+    const trail = after && !/^\s/.test(after) ? ' ' : '';
+    const insert = `${lead}${text}${trail}`;
+
+    field.value = `${before}${insert}${after}`;
+
+    const caret = start + insert.length - trail.length;
+    field.setSelectionRange(caret, caret);
+    field.focus();
+
+    // Anything watching the field (validation, autosize, character counts)
+    // listens for input events, which programmatic writes do not raise.
+    field.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+
+  function attach(field: HTMLTextAreaElement, template: HTMLTemplateElement) {
+    const fragment = template.content.cloneNode(true) as DocumentFragment;
+    const root = fragment.firstElementChild as HTMLElement;
+
+    const el: Elements = {
+      button: root.querySelector('[data-voice-button]')!,
+      label: root.querySelector('[data-voice-label]')!,
+      status: root.querySelector('[data-voice-status]')!,
+      idle: root.querySelector('[data-voice-icon-idle]')!,
+      recording: root.querySelector('[data-voice-icon-recording]')!,
+    };
+
+    field.insertAdjacentElement('afterend', root);
+
+    // Name the control after the field it fills, so a screen reader hearing
+    // "Speak" on a page with two of them knows which is which.
+    const fieldName =
+      document
+        .querySelector<HTMLLabelElement>(`label[for="${field.id}"]`)
+        ?.textContent?.trim() ?? 'this field';
+    el.button.setAttribute('aria-label', `Dictate ${fieldName}`);
+    // The transcript lands in the textarea, so point assistive tech at it.
+    el.button.setAttribute('aria-controls', field.id);
+
+    let recorder: MediaRecorder | null = null;
+    let stream: MediaStream | null = null;
+    let chunks: Blob[] = [];
+    let timer: number | undefined;
+    let autoStop: number | undefined;
+    let startedAt = 0;
+
+    const setStatus = (text: string, isError = false) => {
+      el.status.textContent = text;
+      el.status.classList.toggle('text-red-600', isError);
+      el.status.classList.toggle('text-neutral-500', !isError);
+    };
+
+    const showRecording = (on: boolean) => {
+      el.idle.classList.toggle('hidden', on);
+      el.recording.classList.toggle('hidden', !on);
+      el.label.textContent = on ? 'Stop' : 'Speak';
+      el.button.setAttribute('aria-pressed', String(on));
+      el.button.classList.toggle('border-red-400', on);
+      el.button.classList.toggle('bg-red-50', on);
+    };
+
+    /** Drop the mic. Without this the browser keeps showing "recording". */
+    const releaseMic = () => {
+      stream?.getTracks().forEach(track => track.stop());
+      stream = null;
+      window.clearInterval(timer);
+      window.clearTimeout(autoStop);
+    };
+
+    const tick = () => {
+      const seconds = Math.floor((Date.now() - startedAt) / 1000);
+      const mm = String(Math.floor(seconds / 60)).padStart(2, '0');
+      const ss = String(seconds % 60).padStart(2, '0');
+      setStatus(`Recording ${mm}:${ss} — click Stop when finished`);
+    };
+
+    const transcribe = async (blob: Blob) => {
+      el.button.disabled = true;
+      setStatus('Transcribing…');
+
+      const body = new FormData();
+      // Extension matters to the upstream decoder, so derive it from the
+      // container the recorder actually used rather than hard-coding one.
+      const ext = blob.type.includes('mp4') ? 'mp4' : 'webm';
+      body.append('audio', blob, `recording.${ext}`);
+
+      try {
+        const response = await fetch('/api/transcribe', {
+          method: 'POST',
+          body,
+        });
+        const payload = await response
+          .json()
+          .catch(() => ({ ok: false, error: '' }));
+
+        if (!response.ok || !payload.ok) {
+          setStatus(
+            payload.error || 'Transcription failed. Please type.',
+            true
+          );
+          return;
+        }
+
+        insertAtCaret(field, payload.text);
+        setStatus('Added. Edit as needed.');
+      } catch {
+        // Offline, or the request was cut off mid-flight.
+        setStatus('Network problem — the recording was not sent.', true);
+      } finally {
+        el.button.disabled = false;
+      }
+    };
+
+    const stop = () => {
+      // `stop()` fires onstop asynchronously; releasing the mic here rather
+      // than in the handler kills the recording light immediately.
+      recorder?.state === 'recording' && recorder.stop();
+      releaseMic();
+      showRecording(false);
+    };
+
+    const start = async () => {
+      setStatus('Requesting microphone…');
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      } catch (error) {
+        // Denied, dismissed, or no input device — all land here, and the
+        // distinction is what the visitor needs to hear.
+        const denied =
+          error instanceof DOMException &&
+          (error.name === 'NotAllowedError' || error.name === 'SecurityError');
+        setStatus(
+          denied
+            ? 'Microphone blocked. Allow access in your browser, or type instead.'
+            : 'No microphone found. Please type instead.',
+          true
+        );
+        return;
+      }
+
+      const mimeType = preferredMimeType();
+      recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+      chunks = [];
+
+      recorder.addEventListener('dataavailable', event => {
+        if (event.data.size > 0) chunks.push(event.data);
+      });
+
+      recorder.addEventListener('stop', () => {
+        const blob = new Blob(chunks, {
+          type: recorder?.mimeType || 'audio/webm',
+        });
+        chunks = [];
+        if (blob.size > 0) void transcribe(blob);
+        else setStatus('Nothing was recorded. Try again.', true);
+      });
+
+      recorder.start();
+      startedAt = Date.now();
+      showRecording(true);
+      tick();
+      timer = window.setInterval(tick, 1000);
+      autoStop = window.setTimeout(() => {
+        stop();
+        setStatus('Reached the 2 minute limit — transcribing what was said.');
+      }, MAX_RECORDING_MS);
+    };
+
+    el.button.addEventListener('click', () => {
+      if (recorder?.state === 'recording') stop();
+      else void start();
+    });
+
+    // Leaving mid-recording must not strand an open microphone.
+    window.addEventListener('pagehide', releaseMic);
+  }
+
+  const template = document.querySelector<HTMLTemplateElement>(
+    '[data-voice-template]'
+  );
+
+  /*
+   * Recording needs both APIs and a secure context; getUserMedia is undefined
+   * over plain HTTP. Where any of that is missing the button is simply never
+   * created — the forms are fully usable by typing, so a control that cannot
+   * work is worse than no control.
+   */
+  const supported =
+    typeof MediaRecorder !== 'undefined' &&
+    typeof navigator.mediaDevices?.getUserMedia === 'function';
+
+  if (template && supported) {
+    document
+      .querySelectorAll<HTMLTextAreaElement>('textarea')
+      .forEach(field => {
+        // A honeypot textarea is hidden from people and should stay that way.
+        if (field.closest('[aria-hidden="true"]') || field.hidden) return;
+        attach(field, template);
+      });
+  }
+</script>

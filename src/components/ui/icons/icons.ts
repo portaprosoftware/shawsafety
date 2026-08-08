@@ -141,4 +141,20 @@ export const Icons: Record<string, IconDef> = {
       'M17 9v4',
     ],
   },
+  microphone: {
+    paths: [
+      'M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z',
+      'M19 10v1a7 7 0 0 1-14 0v-1',
+      'M12 18v4',
+      'M8 22h8',
+    ],
+  },
+  // Filled square: the universal "stop recording", and unmistakable against
+  // the mic outline it replaces mid-recording.
+  stop: {
+    paths: [
+      'M7 6h10a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1Z',
+    ],
+    fill: true,
+  },
 };
