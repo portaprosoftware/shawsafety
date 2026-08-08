@@ -64,9 +64,15 @@ const { src, full, alt } = Astro.props;
     Drag to pan &middot; Press Esc to close
   </p>
   <div id="zoom-stage" class="h-full w-full overflow-hidden">
+    {
+      /*
+      No `src` until the lightbox opens. An empty src="" resolves against the
+      document URL, so the browser would re-request the page itself as an image
+      on every product view.
+    */
+    }
     <img
       id="zoom-image"
-      src=""
       alt=""
       class="mx-auto h-full w-auto max-w-none cursor-grab object-contain select-none"
       draggable="false"
