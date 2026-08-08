@@ -63,13 +63,12 @@ imports so it can be tested directly.
 
 ### Environment variables
 
-| Variable                                   | Required | Purpose                                    |
-| ------------------------------------------ | -------- | ------------------------------------------ |
-| `STRIPE_SECRET_KEY`                        | yes      | Creates the Checkout Session. Server-only. |
-| `STRIPE_PRICE_YELLOW`                      | —        | Price ID for the yellow tie.               |
-| `STRIPE_PRICE_PINK` / `_GREEN` / `_ORANGE` | —        | The other tie colors.                      |
-| `STRIPE_PRICE_VEST_LIME` / `_VEST_ORANGE`  | —        | The vests.                                 |
-| `STRIPE_CHECKOUT_WEBHOOK_SECRET`           | yes      | Verifies order webhooks. Server-only.      |
+| Variable                                               | Required | Purpose                                     |
+| ------------------------------------------------------ | -------- | ------------------------------------------- |
+| `STRIPE_SECRET_KEY`                                    | yes      | Creates the Checkout Session. Server-only.  |
+| `STRIPE_PRICE_YELLOW` / `_PINK` / `_GREEN` / `_ORANGE` | —        | Price ID per tie colour. All four are live. |
+| `STRIPE_PRICE_VEST_LIME` / `_VEST_ORANGE`              | —        | The vests.                                  |
+| `STRIPE_CHECKOUT_WEBHOOK_SECRET`                       | yes      | Verifies order webhooks. Server-only.       |
 
 The variant-to-variable mapping is `src/utils/stripePrices.ts`. **A variant
 with no Price ID cannot be bought**: checkout refuses the whole order and names
