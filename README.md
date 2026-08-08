@@ -40,6 +40,23 @@ those tokens — no component markup references a raw hex.
 `--color-fluoro-*` are _product_ colors (the actual tie pigments) and should
 never be used for UI chrome.
 
+### Icons sit on the page, never in a tile
+
+A site-wide rule: an icon is never given a filled shape behind it. No rounded
+squares, no circles, no pastel wash, no translucent or blurred "glass" panel —
+the icon draws directly on whatever the page background already is, and colour
+carries it.
+
+Where a tile used to supply the colour, the icon takes that colour on itself:
+a white glyph on maroon becomes a maroon glyph, and a black glyph on a
+fluorescent swatch becomes a fluorescent glyph. `TrustStrip.astro` is the
+reference implementation.
+
+Icons _inside a control_ are not tiles and are left alone — the glyph in a
+button, in the search field's submit affordance, or in a labelled chip is part
+of that control's own surface. The rule is about decorative containers whose
+only job is to sit behind an icon.
+
 ## Pricing
 
 All price math lives in `src/assets/scripts/pricing.ts` and is shared between

@@ -45,9 +45,10 @@ const contactMethods = [
         {
           contactMethods.map(method => (
             <div class="flex gap-4">
-              <span class="bg-maroon-50 text-maroon-700 flex h-11 w-11 shrink-0 items-center justify-center rounded-lg">
-                <Icon name={method.icon} class="h-5 w-5" />
-              </span>
+              <Icon
+                name={method.icon}
+                class="text-maroon-700 mt-0.5 h-7 w-7 shrink-0"
+              />
               <div>
                 <dt class="text-sm font-bold tracking-wide text-neutral-900 uppercase">
                   {method.label}
