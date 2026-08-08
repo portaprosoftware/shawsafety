@@ -351,9 +351,50 @@ Behaviour worth knowing:
 - **The index is globbed, not imported**, so a fresh clone with no index builds
   and deploys fine — same reasoning as the product photos.
 
-Like `/api/contact` and `/api/transcribe`, this endpoint is unauthenticated and
-unthrottled, and it spends money per call — two OpenAI calls per question. Rate
-limiting matters here.
+### Rate limiting
+
+The endpoint is unauthenticated, one click from every visitor on every page, and
+spends two OpenAI calls per question, so it is rate limited. `src/utils/rateLimit.ts`
+holds the limiter; the route applies two sets of rules per request:
+
+| Scope        | Rule                      | What it bounds                                                                                                                                                          |
+| ------------ | ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Per caller   | 6 per minute, 40 per hour | One source. A real conversation is a handful of questions with reading in between, so neither rule bites for a person and the burst rule bites immediately on a script. |
+| Per instance | 600 per hour              | Total spend, however the traffic is spread. Forty simultaneous conversations at the per-caller hourly limit still fit under it.                                         |
+
+The caller is the client IP, read from the forwarding headers Vercel's edge sets
+itself. **That identity is only trustworthy behind an edge that overwrites those
+headers** — deployed somewhere that forwards client headers blindly, a caller
+could pick its own bucket. Requests with no usable header share one `unknown`
+bucket rather than each getting a fresh allowance.
+
+**State is in memory, so limits are per warm instance.** Two concurrent
+instances each enforce independently and a cold start begins empty — this is a
+brake, not a guarantee. It stops the realistic failure (one script, one source,
+running up a bill) flat. A hard guarantee needs shared state, Vercel KV or
+Upstash, which is a credential and a dependency this project does not otherwise
+have; swapping one in means reimplementing `check()` and nothing outside that
+file assumes the store is local. Same caveat as the webhook's duplicate
+suppression, for the same reason.
+
+Details worth knowing:
+
+- **Limits are checked before the body is parsed** and long before either
+  OpenAI call, so a flood costs almost nothing to refuse.
+- **Both rule sets are tested before either is charged.** Otherwise a request
+  the instance ceiling turns away would still spend the caller's own allowance
+  on a question that was never answered.
+- **A rejected request is not recorded.** A caller who keeps hammering while
+  limited would otherwise push their own window forward on every attempt and
+  never come back — a limiter that turns a burst into a permanent ban.
+- **429s carry `Retry-After`** and a `retryAfter` in the JSON body. The widget
+  honours it by disabling send for up to a minute, so it does not fire requests
+  it knows will be refused and make the wait longer than the message promised.
+- **The key table is capped at 10,000** and evicted oldest-first, so forged IPs
+  cannot turn the limiter into the memory leak it was added to prevent.
+
+`/api/contact` and `/api/transcribe` are still unthrottled, and `/api/transcribe`
+also spends money per call.
 
 ### The chat widget
 

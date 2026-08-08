@@ -194,6 +194,18 @@ const suggestions = [
     let messages: Message[] = [];
     let pending = false;
 
+    /**
+     * Set when the route rate limits us, and honoured client-side.
+     *
+     * The endpoint is what actually enforces the limit; this only stops the
+     * widget from firing requests it already knows will be refused, which
+     * would push the window out and make the wait longer than the message
+     * promised. Capped, so a long window cannot leave the composer dead —
+     * the bubble still says when to come back.
+     */
+    let cooldownUntil = 0;
+    const MAX_HONOURED_COOLDOWN_MS = 60_000;
+
     // ── Persistence ─────────────────────────────────────────────────────
     /*
      * Storage is best-effort throughout. Safari in private mode throws on
@@ -452,6 +464,11 @@ const suggestions = [
         const payload = await response.json().catch(() => ({ ok: false }));
 
         if (!response.ok || !payload.ok) {
+          if (response.status === 429 && Number(payload.retryAfter) > 0) {
+            cooldownUntil =
+              Date.now() +
+              Math.min(payload.retryAfter * 1000, MAX_HONOURED_COOLDOWN_MS);
+          }
           messages.push({
             role: 'assistant',
             content:
@@ -476,7 +493,9 @@ const suggestions = [
         });
       } finally {
         pending = false;
-        send.disabled = false;
+        const wait = cooldownUntil - Date.now();
+        send.disabled = wait > 0;
+        if (wait > 0) window.setTimeout(() => (send.disabled = pending), wait);
         render();
         save(isOpen());
       }
@@ -485,7 +504,7 @@ const suggestions = [
     form.addEventListener('submit', event => {
       event.preventDefault();
       const question = input.value.trim();
-      if (!question || pending) return;
+      if (!question || pending || Date.now() < cooldownUntil) return;
       input.value = '';
       autosize();
       void ask(question);

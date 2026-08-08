@@ -21,6 +21,7 @@
 import type { APIRoute } from 'astro';
 import { readEnv } from '@utils/env';
 import { formatContext, ragIndex, retrieve } from '@utils/rag';
+import { check, clientKey, type RateLimitRule } from '@utils/rateLimit';
 
 export const prerender = false;
 
@@ -47,6 +48,39 @@ const MAX_HISTORY_TURNS = 6;
 /** Give up rather than hold a serverless function open indefinitely. */
 const UPSTREAM_TIMEOUT_MS = 20_000;
 
+/**
+ * Per-caller limits.
+ *
+ * Sized against how a person actually uses the widget: a real conversation is
+ * a handful of questions with reading in between, so the burst rule barely
+ * exists for them and bites immediately on a script. The hourly rule is the
+ * one that bounds a day's worth of spend from a single source.
+ *
+ * Both are enforced per warm instance — see the note in @utils/rateLimit for
+ * what that does and does not guarantee.
+ */
+const PER_CALLER: Record<string, RateLimitRule> = {
+  burst: { limit: 6, windowMs: 60_000 },
+  hourly: { limit: 40, windowMs: 60 * 60_000 },
+};
+
+/**
+ * Instance-wide ceiling, on top of the per-caller rules.
+ *
+ * The per-caller limit is only as good as the caller's identity, and a
+ * distributed source — or anything that reaches this without the edge setting
+ * the forwarding headers — presents as many identities. This is the backstop
+ * that bounds total spend regardless of how the traffic is spread. It is
+ * generous enough that legitimate traffic will not reach it: forty simultaneous
+ * conversations at the per-caller hourly limit still fit.
+ */
+const GLOBAL: Record<string, RateLimitRule> = {
+  global: { limit: 600, windowMs: 60 * 60_000 },
+};
+
+/** Bucket every request shares, for the ceiling above. */
+const GLOBAL_KEY = '__all__';
+
 const SYSTEM_PROMPT = `You are the assistant for Shaw Safety, a direct supplier of fluorescent security zip ties and ANSI Class 2 hi-vis safety vests.
 
 Answer using ONLY the numbered context passages provided. They are extracts from the Shaw Safety website.
@@ -59,11 +93,22 @@ Rules:
 - Write in plain American English, in the same direct voice as the site. Do not use marketing filler.
 - You take orders for nobody: if asked to place, change, or cancel an order, or to approve terms or a discount, explain that a person handles that and give the contact details.`;
 
-function json(body: unknown, status: number): Response {
+function json(
+  body: unknown,
+  status: number,
+  headers: Record<string, string> = {}
+): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...headers },
   });
+}
+
+/** "in 45 seconds" / "in 3 minutes" — a wait a person can act on. */
+function humanWait(seconds: number): string {
+  if (seconds < 90) return `in ${seconds} second${seconds === 1 ? '' : 's'}`;
+  const minutes = Math.ceil(seconds / 60);
+  return `in ${minutes} minute${minutes === 1 ? '' : 's'}`;
 }
 
 /**
@@ -183,6 +228,47 @@ export const POST: APIRoute = async ({ request }) => {
           'The assistant is not configured. Email sales@shawsafety.com and we will answer directly.',
       },
       503
+    );
+  }
+
+  /*
+   * Limits are checked before the body is read, so a flood is rejected without
+   * this route parsing anything — and long before either OpenAI call.
+   *
+   * Both sets of rules are tested before either is charged, so a request the
+   * instance ceiling turns away does not also spend the caller's own
+   * allowance on a question that was never answered.
+   */
+  const caller = clientKey(request);
+  const now = Date.now();
+  const callerLimit = check(caller, PER_CALLER, { now, record: false });
+  const limited = callerLimit.allowed
+    ? check(GLOBAL_KEY, GLOBAL, { now, record: false })
+    : callerLimit;
+
+  if (limited.allowed) {
+    check(caller, PER_CALLER, { now });
+    check(GLOBAL_KEY, GLOBAL, { now });
+  }
+
+  if (!limited.allowed) {
+    // Logged at warn, not error: being rate limited is the system working.
+    // The caller is logged because a sustained block is worth being able to
+    // trace to a source.
+    console.warn(
+      `[ask] rate limited ${caller} on ${limited.rule}, retry in ${limited.retryAfter}s`
+    );
+    return json(
+      {
+        ok: false,
+        error:
+          limited.rule === 'global'
+            ? `The assistant is busy right now. Try again ${humanWait(limited.retryAfter)}, or call (800) 555-0117.`
+            : `That is a lot of questions at once. Try again ${humanWait(limited.retryAfter)}, or call (800) 555-0117 — Mon–Fri, 7am–6pm CT.`,
+        retryAfter: limited.retryAfter,
+      },
+      429,
+      { 'Retry-After': String(limited.retryAfter) }
     );
   }
 
