@@ -77,14 +77,14 @@ const [left, right] = [p.highlights.slice(0, 3), p.highlights.slice(3, 6)];
             right.map(item => (
               <div class="flex gap-3.5">
                 {/*
-                 * The tie's own fluorescent colour, on the icon itself rather
-                 * than a swatch behind it. `variant.hex` is a physical product
-                 * colour, so it has to stay inline — there is no token for it.
+                 * Checks rather than each item's own icon: this column reads as
+                 * a list of what you get, and the tie's fluorescent colour is
+                 * invisible against the near-white section background once the
+                 * swatch behind it is gone.
                  */}
                 <Icon
-                  name={item.icon}
-                  class="mt-0.5 h-6 w-6 shrink-0"
-                  style={`color:${variant.hex}`}
+                  name="checkCircle"
+                  class="mt-0.5 h-6 w-6 shrink-0 text-green-600"
                 />
                 <div>
                   <h3 class="text-sm font-bold tracking-wide text-neutral-900 uppercase">
