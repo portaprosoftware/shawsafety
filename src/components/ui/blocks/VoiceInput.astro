@@ -43,6 +43,30 @@ import Icon from '@components/ui/icons/Icon.astro';
       <Icon name="stop" class="h-4 w-4 text-red-600" />
     </span>
     <span data-voice-label class="sr-only">Speak</span>
+
+    {
+      /*
+      Radio-wave rings while recording. Two staggered animate-ping layers so
+      it reads as an emanating wave, not a single throb. Positioned as
+      children of the (already position:absolute) button, so `absolute inset-0`
+      resolves against the button box and the pulse extends into the space
+      around it. aria-hidden and pointer-events:none so nothing interferes
+      with focus or the click path; class-hidden when idle so the paint cost
+      is zero the rest of the time.
+    */
+    }
+    <span
+      data-voice-rings
+      aria-hidden="true"
+      class="pointer-events-none absolute inset-0 hidden"
+    >
+      <span
+        class="absolute inset-0 animate-ping rounded-lg ring-2 ring-red-500/60"
+      ></span>
+      <span
+        class="absolute inset-0 animate-ping rounded-lg ring-2 ring-red-500/40"
+        style="animation-delay:0.6s"></span>
+    </span>
   </button>
 
   {/* aria-live so the state change is announced, not just drawn. */}
@@ -76,6 +100,7 @@ import Icon from '@components/ui/icons/Icon.astro';
     status: HTMLElement;
     idle: HTMLElement;
     recording: HTMLElement;
+    rings: HTMLElement;
   }
 
   function attach(field: HTMLTextAreaElement, template: HTMLTemplateElement) {
@@ -87,6 +112,7 @@ import Icon from '@components/ui/icons/Icon.astro';
       status: fragment.querySelector('[data-voice-status]')!,
       idle: fragment.querySelector('[data-voice-icon-idle]')!,
       recording: fragment.querySelector('[data-voice-icon-recording]')!,
+      rings: fragment.querySelector('[data-voice-rings]')!,
     };
 
     /*
@@ -130,6 +156,7 @@ import Icon from '@components/ui/icons/Icon.astro';
         el.button.setAttribute('aria-pressed', String(on));
         el.button.classList.toggle('border-red-400', on);
         el.button.classList.toggle('bg-red-50', on);
+        el.rings.classList.toggle('hidden', !on);
       },
       onBusyChange: busy => {
         el.button.disabled = busy;

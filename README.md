@@ -169,8 +169,17 @@ Set in Vercel → Project → Settings → Environment Variables. See `.env.exam
 | Variable         | Required | Purpose                                                                                                    |
 | ---------------- | -------- | ---------------------------------------------------------------------------------------------------------- |
 | `RESEND_API_KEY` | yes      | Authenticates the send. Server-only — never prefix with `PUBLIC_`.                                         |
-| `RESEND_FROM`    | yes      | From address. Must be on a domain verified in Resend, or the send is rejected.                             |
+| `RESEND_FROM`    | yes      | From address. Must be on `mail.portaprosoftware.com`, the domain verified in Resend — see the note below.   |
 | `CONTACT_TO`     | no       | Where enquiries are delivered. Comma-separated for several recipients. Defaults to `sales@shawsafety.com`. |
+
+The sending domain verified in Resend is the subdomain
+`mail.portaprosoftware.com`. The apex `portaprosoftware.com` is **not** verified,
+so a From address like `shaw-safety@portaprosoftware.com` is rejected with a 403
+(`The portaprosoftware.com domain is not verified`) even though that alias
+receives and sends mail fine elsewhere — Resend checks its own domain list, not
+whether the mailbox exists. Use `something@mail.portaprosoftware.com`. The
+address does not need to be a real mailbox: replies reach the customer through
+`Reply-To`, and enquiries are delivered to `CONTACT_TO`.
 
 Read through `src/utils/env.ts`, which prefers `process.env` over
 `import.meta.env`. Vite can inline `import.meta.env` at build time, which would
@@ -192,8 +201,9 @@ effect until the next deploy.
   the endpoint returns a styled HTML page rather than raw JSON when the request
   asks for HTML.
 
-There is no rate limiting — a public endpoint will eventually attract abuse.
-Adding it needs shared state (Vercel KV, Upstash, or Resend's own limits).
+Rate-limited at **five submissions per caller per minute** (see the section below).
+A visitor fixing a typo and resubmitting has plenty of room; a scripted flood
+is cut off at the door.
 
 ## Dictation
 
@@ -226,7 +236,7 @@ accepted `audio/webm` into a rejection — every transcription came back
 WAV has one canonical type, no codec parameter, and is accepted everywhere. 16
 kHz mono is also what speech models resample to anyway, so sending 48 kHz
 stereo pays for bytes that get thrown away. The cost is size: PCM is roughly ten
-times Opus, about 32 KB per second, so the two-minute cap is under 4 MB.
+times Opus, about 32 KB per second, so the ten-second cap is under 350 KB.
 
 The server re-wraps the upload rather than forwarding the received `File`, which
 would carry its original type through, and strips any parameters as a second
@@ -243,8 +253,16 @@ Behaviour worth knowing:
   text. Dictation adds to a draft rather than replacing it.
 - **Nothing is stored.** The audio blob is discarded once the text returns; it
   is never written to disk on either side.
-- **Recording stops itself after two minutes.** A forgotten open mic is both a
-  bill and a privacy problem.
+- **Recording stops itself after ten seconds**, with a live countdown in the
+  status line. A forgotten open mic is a bill and a privacy problem on an
+  unauthenticated endpoint, and ten seconds is enough for one thought at a
+  form field — needing more means pressing again, which is deliberate. The
+  cap is `MAX_RECORDING_MS` at the top of the client script if it ever needs
+  to change.
+- **The button pulses with radio-wave rings while recording**, driven by two
+  staggered `animate-ping` layers. The rings sit inside the wrapper (not the
+  button itself) so `animate-ping`'s scale is not clipped, and they are hidden
+  outright when idle so the paint cost is zero the rest of the time.
 - **The microphone is released on every exit path** — stop, error, or leaving
   the page — so the browser's recording indicator always clears.
 - **An unusable button is never shown.** Where `MediaRecorder` or `getUserMedia`
@@ -301,8 +319,91 @@ the server log with the model id attached. `scribe_v1` is the drop-in fallback.
 is the non-obvious way to break this — the button renders and the permission
 prompt never appears.
 
-Like `/api/contact`, this endpoint is unauthenticated and unthrottled, and it
-spends money per call. Rate limiting matters more here than on the mail form.
+Rate-limited at ten calls per caller per minute — see below.
+
+## Rate limiting
+
+All three public API routes are throttled per caller before they touch any of
+the work they would otherwise do. Rejection returns 429 with `Retry-After` in
+seconds so any client that honours it backs off automatically.
+
+| Endpoint          | Limit                                                | Why                                                                                                  |
+| ----------------- | ---------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `/api/transcribe` | 10 / caller / min                                    | Every allowed call bills ElevenLabs. Generous for a real user tapping the mic, brutal for a scraper. |
+| `/api/contact`    | 5 / caller / min                                     | Room to fix a typo and resubmit; scripted flooders are cut off at the door.                          |
+| `/api/ask`        | 6 / caller / min + 40 / caller / hr + 600 / hr total | OpenAI is the most expensive of the three per call; the instance ceiling bounds a bad day.           |
+
+The limiter is a sliding window (log of timestamps), not a fixed bucket — the
+boundary of a fixed bucket lets a caller spend its whole allowance at the tail
+of one bucket and again at the head of the next, doubling the effective rate.
+`/api/ask` in particular relies on this to enforce a burst rule and an hourly
+rule together without either interfering with the other.
+
+The caller is the client IP, read from the forwarding headers Vercel's edge
+sets itself. **That identity is only trustworthy behind an edge that overwrites
+those headers** — deployed somewhere that forwards client headers blindly, a
+caller could pick its own bucket. Requests with no usable header share one
+`unknown` bucket rather than each getting a fresh allowance.
+
+### Shared state
+
+Rate limits have to hold across serverless invocations, and Vercel functions
+do not share memory. The limiter prefers **Upstash Redis** via its HTTP API
+(sorted set per key, no client SDK); when Upstash is not configured it falls
+back to an in-memory table. `GET /api/transcribe` reports which one is live
+under `rateLimiter`.
+
+The fallback is loudly documented as best-effort: it only catches repeat calls
+landing on the same warm instance, so a scripted attacker cycling requests
+across cold starts gets unlimited quota. It still helps against a real user
+hammering a button, which is the common case, but for a real global limit
+Upstash needs to be set.
+
+| Variable                   | Required | Purpose                     |
+| -------------------------- | -------- | --------------------------- |
+| `UPSTASH_REDIS_REST_URL`   | pair     | Upstash Redis REST endpoint |
+| `UPSTASH_REDIS_REST_TOKEN` | pair     | Bearer token for the above  |
+
+"Pair" means both or neither — one on its own falls through to the in-memory
+fallback.
+
+**The Vercel Marketplace integration for Upstash injects these under different
+names**, prefixing every variable with the storage slug — a project set up
+that way sees `UPSTASH_REDIS_REST_KV_REST_API_URL` and
+`…_KV_REST_API_TOKEN` in its env. The code recognises three name pairs, in
+order:
+
+1. `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` (documented default)
+2. `KV_REST_API_URL` / `KV_REST_API_TOKEN` (older Vercel KV integration)
+3. `UPSTASH_REDIS_REST_KV_REST_API_URL` / `UPSTASH_REDIS_REST_KV_REST_API_TOKEN`
+   (current Vercel Marketplace integration for Upstash)
+
+So both integration flows work without renaming anything in the dashboard.
+`GET /api/transcribe`'s `rateLimiter.source` field prints the exact pair being
+used, which is what to check first when a fresh deploy is not picking up the
+integration.
+
+### Failure modes
+
+- **Upstash unreachable.** The limiter fails **open**, logs loudly, and lets
+  the request through. A Redis outage should not take these routes offline for
+  real users; monitoring the log picks up a real outage without penalising
+  visitors during a network blip.
+- **Client without a resolvable IP.** All such callers collapse onto a single
+  `unknown` bucket, on purpose. An unidentified request still counts against
+  something rather than getting a free pass.
+- **Two endpoints on the same IP.** Buckets are scoped per endpoint
+  (`transcribe:*`, `contact:*`, and `/api/ask`'s own keys), so exhausting one
+  does not lock out the others.
+- **A rejected request is not recorded.** A caller who keeps hammering while
+  limited would otherwise push their own window forward on every attempt and
+  never come back — a limiter that turns a burst into a permanent ban.
+- **The in-memory table is capped at 10,000 keys**, evicted oldest-first, so
+  forged IPs cannot turn the limiter into the memory leak it was added to
+  prevent.
+
+Change any limit at the constant in the route itself (`src/pages/api/*.ts`) —
+they are deliberately not runtime settings.
 
 ## RAG assistant
 
@@ -444,45 +545,20 @@ Behaviour worth knowing:
 
 ### Rate limiting
 
-The endpoint is unauthenticated, one click from every visitor on every page, and
-spends two OpenAI calls per question, so it is rate limited. `src/utils/rateLimit.ts`
-holds the limiter; the route applies two sets of rules per request:
+Covered in the top-level **Rate limiting** section — same limiter, same store,
+same failure modes. `/api/ask` uses it with the sharpest ruleset because every
+allowed call spends two OpenAI credits: 6 per minute plus 40 per hour per
+caller, and a 600 per hour ceiling for the whole instance.
 
-| Scope        | Rule                      | What it bounds                                                                                                                                                          |
-| ------------ | ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Per caller   | 6 per minute, 40 per hour | One source. A real conversation is a handful of questions with reading in between, so neither rule bites for a person and the burst rule bites immediately on a script. |
-| Per instance | 600 per hour              | Total spend, however the traffic is spread. Forty simultaneous conversations at the per-caller hourly limit still fit under it.                                         |
+Two `/api/ask`-specific behaviours worth noting on top of that:
 
-The caller is the client IP, read from the forwarding headers Vercel's edge sets
-itself. **That identity is only trustworthy behind an edge that overwrites those
-headers** — deployed somewhere that forwards client headers blindly, a caller
-could pick its own bucket. Requests with no usable header share one `unknown`
-bucket rather than each getting a fresh allowance.
-
-**State is in memory, so limits are per warm instance.** Two concurrent
-instances each enforce independently and a cold start begins empty — this is a
-brake, not a guarantee. It stops the realistic failure (one script, one source,
-running up a bill) flat. A hard guarantee needs shared state, Vercel KV or
-Upstash, which is a credential and a dependency this project does not otherwise
-have; swapping one in means reimplementing `check()` and nothing outside that
-file assumes the store is local. Same caveat as the webhook's duplicate
-suppression, for the same reason.
-
-Details worth knowing:
-
-- **Limits are checked before the body is parsed** and long before either
-  OpenAI call, so a flood costs almost nothing to refuse.
 - **Both rule sets are tested before either is charged.** Otherwise a request
   the instance ceiling turns away would still spend the caller's own allowance
   on a question that was never answered.
-- **A rejected request is not recorded.** A caller who keeps hammering while
-  limited would otherwise push their own window forward on every attempt and
-  never come back — a limiter that turns a burst into a permanent ban.
 - **429s carry `Retry-After`** and a `retryAfter` in the JSON body. The widget
-  honours it by disabling send for up to a minute, so it does not fire requests
-  it knows will be refused and make the wait longer than the message promised.
-- **The key table is capped at 10,000** and evicted oldest-first, so forged IPs
-  cannot turn the limiter into the memory leak it was added to prevent.
+  honours it by disabling send for up to a minute, so it does not fire
+  requests it knows will be refused and make the wait longer than the message
+  promised.
 
 `/api/contact` and `/api/transcribe` are still unthrottled, and `/api/transcribe`
 also spends money per call.

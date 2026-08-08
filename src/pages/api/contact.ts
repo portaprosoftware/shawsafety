@@ -18,6 +18,7 @@ import {
   sendEmail,
 } from '@utils/sendEmail';
 import { readEnv } from '@utils/env';
+import { check, clientKey } from '@utils/rateLimit';
 
 export const prerender = false;
 
@@ -122,7 +123,37 @@ function looksLikeEmail(value: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 }
 
+/**
+ * Per-caller throttle. Contact form submissions cost time and Resend quota;
+ * genuine visitors send one, spammers send hundreds. Five per minute leaves
+ * room to fix a typo and resubmit while cutting off scripted floods.
+ */
+const RATE_LIMIT = {
+  burst: { limit: 5, windowMs: 60_000 },
+} as const;
+
 export const POST: APIRoute = async ({ request }) => {
+  // Rate limit before configuration or parsing — an abuser must not force
+  // the function to touch the form body or send anything.
+  const caller = clientKey(request);
+  const gate = await check(`contact:${caller}`, RATE_LIMIT);
+  if (!gate.allowed) {
+    console.warn(
+      `[contact] rate limit hit for ${caller} on ${gate.rule}; retry in ${gate.retryAfter}s`
+    );
+    return respond(
+      request,
+      429,
+      {
+        ok: false,
+        error:
+          'Too many submissions from your network. Please wait a moment and try again.',
+      },
+      'Please slow down',
+      'We have received several submissions from your network in the last minute. Please wait a moment and try again.'
+    );
+  }
+
   // Check configuration before accepting anything: no valid recipient means
   // the enquiry would vanish silently.
   const configured =

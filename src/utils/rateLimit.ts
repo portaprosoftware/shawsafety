@@ -1,28 +1,37 @@
 /**
- * In-memory sliding-window rate limiter.
+ * Sliding-window rate limiter for public API endpoints.
  *
- * Free of Astro and OpenAI imports so it can be exercised directly, and it
- * takes `now` as an argument rather than reading the clock, so a test can walk
- * a window forward without sleeping through it.
+ * A test one endpoint applies against several rules at once — `/api/ask`
+ * enforces a burst rule and an hourly rule per caller, and an instance-wide
+ * ceiling on top of that — so the interface takes a `rules` object rather than
+ * a single limit and returns the name of the rule that rejected. Two independent
+ * peek-then-commit checks then let a request be rejected by the ceiling without
+ * charging its per-caller quota for a question that was never answered.
  *
- * ## What this does and does not protect
+ * Windows are a sliding log rather than a fixed bucket: the boundary of a
+ * fixed bucket lets a caller spend its whole allowance at the tail of one
+ * bucket and again at the head of the next, doubling the effective rate.
  *
- * State lives in the module, which on Vercel means **per warm instance**. Two
- * concurrent instances each enforce the limits independently, and a cold start
- * begins with an empty table. So this is a spend and abuse *brake*, not a
- * guarantee: a determined caller with many IPs, hitting hard enough to fan out
- * across instances, gets more than the numbers below suggest.
+ * ## Backend
  *
- * It is still worth having. The realistic failure here is a script pointed at
- * an unauthenticated endpoint that costs two OpenAI calls per hit, and a
- * per-instance window stops that flat. A hard guarantee needs shared state —
- * Vercel KV or Upstash — which is a credential and a dependency this project
- * does not otherwise have. Swapping one in means reimplementing `check()`
- * against it; nothing outside this file assumes the store is local.
+ * State is held either in **Upstash Redis** (via its HTTP API, no client SDK)
+ * or in a module-scoped map. The module chooses at call time — set the
+ * `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` pair (or one of the
+ * common aliases below) and every hit goes to Redis; leave them unset and it
+ * runs in memory.
  *
- * Same honesty as the webhook's duplicate suppression, which is best-effort
- * for exactly the same reason.
+ * The in-memory path only catches repeat calls landing on the same warm
+ * serverless instance, so a scripted attacker cycling requests across cold
+ * starts gets unlimited quota. It is meaningfully better than nothing — a
+ * real user hammering a button hits it every time — but is not a guarantee.
+ * The point of the Upstash path is to make the limit actually global. On
+ * Upstash failure the limiter fails **open** with a loud log: a Redis outage
+ * should not take these endpoints offline for real users, and monitoring
+ * picks up a real outage without penalising visitors during a network blip.
+ *
+ * Server-only. Never import this from client code.
  */
+import { readEnv } from './env';
 
 export interface RateLimitRule {
   /** Requests permitted inside the window. */
@@ -39,13 +48,43 @@ export interface RateLimitResult {
   rule: string | null;
 }
 
+export interface CheckOptions {
+  now?: number;
+  /**
+   * Whether a passing check consumes the allowance.
+   *
+   * `false` tests without spending, which is what lets a caller be checked
+   * against two independent sets of rules — its own and an instance-wide
+   * ceiling — and only charged once both have passed. Charging as it goes
+   * would make a request rejected by the second rule still cost the caller
+   * its allowance under the first, for a question that was never answered.
+   */
+  record?: boolean;
+}
+
 /**
- * Timestamps of recent hits, newest last, keyed by caller.
+ * Backend contract.
  *
- * A window log rather than a counter: at these limits a key holds a few dozen
- * numbers, and an exact sliding window avoids the edge a fixed bucket has,
- * where a caller spends its whole allowance at the end of one bucket and again
- * at the start of the next.
+ * A store answers one question — "for this key, how many timestamps are
+ * still inside each of these windows?" — and, on `record`, adds one more.
+ * The reject/allow decision itself lives in `check()`, so both backends stay
+ * dumb: no rule vocabulary, no logging, no HTTP.
+ */
+interface Store {
+  countsAndMaybeRecord(
+    key: string,
+    now: number,
+    windowsMs: number[],
+    record: boolean
+  ): Promise<number[]>;
+}
+
+/* ────────────────────────────── memory backend ─────────────────────────── */
+
+/*
+ * Timestamps of recent hits, newest last, keyed by caller. A window log
+ * rather than a counter: at these limits a key holds a few dozen numbers,
+ * and an exact sliding window avoids the fixed-bucket edge.
  */
 const hits = new Map<string, number[]>();
 
@@ -59,74 +98,7 @@ const hits = new Map<string, number[]>();
  */
 const MAX_KEYS = 10_000;
 
-/** Drop expired timestamps, and the key itself once nothing is left. */
-function prune(key: string, now: number, horizonMs: number): number[] {
-  const recent = (hits.get(key) ?? []).filter(at => now - at < horizonMs);
-  if (recent.length) hits.set(key, recent);
-  else hits.delete(key);
-  return recent;
-}
-
-export interface CheckOptions {
-  now?: number;
-  /**
-   * Whether a passing check consumes the allowance.
-   *
-   * `false` tests without spending, which is what lets a caller be checked
-   * against two independent sets of rules — its own and an instance-wide
-   * ceiling — and only charged once both have passed. Charging as it goes
-   * would make a request rejected by the second rule still cost the caller its
-   * allowance under the first, for a question that was never answered.
-   */
-  record?: boolean;
-}
-
-/**
- * Test a caller against every rule, and record the hit if all of them pass.
- *
- * Nothing is recorded on rejection: a caller who keeps hammering while limited
- * would otherwise push their own window forward on every attempt and never
- * come back — a limiter that turns a burst into a permanent ban.
- */
-export function check(
-  key: string,
-  rules: Record<string, RateLimitRule>,
-  { now = Date.now(), record = true }: CheckOptions = {}
-): RateLimitResult {
-  const entries = Object.entries(rules);
-  const horizon = Math.max(...entries.map(([, rule]) => rule.windowMs));
-  const recent = prune(key, now, horizon);
-
-  for (const [name, rule] of entries) {
-    const inWindow = recent.filter(at => now - at < rule.windowMs);
-    if (inWindow.length >= rule.limit) {
-      // The oldest hit in the window is the one whose expiry frees a slot.
-      const oldest = inWindow[0];
-      return {
-        allowed: false,
-        retryAfter: Math.max(
-          1,
-          Math.ceil((rule.windowMs - (now - oldest)) / 1000)
-        ),
-        rule: name,
-      };
-    }
-  }
-
-  if (record) {
-    if (!hits.has(key) && hits.size >= MAX_KEYS) evictOldest();
-    hits.set(key, [...recent, now]);
-  }
-
-  return { allowed: true, retryAfter: 0, rule: null };
-}
-
-/**
- * Drop the tenth of the table that has been quiet longest.
- *
- * A batch rather than a single key, so a sustained flood of new keys does not
- * pay for a full scan on every request.
- */
+/** Drop the tenth of the table that has been quiet longest. */
 function evictOldest(): void {
   const byAge = [...hits.entries()].sort(
     (a, b) => (a[1].at(-1) ?? 0) - (b[1].at(-1) ?? 0)
@@ -135,14 +107,218 @@ function evictOldest(): void {
     hits.delete(key);
 }
 
+const memoryStore: Store = {
+  async countsAndMaybeRecord(key, now, windowsMs, record) {
+    const horizon = Math.max(...windowsMs);
+    const kept = (hits.get(key) ?? []).filter(at => now - at < horizon);
+    if (kept.length) hits.set(key, kept);
+    else hits.delete(key);
+
+    const counts = windowsMs.map(w => kept.filter(at => now - at < w).length);
+
+    if (record) {
+      if (!hits.has(key) && hits.size >= MAX_KEYS) evictOldest();
+      hits.set(key, [...kept, now]);
+    }
+
+    return counts;
+  },
+};
+
+/* ────────────────────────────── Upstash backend ────────────────────────── */
+
+interface UpstashConfig {
+  url: string;
+  token: string;
+  source: string;
+}
+
+/**
+ * Env-var names to try, in order.
+ *
+ * The bare names are the ones this repo documents and expects. The `KV_*`
+ * pair matches Vercel's older KV integration. The absurd
+ * `UPSTASH_REDIS_REST_KV_REST_API_*` names are what the current Vercel
+ * Marketplace integration for Upstash actually injects — the Marketplace
+ * prefixes every variable with the storage slug, and the integration's slug
+ * happens to be `UPSTASH_REDIS_REST`. Recognising all three means a real
+ * deploy works without adding manual aliases in the dashboard.
+ */
+const URL_VARS = [
+  'UPSTASH_REDIS_REST_URL',
+  'KV_REST_API_URL',
+  'UPSTASH_REDIS_REST_KV_REST_API_URL',
+] as const;
+
+const TOKEN_VARS = [
+  'UPSTASH_REDIS_REST_TOKEN',
+  'KV_REST_API_TOKEN',
+  'UPSTASH_REDIS_REST_KV_REST_API_TOKEN',
+] as const;
+
+function upstashConfig(): UpstashConfig | null {
+  for (const urlVar of URL_VARS) {
+    const url = readEnv(urlVar);
+    if (!url) continue;
+    for (const tokVar of TOKEN_VARS) {
+      const token = readEnv(tokVar);
+      if (token) {
+        return {
+          url: url.replace(/\/+$/, ''),
+          token,
+          source: `${urlVar}+${tokVar}`,
+        };
+      }
+    }
+  }
+  return null;
+}
+
+/**
+ * Sliding window against a Redis sorted set.
+ *
+ * ZREMRANGEBYSCORE prunes everything outside the widest window, ZCOUNT
+ * measures each window individually, ZADD records the new hit with a member
+ * unique enough to collide-proof (score is the timestamp, member includes a
+ * random tail), and EXPIRE gives the whole key a hard TTL so a key that
+ * stops being written to eventually vanishes. All in one pipeline call.
+ */
+async function upstashCountsAndMaybeRecord(
+  cfg: UpstashConfig,
+  key: string,
+  now: number,
+  windowsMs: number[],
+  record: boolean
+): Promise<number[]> {
+  const horizon = Math.max(...windowsMs);
+  const commands: unknown[][] = [
+    ['ZREMRANGEBYSCORE', key, '-inf', String(now - horizon)],
+  ];
+  for (const w of windowsMs) {
+    commands.push(['ZCOUNT', key, String(now - w), String(now)]);
+  }
+  if (record) {
+    // Member must be unique per ZADD, so a random tail is appended. Score is
+    // still the raw timestamp — that is what the window is measured against.
+    const member = `${now}-${Math.floor(Math.random() * 1e9)}`;
+    commands.push(['ZADD', key, String(now), member]);
+    // Expiry is a hair over the horizon so an idle key gets cleaned up but
+    // an active one is never truncated while a rule still cares about it.
+    commands.push(['EXPIRE', key, String(Math.ceil(horizon / 1000) + 5)]);
+  }
+
+  let response: Response;
+  try {
+    response = await fetch(`${cfg.url}/pipeline`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${cfg.token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(commands),
+      signal: AbortSignal.timeout(2_000),
+    });
+  } catch (error) {
+    console.error('[rateLimit] Upstash unreachable, failing open:', error);
+    // Fail open: return zero counts so the request is allowed.
+    return windowsMs.map(() => 0);
+  }
+
+  if (!response.ok) {
+    console.error(
+      '[rateLimit] Upstash returned',
+      response.status,
+      await response.text().catch(() => '(no body)')
+    );
+    return windowsMs.map(() => 0);
+  }
+
+  let payload: unknown;
+  try {
+    payload = await response.json();
+  } catch (error) {
+    console.error('[rateLimit] Upstash response was not JSON:', error);
+    return windowsMs.map(() => 0);
+  }
+
+  if (!Array.isArray(payload)) return windowsMs.map(() => 0);
+  // The first result is the ZREMRANGEBYSCORE we do not read; the ZCOUNTs
+  // follow in order.
+  const counts: number[] = [];
+  for (let i = 0; i < windowsMs.length; i++) {
+    const entry = payload[i + 1] as { result?: unknown } | undefined;
+    const n = typeof entry?.result === 'number' ? entry.result : 0;
+    // If we are recording, the new hit lands after the ZCOUNTs, so add one to
+    // reflect the state a subsequent peek would see. That keeps peek/record
+    // pairs consistent whether they run in memory or against Redis.
+    counts.push(record ? n + 1 : n);
+  }
+  return counts;
+}
+
+function upstashStore(cfg: UpstashConfig): Store {
+  return {
+    countsAndMaybeRecord: (key, now, windowsMs, record) =>
+      upstashCountsAndMaybeRecord(cfg, key, now, windowsMs, record),
+  };
+}
+
+/* ──────────────────────────────── public API ───────────────────────────── */
+
+function pickStore(): Store {
+  const cfg = upstashConfig();
+  return cfg ? upstashStore(cfg) : memoryStore;
+}
+
+/**
+ * Test a caller against every rule, and record the hit if all of them pass.
+ *
+ * Nothing is recorded on rejection: a caller who keeps hammering while
+ * limited would otherwise push their own window forward on every attempt and
+ * never come back — a limiter that turns a burst into a permanent ban.
+ */
+export async function check(
+  key: string,
+  rules: Record<string, RateLimitRule>,
+  { now = Date.now(), record = true }: CheckOptions = {}
+): Promise<RateLimitResult> {
+  const entries = Object.entries(rules);
+  const windowsMs = entries.map(([, r]) => r.windowMs);
+
+  const store = pickStore();
+  const counts = await store.countsAndMaybeRecord(
+    key,
+    now,
+    windowsMs,
+    // Read first, without recording — the write only happens if every rule
+    // passes.
+    false
+  );
+
+  for (let i = 0; i < entries.length; i++) {
+    const [name, rule] = entries[i]!;
+    if (counts[i]! >= rule.limit) {
+      // The window is w wide; the oldest slot expires roughly now - w + 1s.
+      const retryAfter = Math.max(1, Math.ceil(rule.windowMs / 1000));
+      return { allowed: false, retryAfter, rule: name };
+    }
+  }
+
+  if (record) {
+    await store.countsAndMaybeRecord(key, now, windowsMs, true);
+  }
+
+  return { allowed: true, retryAfter: 0, rule: null };
+}
+
 /**
  * Identify the caller.
  *
  * On Vercel every request arrives through the edge, which sets these headers
  * itself and overwrites anything the client sent — so they are trustworthy
- * *there*. Running this behind something that forwards client headers blindly
- * would let a caller pick its own bucket, which is worth knowing before moving
- * the deploy.
+ * *there*. Running this behind something that forwards client headers
+ * blindly would let a caller pick its own bucket, which is worth knowing
+ * before moving the deploy.
  *
  * `x-forwarded-for` may be a chain; the client is the first entry.
  *
@@ -158,10 +334,30 @@ export function clientKey(request: Request): string {
 
   const forwarded = headers.get('x-forwarded-for');
   const first = forwarded?.split(',')[0]?.trim();
-  return first || 'unknown';
+  if (first) return first;
+
+  return 'unknown';
 }
 
-/** Reset the table. Test seam — not called in production. */
-export function reset(): void {
+/**
+ * Report which backend the limiter would use right now, without spending a
+ * call. Consumed by the GET diagnostic on the endpoints.
+ */
+export function backendInfo(): {
+  backend: 'upstash' | 'memory';
+  source: string | null;
+} {
+  const cfg = upstashConfig();
+  return cfg
+    ? { backend: 'upstash', source: cfg.source }
+    : { backend: 'memory', source: null };
+}
+
+/**
+ * Test hook. Not part of the public interface — the in-memory store is a
+ * module-scoped singleton and tests need a way to reset it between cases so
+ * one case does not exhaust another's quota.
+ */
+export function __resetForTests(): void {
   hits.clear();
 }
