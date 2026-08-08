@@ -94,9 +94,17 @@ export async function sendEmail(message: {
     });
 
     if (!response.ok) {
+      const body = await response.text();
+      // Resend rejects a From address whose domain is not verified on the
+      // account. The sending domain is mail.portaprosoftware.com, not the
+      // apex portaprosoftware.com — an address on the apex looks correct and
+      // still fails, so name the cause rather than leaving the raw body.
+      const hint = /domain is not verified/i.test(body)
+        ? ` RESEND_FROM is "${from}"; it must be an address on a domain verified in Resend (mail.portaprosoftware.com).`
+        : '';
       return {
         ok: false,
-        reason: `Resend responded ${response.status}: ${await response.text()}`,
+        reason: `Resend responded ${response.status}: ${body}${hint}`,
       };
     }
     return { ok: true };
