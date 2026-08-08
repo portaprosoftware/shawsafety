@@ -28,6 +28,7 @@ const ROUTES = [
   '/about/',
   '/contact/',
   '/cart/',
+  '/checkout/success/',
   '/terms/',
   '/privacy/',
   '/404',

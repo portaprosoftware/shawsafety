@@ -55,11 +55,57 @@ default ladder — fluorescent yellow does this as the lead-in SKU.
 The cart (`src/assets/scripts/cart.ts`) is a localStorage-backed UI ledger. It
 is **not** the source of truth for money.
 
-`src/assets/scripts/checkout.ts` is the single seam to a payment processor and
-currently ships as a stub. To go live with Stripe, edit only that file — the
-CSP in `vercel.json` is already open for `js.stripe.com`, `hooks.stripe.com`,
-and `api.stripe.com`. Never trust a client-supplied amount; resolve real Price
-IDs server-side.
+Checkout hands off to Stripe Checkout. The browser sends only variant ids and
+quantities to `/api/checkout`; that route resolves the real Stripe Price for
+each variant server-side, so a tampered cart cannot choose what it pays. The
+decision logic sits in `src/utils/checkoutSession.ts`, free of Astro and Stripe
+imports so it can be tested directly.
+
+### Environment variables
+
+| Variable                                   | Required | Purpose                                    |
+| ------------------------------------------ | -------- | ------------------------------------------ |
+| `STRIPE_SECRET_KEY`                        | yes      | Creates the Checkout Session. Server-only. |
+| `STRIPE_PRICE_YELLOW`                      | —        | Price ID for the yellow tie.               |
+| `STRIPE_PRICE_PINK` / `_GREEN` / `_ORANGE` | —        | The other tie colors.                      |
+| `STRIPE_PRICE_VEST_LIME` / `_VEST_ORANGE`  | —        | The vests.                                 |
+
+The variant-to-variable mapping is `src/utils/stripePrices.ts`. **A variant
+with no Price ID cannot be bought**: checkout refuses the whole order and names
+the item, rather than quietly dropping it and charging for the rest. Adding a
+colour is one environment variable — no code change.
+
+### Volume tiers must be configured in Stripe
+
+This is the easiest thing to get wrong. The site advertises a volume ladder
+(**$2.69 → $2.39 at 100 → $2.19 at 200**), but a _flat_ Stripe Price charges the
+same unit amount at every quantity. Point a flat Price at a product whose page
+promises a discount and the customer is charged full price at every quantity,
+while the page says otherwise.
+
+Set the Stripe Price to **graduated or volume tiers** matching the ladder in the
+product frontmatter. On every checkout the endpoint retrieves the Price and logs
+an error if the two disagree — either because the Price is flat while the site
+advertises tiers, or because the unit amount does not match the listed price.
+Check the Vercel function log after the first live order.
+
+That check does not block the sale: a pricing mistake should be loud, not take
+the storefront offline, and Stripe shows the real total before the customer
+pays.
+
+### What the checkout page collects
+
+`shipping_address_collection` (US only, matching the free-shipping promise),
+`phone_number_collection`, and billing address. Email is always collected by
+Stripe. An explicit zero-cost shipping rate is attached so the customer sees
+"Free U.S. shipping" rather than a blank line. Promotion codes are enabled.
+
+On return, `/checkout/success` clears the cart — deliberately not at redirect
+time, so abandoning Stripe keeps the basket intact.
+
+There is no order webhook. Fulfilment currently means watching the Stripe
+dashboard; a `checkout.session.completed` webhook would be the way to automate
+it.
 
 ## Forms and email
 

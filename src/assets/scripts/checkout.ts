@@ -1,39 +1,12 @@
 /**
- * Checkout adapter — the single seam between this storefront and a payment
- * processor.
+ * Checkout adapter — the single seam between this storefront and Stripe.
  *
- * ─────────────────────────────────────────────────────────────────────────
- * TO GO LIVE WITH STRIPE, EDIT ONLY THIS FILE.
- * ─────────────────────────────────────────────────────────────────────────
+ * The cart calls `checkout(items)` and that is the whole contract; no component
+ * imports Stripe or knows how payment works.
  *
- * Nothing else in the site imports Stripe or knows a processor exists; the
- * cart calls `checkout(items)` and that is the whole contract. The CSP in
- * vercel.json is already widened for js.stripe.com, hooks.stripe.com and
- * api.stripe.com, so the swap needs no infrastructure change.
- *
- * IMPORTANT: prices in the cart are display-only. Never trust a
- * client-supplied amount — resolve real Stripe Price IDs server-side (or use
- * fixed Price IDs as below) so a tampered cart cannot set its own price.
- *
- * Option A — Stripe Checkout (hosted page or embedded modal). Requires a
- * Price ID per variant/tier. Add `stripePriceId` to each variant in
- * src/content.config.ts and thread it through `CartItem`:
- *
- *   import { loadStripe } from '@stripe/stripe-js';
- *   const stripe = await loadStripe(import.meta.env.PUBLIC_STRIPE_KEY);
- *   await stripe!.redirectToCheckout({
- *     mode: 'payment',
- *     lineItems: items.map(i => ({ price: i.stripePriceId, quantity: i.qty })),
- *     successUrl: `${location.origin}/checkout/success`,
- *     cancelUrl: `${location.origin}/cart`,
- *   });
- *
- * Option B — Stripe Buy Button, for a drop-in popup with no JS wiring:
- * render <stripe-buy-button> in CartDrawer.astro and let this function be a
- * no-op. Simplest path, but it cannot carry a dynamic multi-line cart.
- *
- * Option C — Square: swap in Web Payments SDK or a hosted checkout link.
- * The signature below does not change.
+ * Only variant ids and quantities are sent. Prices shown in the cart are
+ * display-only — `src/pages/api/checkout.ts` resolves the real Stripe Price for
+ * each variant server-side, so a tampered cart cannot set its own price.
  */
 
 import type { CartItem } from './cart';
@@ -43,30 +16,45 @@ export interface CheckoutResult {
   message: string;
 }
 
-/**
- * Hand the cart off for payment.
- *
- * Currently a stub: it validates the cart and surfaces a notice instead of
- * charging. Replace the body with one of the options above.
- */
 export async function checkout(items: CartItem[]): Promise<CheckoutResult> {
   if (!items.length) {
     return { ok: false, message: 'Your cart is empty.' };
   }
 
-  // Payload shape a processor will need, logged so the integration can be
-  // verified before any key exists.
-  const payload = items.map(i => ({
-    sku: i.sku,
-    productId: i.productId,
-    variantId: i.variantId,
-    quantity: i.qty,
-  }));
-  console.info('[checkout] pending processor integration', payload);
+  try {
+    const response = await fetch('/api/checkout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        items: items.map(item => ({
+          variantId: item.variantId,
+          qty: item.qty,
+        })),
+      }),
+    });
 
-  return {
-    ok: false,
-    message:
-      'Online checkout is being connected. Call or email us and we will process your order today.',
-  };
+    // A non-JSON body means something upstream failed; treat it as a failure
+    // rather than throwing on the parse.
+    const result = await response.json().catch(() => null);
+
+    if (response.ok && result?.ok && result.url) {
+      // Hand off to Stripe's hosted page. The cart is cleared on return by
+      // /checkout/success, not here — abandoning checkout must keep the basket.
+      window.location.assign(result.url);
+      return { ok: true, message: 'Redirecting to secure checkout…' };
+    }
+
+    return {
+      ok: false,
+      message:
+        result?.error ??
+        'Could not start checkout. Please try again, or call (800) 555-0117.',
+    };
+  } catch {
+    return {
+      ok: false,
+      message:
+        'Could not reach the server. Check your connection and try again.',
+    };
+  }
 }
