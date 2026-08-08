@@ -74,14 +74,25 @@ const contactMethods = [
     <div class="rounded-2xl border border-neutral-200 bg-neutral-50 p-6 sm:p-8">
       <h2 class="text-xl font-bold text-neutral-900">Send us a message</h2>
 
-      {
-        /*
-        No backend exists yet, so the form posts nowhere. It is wired to a
-        client handler that says so plainly rather than faking a success
-        state — swap the action for a form endpoint when one is chosen.
-      */
-      }
-      <form id="contact-form" class="mt-6 space-y-4" novalidate>
+      <form
+        id="contact-form"
+        class="mt-6 space-y-4"
+        method="post"
+        action="/api/contact"
+        novalidate
+      >
+        <input type="hidden" name="formType" value="contact" />
+        {/* Honeypot: hidden from people, irresistible to bots. */}
+        <div class="hidden" aria-hidden="true">
+          <label for="contact-website">Leave this field empty</label>
+          <input
+            id="contact-website"
+            name="website"
+            type="text"
+            tabindex="-1"
+            autocomplete="off"
+          />
+        </div>
         <div class="grid gap-4 sm:grid-cols-2">
           <div>
             <label
@@ -140,7 +151,8 @@ const contactMethods = [
 
         <button
           type="submit"
-          class="bg-maroon-700 hover:bg-maroon-800 focus-visible:ring-maroon-700 w-full rounded-lg px-5 py-3 text-sm font-bold text-white transition focus:outline-hidden focus-visible:ring-2 focus-visible:ring-offset-2"
+          id="contact-submit"
+          class="bg-maroon-700 hover:bg-maroon-800 focus-visible:ring-maroon-700 w-full rounded-lg px-5 py-3 text-sm font-bold text-white transition focus:outline-hidden focus-visible:ring-2 focus-visible:ring-offset-2 disabled:opacity-60"
         >
           Send Message
         </button>
@@ -149,6 +161,7 @@ const contactMethods = [
           id="contact-status"
           class="bg-maroon-50 text-maroon-900 hidden rounded-lg px-3.5 py-2.5 text-sm font-medium"
           role="status"
+          aria-live="polite"
         >
         </p>
       </form>
@@ -157,21 +170,12 @@ const contactMethods = [
 </section>
 
 <script>
-  const form = document.getElementById(
-    'contact-form'
-  ) as HTMLFormElement | null;
-  const status = document.getElementById('contact-status');
+  import { attachFormHandler } from '@scripts/formSubmit';
 
-  form?.addEventListener('submit', event => {
-    event.preventDefault();
-    if (!form.checkValidity()) {
-      form.reportValidity();
-      return;
-    }
-    if (status) {
-      status.textContent =
-        'This form is not connected to an inbox yet. Email sales@shawsafety.com or call (800) 555-0117 and we will pick it up right away.';
-      status.classList.remove('hidden');
-    }
+  attachFormHandler({
+    formId: 'contact-form',
+    statusId: 'contact-status',
+    submitId: 'contact-submit',
+    idleLabel: 'Send Message',
   });
 </script>
