@@ -45,10 +45,21 @@ export const OG = {
  * Trust marks shown under the hero. These are credential badges rather than
  * customer logos, so they stay accurate without naming specific accounts.
  */
-export const trustMarks = [
+export const trustMarks: {
+  label: string;
+  icon: string;
+  /** Spans both columns of the mobile grid, on its own row. */
+  wide?: boolean;
+}[] = [
   {
     label: 'Meets Intermodal Container Security Requirements',
     icon: 'container',
+    /*
+     * Twice the length of the others. In the two-column mobile grid it is
+     * dropped to the last row on its own, where it has the full width to sit
+     * on one or two tidy lines instead of forcing every column to widen.
+     */
+    wide: true,
   },
   { label: 'UL 21S Listed', icon: 'shieldCheck' },
   { label: 'DOT Compliant Security Ties', icon: 'checkCircle' },

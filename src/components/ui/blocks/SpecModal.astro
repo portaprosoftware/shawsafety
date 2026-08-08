@@ -1,0 +1,109 @@
+---
+/**
+ * One spec-sheet viewer for a whole page of product cards.
+ *
+ * Every card carries its drawing on the button (`data-spec-src`) and this
+ * component supplies the single overlay they all open, so a grid of four
+ * colors ships one dialog instead of four. Drop it once per page that renders
+ * ProductCard; the product detail page has its own copy wired to the colour
+ * switcher and does not use this one.
+ */
+import Icon from '@components/ui/icons/Icon.astro';
+---
+
+<div
+  id="card-spec-overlay"
+  class="fixed inset-0 z-100 hidden items-center justify-center bg-neutral-950/85 p-4 backdrop-blur-sm sm:p-8"
+  role="dialog"
+  aria-modal="true"
+  aria-labelledby="card-spec-title"
+>
+  <div
+    class="flex max-h-full w-full max-w-5xl flex-col overflow-hidden rounded-xl bg-white"
+  >
+    <header
+      class="flex items-center justify-between gap-4 border-b border-neutral-200 px-5 py-3"
+    >
+      <h2 id="card-spec-title" class="text-sm font-bold text-neutral-900">
+        Specification
+      </h2>
+      <button
+        type="button"
+        id="card-spec-close"
+        class="focus-visible:ring-maroon-700 rounded-lg p-2 text-neutral-500 transition hover:bg-neutral-100 hover:text-neutral-900 focus:outline-hidden focus-visible:ring-2"
+        aria-label="Close specification"
+      >
+        <Icon name="close" class="h-5 w-5" />
+      </button>
+    </header>
+
+    <div class="overflow-auto bg-white p-4">
+      <img
+        id="card-spec-image"
+        alt=""
+        class="mx-auto h-auto w-full max-w-full object-contain"
+      />
+    </div>
+  </div>
+</div>
+
+<script>
+  const overlay = document.getElementById('card-spec-overlay');
+  const image = document.getElementById(
+    'card-spec-image'
+  ) as HTMLImageElement | null;
+  const title = document.getElementById('card-spec-title');
+
+  if (overlay && image && title) {
+    // Which card opened it, so focus goes back there on close.
+    let lastFocused: HTMLElement | null = null;
+
+    const close = () => {
+      overlay.classList.add('hidden');
+      overlay.classList.remove('flex');
+      document.body.classList.remove('overflow-hidden');
+      lastFocused?.focus();
+    };
+
+    /*
+     * Delegated rather than bound per card: the buttons are static markup, but
+     * one listener keeps this working if a grid is ever filtered or paginated
+     * client-side.
+     */
+    document.addEventListener('click', event => {
+      const trigger = (
+        event.target as HTMLElement | null
+      )?.closest<HTMLElement>('[data-spec-open]');
+      if (!trigger) return;
+
+      const src = trigger.dataset.specSrc;
+      if (!src) return;
+
+      lastFocused = trigger;
+      image.src = src;
+      image.alt = `Specification drawing for ${trigger.dataset.specTitle ?? ''}`;
+      title.textContent = `Specification — ${trigger.dataset.specTitle ?? ''}`;
+
+      overlay.classList.remove('hidden');
+      overlay.classList.add('flex');
+      // The drawing scrolls inside the dialog; the page behind it must not.
+      document.body.classList.add('overflow-hidden');
+      document.getElementById('card-spec-close')?.focus();
+    });
+
+    document
+      .getElementById('card-spec-close')
+      ?.addEventListener('click', close);
+
+    // Clicking the backdrop, but not the panel sitting on top of it.
+    overlay.addEventListener('click', event => {
+      if (event.target === overlay) close();
+    });
+
+    document.addEventListener('keydown', event => {
+      if (event.key === 'Escape' && !overlay.classList.contains('hidden')) {
+        close();
+      }
+    });
+  }
+</script>
