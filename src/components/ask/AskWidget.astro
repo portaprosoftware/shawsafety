@@ -1,0 +1,524 @@
+---
+/**
+ * Chat widget for the RAG assistant.
+ *
+ * A launcher pinned bottom-right that opens a panel talking to /api/ask. Sits
+ * in MainLayout, so it is on every page.
+ *
+ * Deliberately non-modal: no backdrop, no scroll lock, no focus trap. Half the
+ * questions it answers are about something on the page behind it ("is that
+ * price per tie or per pack?"), and a modal that hides the page to discuss the
+ * page is self-defeating. Escape and the close button both dismiss it.
+ */
+import Icon from '@components/ui/icons/Icon.astro';
+import { readEnv } from '@utils/env';
+import { ragIndex } from '@utils/rag';
+
+/**
+ * Never show a control that cannot work — the same rule the dictation button
+ * follows. Both halves are required: the key makes the route answer, and the
+ * index is what it answers from.
+ *
+ * This is a build-time decision because the pages are prerendered. Adding the
+ * key in Vercel therefore needs a redeploy before the launcher appears, which
+ * is the same story as every other variable here.
+ */
+const enabled = Boolean(readEnv('OPENAI_API_KEY')) && Boolean(ragIndex);
+
+/**
+ * Openers for the empty state.
+ *
+ * Chosen to advertise the range of the corpus rather than to be the most
+ * common questions: someone who sees it answer a compliance question and a
+ * shipping question understands what else to ask.
+ */
+const suggestions = [
+  'Are these ties approved for intermodal containers?',
+  'What is the price at 200 packs?',
+  'Do mixed colors count toward the volume tier?',
+  'How long does delivery take to Seattle?',
+];
+---
+
+{
+  enabled && (
+    <div id="ask-root" data-suggestions={JSON.stringify(suggestions)}>
+      <button
+        type="button"
+        id="ask-launcher"
+        aria-expanded="false"
+        aria-controls="ask-panel"
+        class="bg-maroon-700 hover:bg-maroon-800 focus-visible:ring-maroon-700 fixed right-5 bottom-5 z-80 inline-flex h-14 w-14 items-center justify-center rounded-full text-white shadow-xl transition hover:scale-105 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-offset-2 sm:right-6 sm:bottom-6"
+      >
+        <span data-ask-icon-closed class="contents">
+          <Icon name="chat" class="h-6 w-6" />
+        </span>
+        <span data-ask-icon-open class="contents hidden">
+          <Icon name="close" class="h-6 w-6" />
+        </span>
+        <span class="sr-only">Ask a question about Shaw Safety</span>
+      </button>
+
+      <section
+        id="ask-panel"
+        role="dialog"
+        aria-label="Ask Shaw Safety"
+        aria-hidden="true"
+        {...{ inert: true }}
+        class="pointer-events-none fixed inset-x-0 bottom-0 z-80 flex h-[85dvh] translate-y-4 flex-col overflow-hidden rounded-t-2xl border border-neutral-200 bg-white opacity-0 shadow-2xl transition duration-200 ease-out sm:inset-x-auto sm:right-6 sm:bottom-24 sm:h-[min(620px,calc(100dvh-9rem))] sm:w-[400px] sm:rounded-2xl"
+      >
+        <header class="from-brand-grad-from to-brand-grad-to flex items-start justify-between gap-4 bg-linear-to-tr px-5 py-4">
+          <div>
+            <h2 class="text-base font-bold tracking-tight text-white">
+              Ask Shaw Safety
+            </h2>
+            <p class="mt-0.5 text-xs text-white/80">
+              Answers from this site — specs, pricing, shipping.
+            </p>
+          </div>
+          <button
+            type="button"
+            data-ask-close
+            class="-mt-1 -mr-2 rounded-lg p-2 text-white/80 transition hover:bg-white/15 hover:text-white focus:outline-hidden focus-visible:ring-2 focus-visible:ring-white"
+            aria-label="Close the assistant"
+          >
+            <Icon name="close" class="h-5 w-5" />
+          </button>
+        </header>
+
+        {/*
+          aria-live so an answer is announced when it lands. `polite` rather
+          than `assertive`: the visitor asked for it and is waiting, so there
+          is nothing to interrupt.
+        */}
+        <div
+          id="ask-log"
+          class="flex-1 space-y-4 overflow-y-auto px-4 py-4"
+          aria-live="polite"
+          aria-busy="false"
+        />
+
+        {/*
+          The bottom padding clears the phone's home indicator. At full height
+          against the bottom edge the disclaimer otherwise sits under it, and
+          the phone number is the line a visitor reaches for when the assistant
+          cannot help.
+        */}
+        <div class="border-t border-neutral-200 bg-neutral-50 px-3 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))]">
+          <form id="ask-form" class="flex items-end gap-2">
+            {/*
+              A textarea rather than an input, so a terminal's seal spec can be
+              pasted in whole. Dictation is opted out explicitly — see the note
+              in VoiceInput.astro.
+            */}
+            <textarea
+              id="ask-input"
+              name="question"
+              rows="1"
+              required
+              maxlength="800"
+              data-no-dictation
+              placeholder="Ask about specs, pricing, shipping…"
+              aria-label="Your question"
+              class="focus:border-maroon-700 focus:ring-maroon-700 max-h-32 min-h-11 flex-1 resize-none rounded-lg border-neutral-300 py-2.5 text-sm"
+            />
+            <button
+              type="submit"
+              id="ask-send"
+              class="bg-maroon-700 hover:bg-maroon-800 focus-visible:ring-maroon-700 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-white transition focus:outline-hidden focus-visible:ring-2 focus-visible:ring-offset-2 disabled:opacity-50"
+              aria-label="Send question"
+            >
+              <Icon name="send" class="h-4 w-4" />
+            </button>
+          </form>
+          <p class="mt-2 px-1 text-[11px] leading-snug text-neutral-500">
+            Answers come from this site and can be wrong. To place an order or
+            confirm a spec, call{' '}
+            <a
+              href="tel:+18005550117"
+              class="hover:text-maroon-700 font-semibold"
+            >
+              (800) 555-0117
+            </a>
+            .
+          </p>
+        </div>
+      </section>
+    </div>
+  )
+}
+
+<script>
+  /**
+   * Chat client for /api/ask.
+   *
+   * The transcript lives in sessionStorage rather than in memory: this is a
+   * multi-page site, so following a cited link — the thing the answers are
+   * built to encourage — would otherwise throw the conversation away on
+   * navigation. It is per-tab and dies with it; nothing is persisted to disk.
+   */
+
+  interface Source {
+    n: number;
+    title: string;
+    url: string;
+    score: number;
+  }
+
+  interface Message {
+    role: 'user' | 'assistant';
+    content: string;
+    sources?: Source[];
+    /** Set on failures, which are shown in the transcript but never sent back. */
+    error?: boolean;
+  }
+
+  const STORAGE_KEY = 'shaw:ask';
+
+  /** Transcript turns kept in storage. The route only reads the last six. */
+  const MAX_STORED = 20;
+
+  const root = document.getElementById('ask-root');
+  const launcher = document.getElementById('ask-launcher');
+  const panel = document.getElementById('ask-panel');
+  const log = document.getElementById('ask-log');
+  const form = document.getElementById('ask-form') as HTMLFormElement | null;
+  const input = document.getElementById(
+    'ask-input'
+  ) as HTMLTextAreaElement | null;
+  const send = document.getElementById('ask-send') as HTMLButtonElement | null;
+
+  if (root && launcher && panel && log && form && input && send) {
+    const suggestions: string[] = JSON.parse(root.dataset.suggestions ?? '[]');
+
+    let messages: Message[] = [];
+    let pending = false;
+
+    /**
+     * Set when the route rate limits us, and honoured client-side.
+     *
+     * The endpoint is what actually enforces the limit; this only stops the
+     * widget from firing requests it already knows will be refused, which
+     * would push the window out and make the wait longer than the message
+     * promised. Capped, so a long window cannot leave the composer dead —
+     * the bubble still says when to come back.
+     */
+    let cooldownUntil = 0;
+    const MAX_HONOURED_COOLDOWN_MS = 60_000;
+
+    // ── Persistence ─────────────────────────────────────────────────────
+    /*
+     * Storage is best-effort throughout. Safari in private mode throws on
+     * setItem, and a chat widget that breaks the page because it cannot
+     * remember a transcript is a bad trade.
+     */
+    const load = (): { open: boolean } => {
+      try {
+        const raw = sessionStorage.getItem(STORAGE_KEY);
+        if (!raw) return { open: false };
+        const saved = JSON.parse(raw);
+        messages = Array.isArray(saved.messages) ? saved.messages : [];
+        return { open: Boolean(saved.open) };
+      } catch {
+        return { open: false };
+      }
+    };
+
+    const save = (open: boolean) => {
+      try {
+        sessionStorage.setItem(
+          STORAGE_KEY,
+          JSON.stringify({ open, messages: messages.slice(-MAX_STORED) })
+        );
+      } catch {
+        /* Private mode, or a full quota. The conversation still works. */
+      }
+    };
+
+    const isOpen = () => panel.getAttribute('aria-hidden') === 'false';
+
+    // ── Rendering ───────────────────────────────────────────────────────
+    const escapeHtml = (text: string) =>
+      text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+
+    /**
+     * Turn an answer into markup.
+     *
+     * Escaping comes first and everything after it works on escaped text:
+     * this is model output, and the only safe assumption is that it is
+     * arbitrary. What survives is a deliberately small subset — bold, bullets,
+     * paragraphs — because the model is instructed to answer in prose and
+     * lists, and a full Markdown renderer here would be a dependency and an
+     * attack surface bought for two formatting features.
+     */
+    const renderAnswer = (text: string, sources: Source[] = []) => {
+      const byNumber = new Map(sources.map(source => [source.n, source]));
+
+      const inline = (chunk: string) =>
+        escapeHtml(chunk)
+          .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+          /*
+           * Citations become links to the page they came from. Only numbers
+           * the API actually returned are linked — a model that cites [7] with
+           * five passages in hand gets its bracket left as plain text rather
+           * than a link to nowhere. The href comes from our own index, never
+           * from the answer.
+           */
+          .replace(/\[(\d+)\]/g, (whole, digits) => {
+            const source = byNumber.get(Number(digits));
+            if (!source) return whole;
+            return `<a href="${escapeHtml(source.url)}" class="text-maroon-700 hover:text-maroon-800 font-semibold no-underline" title="${escapeHtml(source.title)}"><sup>[${digits}]</sup></a>`;
+          });
+
+      return text
+        .split(/\n{2,}/)
+        .map(block => {
+          const lines = block.split('\n');
+          const bullets = lines.filter(line => /^\s*[-*]\s+/.test(line));
+          if (bullets.length === lines.length && bullets.length > 0) {
+            return `<ul class="list-disc space-y-1 pl-4">${lines
+              .map(
+                line => `<li>${inline(line.replace(/^\s*[-*]\s+/, ''))}</li>`
+              )
+              .join('')}</ul>`;
+          }
+          return `<p>${inline(block).replace(/\n/g, '<br />')}</p>`;
+        })
+        .join('');
+    };
+
+    /** Distinct pages behind an answer, in citation order. */
+    const renderSources = (sources: Source[]) => {
+      const seen = new Set<string>();
+      const unique = sources.filter(source => {
+        if (seen.has(source.url)) return false;
+        seen.add(source.url);
+        return true;
+      });
+      if (!unique.length) return '';
+
+      return `
+        <div class="mt-2.5 flex flex-wrap items-center gap-1.5 border-t border-neutral-200 pt-2.5">
+          <span class="text-[11px] font-bold tracking-wide text-neutral-400 uppercase">Sources</span>
+          ${unique
+            .map(
+              source =>
+                `<a href="${escapeHtml(source.url)}" class="hover:border-maroon-700 hover:text-maroon-700 rounded-full border border-neutral-200 bg-white px-2 py-0.5 text-[11px] font-medium text-neutral-600 transition">${escapeHtml(source.title)}</a>`
+            )
+            .join('')}
+        </div>`;
+    };
+
+    const renderMessage = (message: Message) => {
+      if (message.role === 'user') {
+        return `
+          <div class="flex justify-end">
+            <div class="bg-maroon-700 max-w-[85%] rounded-2xl rounded-br-sm px-3.5 py-2.5 text-sm text-white">
+              ${escapeHtml(message.content)}
+            </div>
+          </div>`;
+      }
+
+      return `
+        <div class="flex justify-start">
+          <div class="max-w-[92%] rounded-2xl rounded-bl-sm px-3.5 py-2.5 text-sm leading-relaxed ${
+            message.error
+              ? 'border border-red-200 bg-red-50 text-red-900'
+              : 'bg-neutral-100 text-neutral-800'
+          }">
+            <div class="space-y-2">${renderAnswer(message.content, message.sources)}</div>
+            ${message.error ? '' : renderSources(message.sources ?? [])}
+          </div>
+        </div>`;
+    };
+
+    const renderEmptyState = () => `
+      <div class="px-1 py-2">
+        <p class="text-sm leading-relaxed text-neutral-600">
+          Ask about specs, compliance, volume pricing, shipping, or returns.
+          Every answer is drawn from this site and cites the page it came from.
+        </p>
+        <div class="mt-4 flex flex-col gap-2">
+          ${suggestions
+            .map(
+              question =>
+                `<button type="button" data-suggestion="${escapeHtml(question)}"
+                  class="hover:border-maroon-700 hover:text-maroon-800 rounded-lg border border-neutral-200 px-3 py-2 text-left text-sm font-medium text-neutral-700 transition">
+                  ${escapeHtml(question)}
+                </button>`
+            )
+            .join('')}
+        </div>
+      </div>`;
+
+    const typingIndicator = `
+      <div data-ask-typing class="flex justify-start">
+        <div class="flex items-center gap-1 rounded-2xl rounded-bl-sm bg-neutral-100 px-4 py-3">
+          <span class="h-1.5 w-1.5 animate-bounce rounded-full bg-neutral-400 [animation-delay:-0.3s]"></span>
+          <span class="h-1.5 w-1.5 animate-bounce rounded-full bg-neutral-400 [animation-delay:-0.15s]"></span>
+          <span class="h-1.5 w-1.5 animate-bounce rounded-full bg-neutral-400"></span>
+          <span class="sr-only">Looking that up…</span>
+        </div>
+      </div>`;
+
+    const render = () => {
+      log.innerHTML =
+        (messages.length
+          ? messages.map(renderMessage).join('')
+          : renderEmptyState()) + (pending ? typingIndicator : '');
+      log.setAttribute('aria-busy', String(pending));
+      log.scrollTop = log.scrollHeight;
+    };
+
+    // ── Open / close ────────────────────────────────────────────────────
+    const setOpen = (open: boolean, focusInput = true) => {
+      panel.setAttribute('aria-hidden', String(!open));
+      /*
+       * `inert` as well as `aria-hidden`, and not instead of it. The closed
+       * panel is only faded out and pushed down, so its composer and buttons
+       * stay in the tab order — a keyboard visitor would otherwise tab from
+       * the footer into a chat box they cannot see. `inert` takes the whole
+       * subtree out of focus and hit-testing; `aria-hidden` is what silences
+       * it for a screen reader.
+       */
+      panel.toggleAttribute('inert', !open);
+      panel.classList.toggle('pointer-events-none', !open);
+      panel.classList.toggle('opacity-0', !open);
+      panel.classList.toggle('translate-y-4', !open);
+      launcher.setAttribute('aria-expanded', String(open));
+      launcher
+        .querySelector('[data-ask-icon-closed]')
+        ?.classList.toggle('hidden', open);
+      launcher
+        .querySelector('[data-ask-icon-open]')
+        ?.classList.toggle('hidden', !open);
+
+      if (open && focusInput) input.focus();
+      if (!open) launcher.focus();
+      save(open);
+    };
+
+    launcher.addEventListener('click', () => setOpen(!isOpen()));
+    panel
+      .querySelectorAll('[data-ask-close]')
+      .forEach(button =>
+        button.addEventListener('click', () => setOpen(false))
+      );
+    document.addEventListener('keydown', event => {
+      if (event.key === 'Escape' && isOpen()) setOpen(false);
+    });
+
+    // ── Composer ────────────────────────────────────────────────────────
+    /** Grow with the question, up to the max-height the class sets. */
+    const autosize = () => {
+      input.style.height = 'auto';
+      input.style.height = `${input.scrollHeight}px`;
+    };
+    input.addEventListener('input', autosize);
+
+    input.addEventListener('keydown', event => {
+      // Enter sends; Shift+Enter is a newline. IME composition must not send —
+      // pressing Enter to accept a candidate would otherwise fire the question.
+      if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) {
+        event.preventDefault();
+        form.requestSubmit();
+      }
+    });
+
+    log.addEventListener('click', event => {
+      const button = (event.target as HTMLElement).closest<HTMLElement>(
+        '[data-suggestion]'
+      );
+      if (!button) return;
+      input.value = button.dataset.suggestion ?? '';
+      autosize();
+      form.requestSubmit();
+    });
+
+    const ask = async (question: string) => {
+      messages.push({ role: 'user', content: question });
+      pending = true;
+      send.disabled = true;
+      render();
+
+      /*
+       * Only clean turns are sent back as history: an error bubble is UI, not
+       * something the model said, and feeding it back invites the next answer
+       * to apologise for a network failure.
+       */
+      const history = messages
+        .filter(message => !message.error)
+        .slice(-7, -1)
+        .map(message => ({ role: message.role, content: message.content }));
+
+      try {
+        const response = await fetch('/api/ask', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ question, history }),
+        });
+        const payload = await response.json().catch(() => ({ ok: false }));
+
+        if (!response.ok || !payload.ok) {
+          if (response.status === 429 && Number(payload.retryAfter) > 0) {
+            cooldownUntil =
+              Date.now() +
+              Math.min(payload.retryAfter * 1000, MAX_HONOURED_COOLDOWN_MS);
+          }
+          messages.push({
+            role: 'assistant',
+            content:
+              payload.error ||
+              'Something went wrong. Email sales@shawsafety.com and we will answer directly.',
+            error: true,
+          });
+        } else {
+          messages.push({
+            role: 'assistant',
+            content: payload.answer,
+            sources: payload.sources ?? [],
+          });
+        }
+      } catch {
+        // Offline, or the request was cut off in flight.
+        messages.push({
+          role: 'assistant',
+          content:
+            'No connection. Try again, or call (800) 555-0117 — Mon–Fri, 7am–6pm CT.',
+          error: true,
+        });
+      } finally {
+        pending = false;
+        const wait = cooldownUntil - Date.now();
+        send.disabled = wait > 0;
+        if (wait > 0) window.setTimeout(() => (send.disabled = pending), wait);
+        render();
+        save(isOpen());
+      }
+    };
+
+    form.addEventListener('submit', event => {
+      event.preventDefault();
+      const question = input.value.trim();
+      if (!question || pending || Date.now() < cooldownUntil) return;
+      input.value = '';
+      autosize();
+      void ask(question);
+    });
+
+    // ── Boot ────────────────────────────────────────────────────────────
+    const { open } = load();
+    render();
+    /*
+     * A widget left open before a navigation reopens itself, so following a
+     * cited link does not cost the conversation. Focus stays on the page:
+     * stealing it on load would move a keyboard visitor into the chat box
+     * every time they open a product page.
+     */
+    if (open) setOpen(true, false);
+  }
+</script>

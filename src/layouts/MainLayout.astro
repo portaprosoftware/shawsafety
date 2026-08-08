@@ -5,6 +5,7 @@ import Navbar from '@components/sections/navbar&footer/Navbar.astro';
 import FooterSection from '@components/sections/navbar&footer/FooterSection.astro';
 import AnnouncementBanner from '@components/ui/banners/AnnouncementBanner.astro';
 import CartDrawer from '@components/cart/CartDrawer.astro';
+import AskWidget from '@components/ask/AskWidget.astro';
 import { SITE } from '@data/constants';
 import '@styles/global.css';
 
@@ -100,6 +101,8 @@ interface Props {
     </main>
     {!hideFooter && <FooterSection />}
     <CartDrawer />
+    {/* Renders nothing unless the assistant is configured and indexed. */}
+    <AskWidget />
     <script>
       // https://preline.co
       import 'preline';

@@ -310,6 +310,14 @@ import Icon from '@components/ui/icons/Icon.astro';
       .forEach(field => {
         // A honeypot textarea is hidden from people and should stay that way.
         if (field.closest('[aria-hidden="true"]') || field.hidden) return;
+        /*
+         * An explicit opt-out, for fields that live outside this page's forms.
+         * The chat widget is in the layout and so appears on every page, while
+         * this component is only on two of them — without the opt-out its
+         * composer would sprout a Speak button on the contact and wholesale
+         * pages and nowhere else, which is worse than not offering it at all.
+         */
+        if (field.hasAttribute('data-no-dictation')) return;
         attach(field, template);
       });
   }

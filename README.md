@@ -22,6 +22,7 @@ pnpm format:fix # CI fails on unformatted files — run before committing
 | ------------------------------ | -------------------------------------------------------------------------------------- |
 | `src/pages/`                   | File-based routes. One page per file; `products/[id].astro` is the only dynamic route. |
 | `src/content/products/`        | Product data as Markdown frontmatter. Schema in `src/content.config.ts`.               |
+| `src/content/knowledge/`       | RAG corpus. One Markdown file per retrieval chunk.                                     |
 | `src/assets/scripts/`          | Cart store, pricing math, and the checkout adapter.                                    |
 | `src/assets/styles/global.css` | The entire theme. Tailwind v4 `@theme` block — there is no `tailwind.config.js`.       |
 | `src/data_files/constants.ts`  | Site metadata, trust marks, marquee copy.                                              |
@@ -130,8 +131,8 @@ Astro rejects cross-site form POSTs, so `/api/contact` and `/api/transcribe`
 both require a matching `Origin` header — browsers send one, `curl` does not.
 That protection is a side effect of their content type (form-encoded and
 multipart respectively), not something either route asks for. JSON endpoints
-(`/api/checkout`, `/api/stripe-webhook`) are exempt, which is why Stripe can
-post to the webhook.
+(`/api/checkout`, `/api/stripe-webhook`, `/api/ask`) are exempt, which is why
+Stripe can post to the webhook.
 
 ## Forms and email
 
@@ -285,6 +286,192 @@ prompt never appears.
 
 Like `/api/contact`, this endpoint is unauthenticated and unthrottled, and it
 spends money per call. Rate limiting matters more here than on the mail form.
+
+## RAG assistant
+
+`POST /api/ask` answers questions about the store from a hand-written knowledge
+corpus, using OpenAI for retrieval and generation. `AskWidget.astro` is the chat
+UI on top of it; the route is also callable directly, by an agent or anything
+else.
+
+```bash
+curl -s localhost:4321/api/ask -X POST -H 'Content-Type: application/json' \
+  -d '{"question":"do mixed colors count toward the volume tier?"}'
+```
+
+```jsonc
+{
+  "ok": true,
+  "answer": "Yes — quantity totals across every color and SKU … [1][2]",
+  "sources": [
+    {
+      "n": 1,
+      "title": "Wholesale Pricing",
+      "url": "/wholesale",
+      "score": 0.612,
+    },
+  ],
+}
+```
+
+`history` may be passed alongside `question` as an array of
+`{ role: 'user' | 'assistant', content }` turns; the last six are kept.
+Retrieval always runs against the current question.
+
+### The corpus is written, not scraped
+
+`src/content/knowledge/` holds one Markdown file per chunk, typed by the
+`knowledge` collection in `src/content.config.ts`. Thirty chunks of 100–300
+words cover the products, specs, compliance marks, price ladders, shipping,
+returns, ordering, and both legal pages.
+
+They are authored rather than extracted from the rendered pages for two
+reasons. The pages interleave copy with markup and price math, so a scraper
+yields fragments that read as fragments. And a retrieved chunk arrives at the
+model with no surrounding page — so each one names the product it is about
+instead of relying on a heading three sections up.
+
+Frontmatter carries a `questions` list: the questions that chunk answers,
+phrased the way a buyer would ask them. These are embedded alongside the prose
+and close the vocabulary gap between "how fast do you ship?" and the site's
+word for it, "dispatch". They are never shown to the model as content.
+
+**Editing a chunk means re-running the index.** Prices and tiers appear in the
+corpus as prose and are not derived from `src/content/products/`, so a price
+change has to be made in both places — grep the corpus for the old number.
+
+### Building the index
+
+```bash
+pnpm rag:index --dry-run   # parse and report the corpus, no API call
+pnpm rag:index             # embed and write src/data_files/rag-index.json
+```
+
+The index is a single JSON file and is **committed**. At thirty chunks a linear
+cosine scan in the route is microseconds, so a vector database would add a
+network hop, a second credential, and an operational dependency to lose to an
+in-process loop. Vectors are truncated to 512 dimensions — the
+`text-embedding-3` models are trained so a prefix is still a usable embedding —
+which thirds the file for no measurable retrieval difference at this size.
+
+Indexing is deliberately not part of `pnpm build`: the corpus changes far less
+often than the site deploys, and a billable call inside the build means a
+rotated key fails a deploy. The route reads the model and vector width back out
+of the index rather than pinning them separately, since a query is only
+comparable to vectors from the same model at the same width.
+
+| Variable                 | Required | Purpose                               |
+| ------------------------ | -------- | ------------------------------------- |
+| `OPENAI_API_KEY`         | no       | Embeddings and answers. Server-only.  |
+| `OPENAI_EMBEDDING_MODEL` | no       | Defaults to `text-embedding-3-small`. |
+| `OPENAI_CHAT_MODEL`      | no       | Defaults to `gpt-4o-mini`.            |
+
+Behaviour worth knowing:
+
+- **The answer is grounded or refused.** The system prompt forbids answering
+  outside the retrieved passages, and passages scoring below 0.25 similarity are
+  dropped before the model sees them. A question that retrieves nothing is
+  answered with the phone number and email, without spending a completion call —
+  a storefront assistant inventing a return window is the failure mode this is
+  built to avoid.
+- **Nothing is derived at answer time.** Prices, SKUs, and tier breakpoints are
+  quoted from the corpus verbatim; the model is told never to compute or adjust
+  one.
+- **Sources come back numbered** in citation order, so `[2]` in the answer maps
+  to a real page. Similarity scores ride along — the only signal available for
+  tuning the threshold against real questions.
+- **With no key, or no index built, the route answers 503** and points the
+  visitor at sales@shawsafety.com. Neither the key nor the corpus is echoed.
+- **`GET /api/ask` answers 405** and reports whether the key is set and what
+  index is deployed, matching `/api/transcribe`.
+- **The index is globbed, not imported**, so a fresh clone with no index builds
+  and deploys fine — same reasoning as the product photos.
+
+### Rate limiting
+
+The endpoint is unauthenticated, one click from every visitor on every page, and
+spends two OpenAI calls per question, so it is rate limited. `src/utils/rateLimit.ts`
+holds the limiter; the route applies two sets of rules per request:
+
+| Scope        | Rule                      | What it bounds                                                                                                                                                          |
+| ------------ | ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Per caller   | 6 per minute, 40 per hour | One source. A real conversation is a handful of questions with reading in between, so neither rule bites for a person and the burst rule bites immediately on a script. |
+| Per instance | 600 per hour              | Total spend, however the traffic is spread. Forty simultaneous conversations at the per-caller hourly limit still fit under it.                                         |
+
+The caller is the client IP, read from the forwarding headers Vercel's edge sets
+itself. **That identity is only trustworthy behind an edge that overwrites those
+headers** — deployed somewhere that forwards client headers blindly, a caller
+could pick its own bucket. Requests with no usable header share one `unknown`
+bucket rather than each getting a fresh allowance.
+
+**State is in memory, so limits are per warm instance.** Two concurrent
+instances each enforce independently and a cold start begins empty — this is a
+brake, not a guarantee. It stops the realistic failure (one script, one source,
+running up a bill) flat. A hard guarantee needs shared state, Vercel KV or
+Upstash, which is a credential and a dependency this project does not otherwise
+have; swapping one in means reimplementing `check()` and nothing outside that
+file assumes the store is local. Same caveat as the webhook's duplicate
+suppression, for the same reason.
+
+Details worth knowing:
+
+- **Limits are checked before the body is parsed** and long before either
+  OpenAI call, so a flood costs almost nothing to refuse.
+- **Both rule sets are tested before either is charged.** Otherwise a request
+  the instance ceiling turns away would still spend the caller's own allowance
+  on a question that was never answered.
+- **A rejected request is not recorded.** A caller who keeps hammering while
+  limited would otherwise push their own window forward on every attempt and
+  never come back — a limiter that turns a burst into a permanent ban.
+- **429s carry `Retry-After`** and a `retryAfter` in the JSON body. The widget
+  honours it by disabling send for up to a minute, so it does not fire requests
+  it knows will be refused and make the wait longer than the message promised.
+- **The key table is capped at 10,000** and evicted oldest-first, so forged IPs
+  cannot turn the limiter into the memory leak it was added to prevent.
+
+`/api/contact` and `/api/transcribe` are still unthrottled, and `/api/transcribe`
+also spends money per call.
+
+### The chat widget
+
+`src/components/ask/AskWidget.astro` sits in `MainLayout`, so the launcher is on
+every page. **It renders nothing unless `OPENAI_API_KEY` is set _and_ an index is
+present** — the same rule the dictation button follows, since a chat button that
+can only apologise is worse than no chat button. That check runs at build time
+because the pages are prerendered, so adding the key in Vercel needs a redeploy
+before the launcher appears.
+
+Behaviour worth knowing:
+
+- **Non-modal on purpose.** No backdrop, no scroll lock, no focus trap. Half the
+  questions are about something on the page behind it ("is that price per tie or
+  per pack?"), and a modal that hides the page to discuss the page is
+  self-defeating. Escape and the close button dismiss it.
+- **The closed panel is `inert`, not just `aria-hidden`.** It is only faded and
+  translated, so without `inert` its composer stays in the tab order and a
+  keyboard visitor tabs from the footer into an invisible chat box.
+- **The transcript lives in `sessionStorage`,** and a panel left open reopens
+  itself after a navigation. Following a cited link is the thing the answers are
+  built to encourage, and on a multi-page site that would otherwise discard the
+  conversation. Per-tab, dies with it, never written to disk. Focus is not
+  stolen on restore.
+- **Citations become links.** `[2]` in an answer is rendered as a superscript
+  link to the page that passage came from, and distinct sources are listed as
+  chips beneath. Only numbers the API actually returned are linked — a model
+  citing `[7]` with five passages in hand gets plain text, and every href comes
+  from our own index rather than from the answer.
+- **Answers are escaped before anything else.** What survives is a deliberately
+  small subset — bold, bullets, paragraphs — because a full Markdown renderer
+  here is a dependency and an attack surface bought for two formatting features.
+- **Error bubbles are never sent back as history.** A network failure is UI, not
+  something the model said; feeding it back invites the next answer to apologise
+  for it.
+- **Enter sends, Shift+Enter is a newline,** and composition events are checked
+  so an IME candidate accepted with Enter does not fire the question.
+- **The composer opts out of dictation** via `data-no-dictation`. `VoiceInput`
+  attaches to every textarea on its page, and it is only on two pages — without
+  the opt-out the chat box would sprout a Speak button on the contact and
+  wholesale pages and nowhere else.
 
 ## Product images
 
