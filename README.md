@@ -188,7 +188,7 @@ adding a field needs no wiring — drop the component on the page once and every
 multi-line field on it is covered, including ones added later.
 
 The browser posts the recording to `/api/transcribe`, which forwards it to
-ElevenLabs' `scribe_v1` model. The route exists solely to keep the key server-
+ElevenLabs' `scribe_v2` model. The route exists solely to keep the key server-
 side; calling ElevenLabs from the page would publish a billable credential to
 anyone who opens devtools.
 
@@ -264,8 +264,10 @@ dashboard — a 64-character hex string is a sure sign the wrong value was
 pasted. Server-only: no `PUBLIC_` prefix, and `api.elevenlabs.io` cannot be
 called from the browser anyway, which is the reason this route exists.
 
-The model is `scribe_v1`, set as `MODEL_ID` at the top of the route. `scribe_v2`
-is a drop-in change if the account has it.
+The model is `scribe_v2`, set as `MODEL_ID` at the top of the route. Model
+availability is per account: a plan without it returns a 400 naming the model,
+which reaches the visitor as "Could not transcribe that audio" and appears in
+the server log with the model id attached. `scribe_v1` is the drop-in fallback.
 
 - **An upstream rejection logs what was sent** (filename, content type, size,
   model) next to the response body. The body alone does not say which field was

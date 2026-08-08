@@ -16,8 +16,14 @@ export const prerender = false;
 
 const ELEVENLABS_STT_URL = 'https://api.elevenlabs.io/v1/speech-to-text';
 
-/** ElevenLabs' general-purpose transcription model. */
-const MODEL_ID = 'scribe_v1';
+/**
+ * ElevenLabs' general-purpose transcription model.
+ *
+ * Availability is per account, not universal — a plan without this model
+ * returns a 400 naming it, which surfaces here as "Could not transcribe that
+ * audio" with the model id in the server log.
+ */
+const MODEL_ID = 'scribe_v2';
 
 /**
  * Ceiling on an upload, in bytes.
