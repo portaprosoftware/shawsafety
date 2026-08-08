@@ -1,0 +1,33 @@
+---
+import { marqueeItems } from '@data/constants';
+
+// The track renders the list twice so the -50% keyframe lands on a seam.
+const track = [...marqueeItems, ...marqueeItems];
+---
+
+<section
+  class="overflow-hidden border-y border-neutral-200 bg-white py-8"
+  aria-hidden="true"
+>
+  <div
+    class="animate-marquee flex w-max items-center gap-8 will-change-transform"
+  >
+    {
+      track.map(item => (
+        <div class="flex shrink-0 items-center gap-8">
+          <span
+            class="text-4xl font-bold tracking-tight whitespace-nowrap text-transparent uppercase sm:text-6xl"
+            style="-webkit-text-stroke:1.5px var(--color-maroon-700)"
+          >
+            {item}
+          </span>
+          <span class="bg-maroon-700 h-2.5 w-2.5 shrink-0" />
+        </div>
+      ))
+    }
+  </div>
+</section>
+
+<span class="sr-only">
+  {marqueeItems.join('. ')}.
+</span>

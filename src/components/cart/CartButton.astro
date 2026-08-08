@@ -1,0 +1,60 @@
+---
+import Icon from '@components/ui/icons/Icon.astro';
+---
+
+<button
+  type="button"
+  id="cart-button"
+  class="group focus-visible:ring-maroon-700 relative flex items-center gap-2 rounded-lg px-2.5 py-2 text-neutral-800 transition hover:bg-neutral-100 focus:outline-hidden focus-visible:ring-2"
+  aria-label="Open cart"
+>
+  <span class="relative">
+    <Icon name="cart" class="h-6 w-6" />
+    <span
+      id="cart-badge"
+      class="bg-maroon-700 absolute -top-1.5 -right-2 hidden min-w-4.5 rounded-full px-1 text-center text-[10px] leading-4.5 font-bold text-white"
+      aria-hidden="true">0</span
+    >
+  </span>
+  <span class="hidden text-sm font-semibold sm:inline">Cart</span>
+  <span id="cart-button-total" class="text-sm font-bold tabular-nums"
+    >$0.00</span
+  >
+</button>
+
+<script>
+  import { subscribe, openDrawer } from '@scripts/cart';
+  import { formatMoney } from '@scripts/pricing';
+
+  const button = document.getElementById('cart-button');
+  const badge = document.getElementById('cart-badge');
+  const total = document.getElementById('cart-button-total');
+
+  button?.addEventListener('click', openDrawer);
+
+  subscribe((_items, totals) => {
+    if (badge) {
+      badge.textContent = String(totals.count);
+      badge.classList.toggle('hidden', totals.count === 0);
+    }
+    if (total) total.textContent = formatMoney(totals.subtotal);
+    if (button)
+      button.setAttribute(
+        'aria-label',
+        `Open cart, ${totals.count} ${totals.count === 1 ? 'item' : 'items'}`
+      );
+  });
+
+  // Brief pop when an item lands, so the add registers visually.
+  window.addEventListener('cart:change', () => {
+    if (!badge || badge.classList.contains('hidden')) return;
+    badge.animate(
+      [
+        { transform: 'scale(1)' },
+        { transform: 'scale(1.45)' },
+        { transform: 'scale(1)' },
+      ],
+      { duration: 320, easing: 'cubic-bezier(0.34, 1.56, 0.64, 1)' }
+    );
+  });
+</script>

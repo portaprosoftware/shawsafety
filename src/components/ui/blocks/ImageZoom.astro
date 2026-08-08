@@ -1,0 +1,167 @@
+---
+import Icon from '@components/ui/icons/Icon.astro';
+
+interface Props {
+  /** Optimized source shown in the page. */
+  src: string;
+  /** Larger source loaded only when the lightbox opens. */
+  full: string;
+  alt: string;
+}
+
+const { src, full, alt } = Astro.props;
+---
+
+{
+  /*
+  The product image renders at a deliberately restrained size — the reference
+  site blows these up to full-bleed, which buries the buy box below the fold.
+  Detail lives behind the zoom instead.
+*/
+}
+<button
+  type="button"
+  data-zoom-trigger
+  data-zoom-full={full}
+  class="group focus-visible:ring-maroon-700 relative block w-full cursor-zoom-in overflow-hidden rounded-xl border border-neutral-200 bg-white focus:outline-hidden focus-visible:ring-2"
+  aria-label="Zoom image"
+>
+  <img
+    data-zoom-image
+    src={src}
+    alt={alt}
+    width="720"
+    height="720"
+    loading="eager"
+    class="mx-auto aspect-square w-full max-w-[560px] object-contain p-6 transition-transform duration-500 group-hover:scale-[1.04]"
+  />
+  <span
+    class="pointer-events-none absolute right-3 bottom-3 inline-flex items-center gap-1.5 rounded-full bg-neutral-900/85 px-3 py-1.5 text-xs font-semibold text-white opacity-0 backdrop-blur transition-opacity duration-200 group-hover:opacity-100 group-focus-visible:opacity-100"
+  >
+    <Icon name="zoomIn" class="h-3.5 w-3.5" />
+    Click to zoom
+  </span>
+</button>
+
+<div
+  id="zoom-overlay"
+  class="fixed inset-0 z-100 hidden items-center justify-center bg-neutral-950/90 backdrop-blur-sm"
+  role="dialog"
+  aria-modal="true"
+  aria-label="Zoomed product image"
+>
+  <button
+    type="button"
+    id="zoom-close"
+    class="absolute top-4 right-4 rounded-lg bg-white/10 p-2.5 text-white transition hover:bg-white/20 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-white"
+    aria-label="Close zoom"
+  >
+    <Icon name="close" class="h-5 w-5" />
+  </button>
+  <p
+    class="pointer-events-none absolute bottom-5 left-1/2 -translate-x-1/2 text-xs font-medium text-white/70"
+  >
+    Drag to pan &middot; Press Esc to close
+  </p>
+  <div id="zoom-stage" class="h-full w-full overflow-hidden">
+    <img
+      id="zoom-image"
+      src=""
+      alt=""
+      class="mx-auto h-full w-auto max-w-none cursor-grab object-contain select-none"
+      draggable="false"
+    />
+  </div>
+</div>
+
+<script>
+  const overlay = document.getElementById('zoom-overlay');
+  const image = document.getElementById(
+    'zoom-image'
+  ) as HTMLImageElement | null;
+  const stage = document.getElementById('zoom-stage');
+  const closeBtn = document.getElementById('zoom-close');
+
+  if (overlay && image && stage) {
+    let lastFocused: HTMLElement | null = null;
+
+    const open = (src: string, alt: string) => {
+      lastFocused = document.activeElement as HTMLElement;
+      image.src = src;
+      image.alt = alt;
+      // Zoom past the container so there is something to pan.
+      image.style.transform = 'scale(1.6)';
+      overlay.classList.remove('hidden');
+      overlay.classList.add('flex');
+      document.body.style.overflow = 'hidden';
+      closeBtn?.focus();
+    };
+
+    const close = () => {
+      overlay.classList.add('hidden');
+      overlay.classList.remove('flex');
+      document.body.style.overflow = '';
+      lastFocused?.focus();
+    };
+
+    document.addEventListener('click', e => {
+      const trigger = (e.target as HTMLElement).closest<HTMLElement>(
+        '[data-zoom-trigger]'
+      );
+      if (!trigger) return;
+      const img = trigger.querySelector<HTMLImageElement>('[data-zoom-image]');
+      open(trigger.dataset.zoomFull ?? img?.src ?? '', img?.alt ?? '');
+    });
+
+    closeBtn?.addEventListener('click', close);
+    overlay.addEventListener('click', e => {
+      // Clicking the backdrop closes; clicking the image itself pans.
+      if (e.target === overlay || e.target === stage) close();
+    });
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape' && !overlay.classList.contains('hidden')) close();
+    });
+
+    // Drag-to-pan. Pointer events cover mouse, touch, and pen in one path.
+    let dragging = false;
+    let startX = 0;
+    let startY = 0;
+    let offsetX = 0;
+    let offsetY = 0;
+
+    const applyTransform = () => {
+      image.style.transform = `scale(1.6) translate(${offsetX}px, ${offsetY}px)`;
+    };
+
+    image.addEventListener('pointerdown', e => {
+      dragging = true;
+      startX = e.clientX - offsetX;
+      startY = e.clientY - offsetY;
+      image.style.cursor = 'grabbing';
+      image.setPointerCapture(e.pointerId);
+    });
+
+    image.addEventListener('pointermove', e => {
+      if (!dragging) return;
+      offsetX = e.clientX - startX;
+      offsetY = e.clientY - startY;
+      applyTransform();
+    });
+
+    const endDrag = () => {
+      dragging = false;
+      image.style.cursor = 'grab';
+    };
+    image.addEventListener('pointerup', endDrag);
+    image.addEventListener('pointercancel', endDrag);
+
+    // Reset the pan when a new image opens, so it never starts off-screen.
+    overlay.addEventListener('transitionend', () => {
+      if (overlay.classList.contains('hidden')) {
+        offsetX = 0;
+        offsetY = 0;
+        applyTransform();
+      }
+    });
+  }
+</script>

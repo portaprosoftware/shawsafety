@@ -3,7 +3,20 @@ import { readFile } from 'node:fs/promises';
 import { extname, isAbsolute, relative, resolve } from 'node:path';
 
 const DIST = resolve(new URL('../dist/', import.meta.url).pathname);
-const ROUTES = ['/', '/fr/', '/products/', '/blog/', '/contact/', '/404'];
+const ROUTES = [
+  '/',
+  '/products/',
+  '/products/11-inch-zip-tie-100-pack/',
+  '/products/class-2-hi-vis-safety-vest/',
+  '/safety-vests/',
+  '/wholesale/',
+  '/about/',
+  '/contact/',
+  '/cart/',
+  '/terms/',
+  '/privacy/',
+  '/404',
+];
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',

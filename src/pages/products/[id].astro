@@ -1,45 +1,69 @@
 ---
+import { getCollection } from 'astro:content';
 import MainLayout from '@/layouts/MainLayout.astro';
 import ProductDetail from '@components/sections/products/ProductDetail.astro';
-import { getCollection } from 'astro:content';
 import { SITE } from '@data/constants';
 
 export async function getStaticPaths() {
-  const productEntries = await getCollection('products', ({ id }) =>
-    id.startsWith('en/')
-  );
-  return productEntries.map(product => {
-    const idWithoutLang = product.id.replace(/^en\//, '');
-    return {
-      params: { id: idWithoutLang },
-      props: { product },
-    };
-  });
+  const products = await getCollection('products');
+  return products.map(product => ({
+    params: { id: product.id },
+    props: { product },
+  }));
 }
 
 const { product } = Astro.props;
+const p = product.data;
 
-const pageTitle: string = `${product.data.title} | ${SITE.title}`;
-const metaDescription = product.data.description;
-const ogTitle = `${product.data.title} | Hardware Tools | ScrewFast`;
-const productSlug = product.data.title.toLowerCase().replace(/\s+/g, '-');
+// Deep-linked color, e.g. /products/...?color=fluorescent-green
+const selected = Astro.url.searchParams.get('color') ?? undefined;
+
+const lowestPrice = Math.min(
+  ...p.variants.flatMap(v => (v.tiers ?? p.tiers).map(t => t.pricePerUnit))
+);
+
+const structuredData = {
+  '@context': 'https://schema.org',
+  '@type': 'Product',
+  name: p.title,
+  description: p.description,
+  sku: p.sku,
+  brand: { '@type': 'Brand', name: SITE.title },
+  aggregateRating: {
+    '@type': 'AggregateRating',
+    ratingValue: p.rating.value,
+    reviewCount: p.rating.count,
+  },
+  offers: {
+    '@type': 'AggregateOffer',
+    priceCurrency: 'USD',
+    lowPrice: lowestPrice,
+    highPrice: Math.max(...p.tiers.map(t => t.pricePerUnit)),
+    offerCount: p.variants.length,
+    availability: 'https://schema.org/InStock',
+    url: `${SITE.url}/products/${product.id}`,
+  },
+};
 ---
 
 <MainLayout
-  title={pageTitle}
-  customDescription={metaDescription}
-  customOgTitle={ogTitle}
-  structuredData={{
-    '@context': 'https://schema.org',
-    '@type': 'Product',
-    '@id': `${SITE.url}/products/${productSlug}`,
-    name: product.data.title,
-    description: product.data.description,
-    brand: {
-      '@type': 'Brand',
-      name: 'ScrewFast',
-    },
-  }}
+  title={`${p.shortTitle} | ${SITE.title}`}
+  customDescription={p.description}
+  customOgTitle={p.title}
+  structuredData={structuredData}
 >
-  <ProductDetail product={product} />
+  <nav aria-label="Breadcrumb" class="pt-6 text-sm">
+    <ol class="flex items-center gap-1.5 text-neutral-500">
+      <li><a href="/" class="hover:text-maroon-700 transition">Home</a></li>
+      <li aria-hidden="true">/</li>
+      <li>
+        <a href="/products" class="hover:text-maroon-700 transition">Products</a
+        >
+      </li>
+      <li aria-hidden="true">/</li>
+      <li class="truncate font-medium text-neutral-800">{p.shortTitle}</li>
+    </ol>
+  </nav>
+
+  <ProductDetail product={product} selected={selected} />
 </MainLayout>
