@@ -150,7 +150,10 @@ import Icon from '@components/ui/icons/Icon.astro';
     const open = () => {
       lastFocused = document.activeElement as HTMLElement;
       root.classList.remove('hidden');
-      root.classList.add('pointer-events-auto');
+      // Remove the blocking class rather than adding a competing one: with
+      // both `pointer-events-none` and `pointer-events-auto` applied, `none`
+      // wins and every control in the drawer silently stops responding.
+      root.classList.remove('pointer-events-none');
       root.setAttribute('aria-hidden', 'false');
       document.body.style.overflow = 'hidden';
       // Next frame so the transition has a start state to animate from.
@@ -164,7 +167,7 @@ import Icon from '@components/ui/icons/Icon.astro';
     const close = () => {
       backdrop.classList.replace('opacity-100', 'opacity-0');
       panel.classList.add('translate-x-full');
-      root.classList.remove('pointer-events-auto');
+      root.classList.add('pointer-events-none');
       root.setAttribute('aria-hidden', 'true');
       document.body.style.overflow = '';
       window.setTimeout(() => root.classList.add('hidden'), 300);
@@ -277,9 +280,14 @@ import Icon from '@components/ui/icons/Icon.astro';
       checkoutBtn.disabled = true;
       checkoutBtn.textContent = 'Starting checkout…';
       const result = await checkout(getItems());
+
+      // On success the browser is already navigating to Stripe; resetting the
+      // button would flash it back to idle mid-redirect.
+      if (result.ok) return;
+
       checkoutBtn.disabled = false;
       checkoutBtn.textContent = 'Checkout';
-      if (!result.ok && checkoutNote) {
+      if (checkoutNote) {
         checkoutNote.textContent = result.message;
         checkoutNote.classList.remove('hidden');
       }

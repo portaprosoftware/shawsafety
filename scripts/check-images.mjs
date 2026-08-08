@@ -50,6 +50,14 @@ async function referencedStems() {
     let itemIndent = undefined;
 
     for (const line of lines) {
+      // Spec sheets are single scalars rather than a list, but they are still
+      // images resolved from the same folder — count them as referenced.
+      const spec = line.match(/^\s*spec:\s*'?([^'\n]+?)'?\s*$/);
+      if (spec) {
+        refs.push(spec[1].trim());
+        continue;
+      }
+
       if (/^\s*images:\s*$/.test(line)) {
         itemIndent = null;
         continue;

@@ -209,9 +209,13 @@ import { SITE } from '@data/constants';
     checkoutBtn.disabled = true;
     checkoutBtn.textContent = 'Starting checkout…';
     const result = await checkout(getItems());
+
+    // On success the browser is already navigating to Stripe.
+    if (result.ok) return;
+
     checkoutBtn.disabled = false;
     checkoutBtn.textContent = 'Checkout';
-    if (!result.ok && note) {
+    if (note) {
       note.textContent = result.message;
       note.classList.remove('hidden');
     }

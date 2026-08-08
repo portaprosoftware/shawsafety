@@ -32,6 +32,7 @@ variants:
       - 'tie-fluorescent-yellow-1'
       - 'tie-fluorescent-yellow-2'
       - 'tie-fluorescent-yellow-3'
+    spec: 'spec-yellow'
     # Yellow is the highest-volume color and is priced as the lead-in SKU.
     tiers:
       - minQty: 1
@@ -52,6 +53,7 @@ variants:
       - 'tie-fluorescent-pink-1'
       - 'tie-fluorescent-pink-2'
       - 'tie-fluorescent-pink-3'
+    spec: 'spec-pink'
   - id: 'fluorescent-green'
     name: 'Fluorescent Green'
     hex: '#8CFF1A'
@@ -61,6 +63,7 @@ variants:
       - 'tie-fluorescent-green-1'
       - 'tie-fluorescent-green-2'
       - 'tie-fluorescent-green-3'
+    spec: 'spec-green'
   - id: 'fluorescent-orange'
     name: 'Fluorescent Orange'
     hex: '#FF8A1F'
@@ -70,6 +73,7 @@ variants:
       - 'tie-fluorescent-orange-1'
       - 'tie-fluorescent-orange-2'
       - 'tie-fluorescent-orange-3'
+    spec: 'spec-orange'
 highlights:
   - icon: 'bolt'
     title: 'High Visibility'

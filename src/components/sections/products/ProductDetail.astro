@@ -35,6 +35,16 @@ const variants = await Promise.all(
       }))
     );
     const tiers: Tier[] = variant.tiers ?? p.tiers;
+
+    /*
+     * Spec sheets are dimensioned drawings with fine annotation, so they are
+     * rendered near their natural width rather than thumbnailed — anything
+     * smaller is unreadable.
+     */
+    const spec = variant.spec
+      ? (await resolveProductImage(variant.spec, 1600, 1600)).src
+      : null;
+
     return {
       id: variant.id,
       name: variant.name,
@@ -43,6 +53,7 @@ const variants = await Promise.all(
       inStock: variant.inStock,
       tiers,
       images,
+      spec,
     };
   })
 );
@@ -273,10 +284,22 @@ const clientData = {
     >
     </p>
 
-    <p class="mt-4 flex items-center gap-2 text-sm text-neutral-600">
-      <Icon name="truck" class="h-4 w-4 shrink-0 text-neutral-400" />
-      Ships next business day if you order before 5pm.
-    </p>
+    <div class="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2">
+      <p class="flex items-center gap-2 text-sm text-neutral-600">
+        <Icon name="truck" class="h-4 w-4 shrink-0 text-neutral-400" />
+        Ships next business day if you order before 5pm.
+      </p>
+
+      {/* Hidden for variants with no drawing, e.g. the vests. */}
+      <button
+        type="button"
+        id="pdp-spec"
+        class="text-maroon-700 hover:text-maroon-800 focus-visible:ring-maroon-700 hidden items-center gap-1.5 rounded text-sm font-semibold underline underline-offset-4 transition focus:outline-hidden focus-visible:ring-2"
+      >
+        <Icon name="ruler" class="h-4 w-4" />
+        View Spec
+      </button>
+    </div>
 
     {/* Subtotal */}
     <div class="mt-4 rounded-lg border border-neutral-200 bg-neutral-50 p-4">
@@ -351,6 +374,60 @@ const clientData = {
   </dl>
 </section>
 
+{/* ── Spec sheet modal ───────────────────────────────────────────────── */}
+<div
+  id="spec-overlay"
+  class="fixed inset-0 z-100 hidden items-center justify-center bg-neutral-950/85 p-4 backdrop-blur-sm sm:p-8"
+  role="dialog"
+  aria-modal="true"
+  aria-labelledby="spec-title"
+>
+  <div
+    class="flex max-h-full w-full max-w-5xl flex-col overflow-hidden rounded-xl bg-white"
+  >
+    <header
+      class="flex items-center justify-between gap-4 border-b border-neutral-200 px-5 py-3"
+    >
+      <h2 id="spec-title" class="text-sm font-bold text-neutral-900">
+        Specification &mdash; <span id="spec-variant"></span>
+      </h2>
+      <div class="flex items-center gap-2">
+        {
+          /*
+          The drawing is finely annotated, so a way to view it at full size is
+          not optional — the fitted view is only a preview.
+        */
+        }
+        <a
+          id="spec-fullsize"
+          href="#"
+          target="_blank"
+          rel="noopener"
+          class="text-maroon-700 hover:text-maroon-800 rounded px-2 py-1 text-xs font-semibold underline underline-offset-4"
+        >
+          Open full size
+        </a>
+        <button
+          type="button"
+          id="spec-close"
+          class="focus-visible:ring-maroon-700 rounded-lg p-2 text-neutral-500 transition hover:bg-neutral-100 hover:text-neutral-900 focus:outline-hidden focus-visible:ring-2"
+          aria-label="Close specification"
+        >
+          <Icon name="close" class="h-5 w-5" />
+        </button>
+      </div>
+    </header>
+
+    <div class="overflow-auto bg-white p-4">
+      <img
+        id="spec-image"
+        alt=""
+        class="mx-auto h-auto w-full max-w-full object-contain"
+      />
+    </div>
+  </div>
+</div>
+
 <script is:inline define:vars={{ clientData }}>
   window.__shawProduct = clientData;
 </script>
@@ -376,6 +453,8 @@ const clientData = {
     inStock: boolean;
     tiers: Tier[];
     images: { display: string; thumb: string; full: string }[];
+    /** Spec-sheet drawing, or null for variants that have none. */
+    spec: string | null;
   }
 
   interface ProductView {
@@ -520,6 +599,23 @@ const clientData = {
         stockEl.classList.toggle('text-neutral-500', !variant.inStock);
       }
 
+      // The drawing differs per colour, so the link and the modal follow the
+      // selection rather than being set once on load.
+      const specBtn = $('pdp-spec');
+      if (specBtn) {
+        specBtn.classList.toggle('hidden', !variant.spec);
+        specBtn.classList.toggle('inline-flex', !!variant.spec);
+      }
+      const specImg = $('spec-image') as HTMLImageElement | null;
+      if (specImg && variant.spec) {
+        specImg.src = variant.spec;
+        specImg.alt = `Specification drawing for ${data.title} in ${variant.name}`;
+      }
+      const specLink = $('spec-fullsize') as HTMLAnchorElement | null;
+      if (specLink && variant.spec) specLink.href = variant.spec;
+      const specVariant = $('spec-variant');
+      if (specVariant) specVariant.textContent = variant.name;
+
       renderImages();
     };
 
@@ -567,6 +663,42 @@ const clientData = {
       if (qtyInput) qtyInput.value = String(Math.max(1, qty() - 1));
       renderTiers();
       renderPrice();
+    });
+
+    // ── Spec sheet modal ──────────────────────────────────────────────
+    const specOverlay = $('spec-overlay');
+    let specLastFocused: HTMLElement | null = null;
+
+    const openSpec = () => {
+      if (!specOverlay || !variant.spec) return;
+      specLastFocused = document.activeElement as HTMLElement;
+      specOverlay.classList.remove('hidden');
+      specOverlay.classList.add('flex');
+      document.body.style.overflow = 'hidden';
+      $('spec-close')?.focus();
+    };
+
+    const closeSpec = () => {
+      if (!specOverlay) return;
+      specOverlay.classList.add('hidden');
+      specOverlay.classList.remove('flex');
+      document.body.style.overflow = '';
+      specLastFocused?.focus();
+    };
+
+    $('pdp-spec')?.addEventListener('click', openSpec);
+    $('spec-close')?.addEventListener('click', closeSpec);
+    specOverlay?.addEventListener('click', event => {
+      // Backdrop closes; the panel itself does not.
+      if (event.target === specOverlay) closeSpec();
+    });
+    document.addEventListener('keydown', event => {
+      if (
+        event.key === 'Escape' &&
+        !specOverlay?.classList.contains('hidden')
+      ) {
+        closeSpec();
+      }
     });
 
     $('pdp-add')?.addEventListener('click', () => {

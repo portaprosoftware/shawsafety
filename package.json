@@ -26,6 +26,7 @@
     "preline": "^4.2.0",
     "sharp": "^0.35.3",
     "sharp-ico": "^0.1.5",
+    "stripe": "^22.4.0",
     "tailwindcss": "^4.3.3"
   },
   "devDependencies": {

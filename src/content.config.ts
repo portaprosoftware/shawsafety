@@ -55,6 +55,11 @@ const productsCollection = defineCollection({
            * now render a labelled placeholder instead.
            */
           images: z.array(z.string()),
+          /**
+           * Optional spec-sheet image stem, resolved the same way as `images`.
+           * Rendered behind a "View Spec" link on the product page.
+           */
+          spec: z.string().optional(),
           tiers: z.array(tierSchema).optional(),
         })
       ),
