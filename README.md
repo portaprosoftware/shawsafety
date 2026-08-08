@@ -22,6 +22,7 @@ pnpm format:fix # CI fails on unformatted files — run before committing
 | ------------------------------ | -------------------------------------------------------------------------------------- |
 | `src/pages/`                   | File-based routes. One page per file; `products/[id].astro` is the only dynamic route. |
 | `src/content/products/`        | Product data as Markdown frontmatter. Schema in `src/content.config.ts`.               |
+| `src/content/knowledge/`       | RAG corpus. One Markdown file per retrieval chunk.                                     |
 | `src/assets/scripts/`          | Cart store, pricing math, and the checkout adapter.                                    |
 | `src/assets/styles/global.css` | The entire theme. Tailwind v4 `@theme` block — there is no `tailwind.config.js`.       |
 | `src/data_files/constants.ts`  | Site metadata, trust marks, marquee copy.                                              |
@@ -130,8 +131,8 @@ Astro rejects cross-site form POSTs, so `/api/contact` and `/api/transcribe`
 both require a matching `Origin` header — browsers send one, `curl` does not.
 That protection is a side effect of their content type (form-encoded and
 multipart respectively), not something either route asks for. JSON endpoints
-(`/api/checkout`, `/api/stripe-webhook`) are exempt, which is why Stripe can
-post to the webhook.
+(`/api/checkout`, `/api/stripe-webhook`, `/api/ask`) are exempt, which is why
+Stripe can post to the webhook.
 
 ## Forms and email
 
@@ -249,6 +250,109 @@ prompt never appears.
 
 Like `/api/contact`, this endpoint is unauthenticated and unthrottled, and it
 spends money per call. Rate limiting matters more here than on the mail form.
+
+## RAG assistant
+
+`POST /api/ask` answers questions about the store from a hand-written knowledge
+corpus, using OpenAI for retrieval and generation. There is no chat UI yet — the
+route is the product; wire a widget to it, or call it from an agent.
+
+```bash
+curl -s localhost:4321/api/ask -X POST -H 'Content-Type: application/json' \
+  -d '{"question":"do mixed colors count toward the volume tier?"}'
+```
+
+```jsonc
+{
+  "ok": true,
+  "answer": "Yes — quantity totals across every color and SKU … [1][2]",
+  "sources": [
+    {
+      "n": 1,
+      "title": "Wholesale Pricing",
+      "url": "/wholesale",
+      "score": 0.612,
+    },
+  ],
+}
+```
+
+`history` may be passed alongside `question` as an array of
+`{ role: 'user' | 'assistant', content }` turns; the last six are kept.
+Retrieval always runs against the current question.
+
+### The corpus is written, not scraped
+
+`src/content/knowledge/` holds one Markdown file per chunk, typed by the
+`knowledge` collection in `src/content.config.ts`. Thirty chunks of 100–300
+words cover the products, specs, compliance marks, price ladders, shipping,
+returns, ordering, and both legal pages.
+
+They are authored rather than extracted from the rendered pages for two
+reasons. The pages interleave copy with markup and price math, so a scraper
+yields fragments that read as fragments. And a retrieved chunk arrives at the
+model with no surrounding page — so each one names the product it is about
+instead of relying on a heading three sections up.
+
+Frontmatter carries a `questions` list: the questions that chunk answers,
+phrased the way a buyer would ask them. These are embedded alongside the prose
+and close the vocabulary gap between "how fast do you ship?" and the site's
+word for it, "dispatch". They are never shown to the model as content.
+
+**Editing a chunk means re-running the index.** Prices and tiers appear in the
+corpus as prose and are not derived from `src/content/products/`, so a price
+change has to be made in both places — grep the corpus for the old number.
+
+### Building the index
+
+```bash
+pnpm rag:index --dry-run   # parse and report the corpus, no API call
+pnpm rag:index             # embed and write src/data_files/rag-index.json
+```
+
+The index is a single JSON file and is **committed**. At thirty chunks a linear
+cosine scan in the route is microseconds, so a vector database would add a
+network hop, a second credential, and an operational dependency to lose to an
+in-process loop. Vectors are truncated to 512 dimensions — the
+`text-embedding-3` models are trained so a prefix is still a usable embedding —
+which thirds the file for no measurable retrieval difference at this size.
+
+Indexing is deliberately not part of `pnpm build`: the corpus changes far less
+often than the site deploys, and a billable call inside the build means a
+rotated key fails a deploy. The route reads the model and vector width back out
+of the index rather than pinning them separately, since a query is only
+comparable to vectors from the same model at the same width.
+
+| Variable                 | Required | Purpose                               |
+| ------------------------ | -------- | ------------------------------------- |
+| `OPENAI_API_KEY`         | no       | Embeddings and answers. Server-only.  |
+| `OPENAI_EMBEDDING_MODEL` | no       | Defaults to `text-embedding-3-small`. |
+| `OPENAI_CHAT_MODEL`      | no       | Defaults to `gpt-4o-mini`.            |
+
+Behaviour worth knowing:
+
+- **The answer is grounded or refused.** The system prompt forbids answering
+  outside the retrieved passages, and passages scoring below 0.25 similarity are
+  dropped before the model sees them. A question that retrieves nothing is
+  answered with the phone number and email, without spending a completion call —
+  a storefront assistant inventing a return window is the failure mode this is
+  built to avoid.
+- **Nothing is derived at answer time.** Prices, SKUs, and tier breakpoints are
+  quoted from the corpus verbatim; the model is told never to compute or adjust
+  one.
+- **Sources come back numbered** in citation order, so `[2]` in the answer maps
+  to a real page. Similarity scores ride along — the only signal available for
+  tuning the threshold against real questions.
+- **With no key, or no index built, the route answers 503** and points the
+  visitor at sales@shawsafety.com. Neither the key nor the corpus is echoed.
+- **`GET /api/ask` answers 405** and reports whether the key is set and what
+  index is deployed, matching `/api/transcribe`.
+- **The index is globbed, not imported**, so a fresh clone with no index builds
+  and deploys fine — same reasoning as the product photos.
+
+Like `/api/contact` and `/api/transcribe`, this endpoint is unauthenticated and
+unthrottled, and it spends money per call — two OpenAI calls per question. Rate
+limiting matters here.
 
 ## Product images
 
