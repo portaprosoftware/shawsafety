@@ -73,10 +73,8 @@ const reasons = [
   </section>
 
   {/* ── Value proposition ─────────────────────────────────────────────── */}
-  <section class="pb-14 lg:pb-20">
-    <div
-      class="border-maroon-100 rounded-2xl border bg-white p-8 shadow-xs sm:p-12 lg:p-14"
-    >
+  <section>
+    <div class="rounded-2xl bg-white p-8 shadow-lg sm:p-12 lg:p-14">
       <div class="mx-auto max-w-3xl text-center">
         <p
           class="text-maroon-700 text-xs font-bold tracking-[0.18em] uppercase"
@@ -116,10 +114,11 @@ const reasons = [
               body: 'Reorder in a couple of clicks. Same-day fulfillment on orders placed before 5pm.',
             },
           ].map(item => (
-            <li class="flex gap-4">
-              <span class="bg-maroon-50 text-maroon-700 flex h-11 w-11 shrink-0 items-center justify-center rounded-lg">
-                <Icon name={item.icon} class="h-5 w-5" />
-              </span>
+            <li class="flex gap-3.5">
+              <Icon
+                name={item.icon}
+                class="text-maroon-700 mt-0.5 h-6 w-6 shrink-0"
+              />
               <div>
                 <h3 class="text-sm font-bold tracking-wide text-neutral-900 uppercase">
                   {item.title}
@@ -140,6 +139,7 @@ const reasons = [
     subTitle="Discounts apply automatically at checkout. The deeper tier is not a negotiated rate — it is the price at that quantity."
     showCta={false}
     compactHeading
+    spacingClass="py-14 lg:py-20"
   />
 
   {/* ── Volume calculator ─────────────────────────────────────────────── */}
