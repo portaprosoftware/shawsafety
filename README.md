@@ -22,7 +22,7 @@ pnpm format:fix # CI fails on unformatted files — run before committing
 | ------------------------------ | -------------------------------------------------------------------------------------- |
 | `src/pages/`                   | File-based routes. One page per file; `products/[id].astro` is the only dynamic route. |
 | `src/content/products/`        | Product data as Markdown frontmatter. Schema in `src/content.config.ts`.               |
-| `src/content/knowledge/`       | RAG corpus. One Markdown file per retrieval chunk.                                     |
+| `src/content/knowledge/`       | RAG corpus. Page-anchored chunks plus section-split reference documents.               |
 | `src/assets/scripts/`          | Cart store, pricing math, and the checkout adapter.                                    |
 | `src/assets/styles/global.css` | The entire theme. Tailwind v4 `@theme` block — there is no `tailwind.config.js`.       |
 | `src/data_files/constants.ts`  | Site metadata, trust marks, marquee copy.                                              |
@@ -438,10 +438,29 @@ Retrieval always runs against the current question.
 
 ### The corpus is written, not scraped
 
-`src/content/knowledge/` holds one Markdown file per chunk, typed by the
-`knowledge` collection in `src/content.config.ts`. Thirty chunks of 100–300
-words cover the products, specs, compliance marks, price ladders, shipping,
-returns, ordering, and both legal pages.
+`src/content/knowledge/` is typed by the `knowledge` collection in
+`src/content.config.ts` and holds two shapes of file, 184 retrieval chunks in
+total.
+
+**Page-anchored chunks** are one topic per file, embedded whole. Thirty of
+these, 100–300 words each, cover the products, specs, compliance marks, price
+ladders, shipping, returns, ordering, and both legal pages. Each is drawn from
+live site copy and cites the page it came from.
+
+**Reference documents** set `chunkBy: 'section'` and split into one chunk per
+`## ` heading — eleven documents producing 154 chunks, carrying depth the site
+pages do not: use cases, seal-class comparisons, installation and VVTT
+inspection practice, ANSI and UL standards explainers. Splitting on H2 keeps the
+editable unit a document a person can read top to bottom while the retrieval
+unit stays a single section; embedding a two-thousand-word document as one
+vector retrieves badly and crowds the context with fifteen sections to answer a
+question about one.
+
+Where the two disagree, **the page-anchored chunk wins** — it is the one tied to
+published copy. A reference document must never restate a price or a cutoff in
+terms that conflict with the site. `src/content/knowledge/_README.md` carries
+the standing content rules (it starts with an underscore, so both the collection
+glob and the build script skip it).
 
 They are authored rather than extracted from the rendered pages for two
 reasons. The pages interleave copy with markup and price math, so a scraper
@@ -468,7 +487,7 @@ nothing to commit and no separate step to remember.
 The last line of every build says which way it went:
 
 ```
-RAG assistant: ON — 30 chunks, text-embedding-3-small (512d)
+RAG assistant: ON — 184 chunks, text-embedding-3-small (512d)
 RAG assistant: OFF — no index was produced, so the chat widget is not rendered.
 ```
 
@@ -482,11 +501,19 @@ Locally you can also run the script directly:
 ```bash
 pnpm rag:index --dry-run   # parse and report the corpus, no API call, no spend
 pnpm rag:index             # embed and write the index now
+pnpm rag:test              # embed real questions and assert what they retrieve
 ```
+
+`rag:test` is the check a dry run cannot do. Parsing proves the corpus is
+well-formed; only retrieval proves a question finds its answer. Each case names
+the documents that must appear in the top hits, and may also `forbid` text that
+must not appear in the retrieved context — the C-TPAT case asserts both that the
+answer explains the ISO 17712 boundary and that no unaffiliated supplier is
+named, which is a content rule no similarity score can enforce on its own.
 
 **The index is generated, not committed** — it is gitignored. Committing it
 would mean a stale index every time someone edits a chunk and forgets to
-re-run. Embedding thirty chunks costs a fraction of a cent, so paying it per
+re-run. Embedding the corpus costs a fraction of a cent, so paying it per
 deploy rather than per edit is not worth optimising around.
 
 It stays a single JSON file rather than a vector database: at thirty chunks a

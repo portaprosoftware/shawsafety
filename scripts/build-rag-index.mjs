@@ -125,16 +125,76 @@ function unquote(value) {
 }
 
 /**
+ * Split a reference document into one chunk per H2 heading.
+ *
+ * Two shapes of file live in this corpus. The page-anchored chunks are one
+ * topic per file and embed whole. The reference documents are long — a full
+ * treatment of compliance, or of shipping — and embedding one of those as a
+ * single vector retrieves badly: a two-thousand-word average is close to
+ * nothing in particular, and it crowds the context window with fifteen
+ * sections to answer a question about one.
+ *
+ * Splitting on H2 keeps the editable unit a document a person can read top to
+ * bottom, while the retrieval unit stays a single section. The alternative —
+ * committing the pre-split chunks as their own files — makes the corpus a
+ * hundred and fifty fragments nobody can review, and lets the split drift from
+ * the prose it came from.
+ *
+ * Opt-in via `chunkBy: 'section'` rather than "split if headings are present",
+ * so adding a subheading to an existing chunk cannot silently multiply it.
+ */
+function splitSections(body, file) {
+  const sections = [];
+  let heading = null;
+  let buffer = [];
+
+  const flush = () => {
+    const text = buffer.join('\n').trim();
+    buffer = [];
+    if (!text) return;
+    // Prose above the first heading would be dropped on the floor. That is a
+    // content loss the author would never see, so refuse the file instead.
+    if (!heading) {
+      throw new Error(
+        `${file}: content appears before the first '## ' heading; ` +
+          `every section of a chunkBy: section document must live under one`
+      );
+    }
+    sections.push({ heading, body: text });
+  };
+
+  for (const line of body.split('\n')) {
+    const match = line.match(/^##\s+(.+?)\s*$/);
+    if (match) {
+      flush();
+      heading = match[1];
+    } else {
+      buffer.push(line);
+    }
+  }
+  flush();
+
+  if (!sections.length) {
+    throw new Error(`${file}: chunkBy: section, but it has no '## ' headings`);
+  }
+  return sections;
+}
+
+/**
  * The text that actually gets embedded.
  *
  * Title and questions lead because they carry the buyer's vocabulary — a
  * question phrased the way someone would ask it is the closest thing in the
  * corpus to the query that will be matched against it. Keywords are included
  * for the same reason; the body follows as the substance.
+ *
+ * A section chunk leads with `document > heading` instead. The heading alone
+ * is often too thin to place ("Colors", "Sizing"), and the document title is
+ * what says which product those colors belong to.
  */
 function embeddingText(chunk) {
   return [
-    chunk.title,
+    chunk.heading ? `${chunk.documentTitle} > ${chunk.heading}` : chunk.title,
     chunk.questions.join('\n'),
     chunk.keywords.join(', '),
     chunk.body,
@@ -240,16 +300,31 @@ for (const file of files.sort()) {
     throw new Error(`${file}: needs a title, a url, and a body`);
   }
 
-  chunks.push({
-    id: file.replace(/\.md$/, ''),
-    title: data.title,
+  const stem = file.replace(/\.md$/, '');
+  const common = {
     topic: data.topic ?? 'company',
     url: data.url,
     sourceLabel: data.sourceLabel ?? data.title,
     questions: data.questions ?? [],
     keywords: data.keywords ?? [],
-    body,
-  });
+  };
+
+  if (data.chunkBy === 'section') {
+    splitSections(body, file).forEach((section, i) => {
+      chunks.push({
+        ...common,
+        // Mirrors the id scheme the corpus was drafted against, and is stable
+        // as long as sections are not reordered.
+        id: `${stem}--${String(i).padStart(3, '0')}`,
+        documentTitle: data.title,
+        heading: section.heading,
+        title: `${data.title} — ${section.heading}`,
+        body: section.body,
+      });
+    });
+  } else {
+    chunks.push({ ...common, id: stem, title: data.title, body });
+  }
 }
 
 if (dryRun) {

@@ -10,13 +10,13 @@ questions:
   - 'Do you ship the same day?'
 keywords:
   - 'cutoff'
-  - '5pm CT'
+  - '5pm ET'
   - 'next business day'
   - 'dispatch'
   - 'lead time'
 ---
 
-Orders placed before **5pm CT on a business day ship the next business day**
+Orders placed before **5pm ET on a business day ship the next business day**
 from stock. Custom and printed seals ship within 24 hours rather than the
 multi-week lead times common elsewhere in this category.
 

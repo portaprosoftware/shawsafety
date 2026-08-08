@@ -120,6 +120,12 @@ const knowledgeCollection = defineCollection({
       sourceLabel: z.string().optional(),
       questions: z.array(z.string()).default([]),
       keywords: z.array(z.string()).default([]),
+      /**
+       * Reference documents set this to split into one retrieval chunk per H2
+       * heading. Left unset, the file embeds whole, which is what the
+       * page-anchored chunks want.
+       */
+      chunkBy: z.literal('section').optional(),
     }),
 });
 

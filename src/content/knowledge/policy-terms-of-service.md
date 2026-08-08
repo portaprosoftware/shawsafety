@@ -28,7 +28,7 @@ noted, freight. Volume tiers apply automatically based on order quantity.
 Published prices may change at any time, but the price confirmed at checkout
 governs that order.
 
-**Shipping.** Orders placed before 5pm CT on a business day are dispatched the
+**Shipping.** Orders placed before 5pm ET on a business day are dispatched the
 next business day, subject to stock. Delivery estimates are estimates, not
 guarantees. Risk of loss passes on delivery to the carrier.
 

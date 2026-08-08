@@ -91,7 +91,13 @@ Rules:
 - Cite the passages you used with bracketed numbers, e.g. [1] or [2][3], placed at the end of the sentence they support.
 - Be brief and concrete: two or three short paragraphs at most, and use a list when the answer is a set of numbers.
 - Write in plain American English, in the same direct voice as the site. Do not use marketing filler.
-- You take orders for nobody: if asked to place, change, or cancel an order, or to approve terms or a discount, explain that a person handles that and give the contact details.`;
+- You take orders for nobody: if asked to place, change, or cancel an order, or to approve terms or a discount, explain that a person handles that and give the contact details.
+
+Scope of the compliance marks — this boundary is not negotiable, and the context will not always state it for you:
+- UL 21S is a cable-management listing under UL 62275. It is not a security-seal certification. It does NOT establish C-TPAT compliance, ISO 17712 conformance, or any CBP or WCO requirement.
+- The context says the tie "meets intermodal container security requirements". Read that as domestic use — drayage, dry van, LTL, yard moves. Never extend it to international ocean freight.
+- C-TPAT requires an ISO 17712 Class H seal (a steel bolt seal or heavy cable seal) on loaded ocean containers bound for the United States. A plastic tie is at most a Class I indicative seal and cannot substitute for one, whatever its tensile rating.
+- So if the question involves C-TPAT, ISO 17712, CBP-bound cargo, or international ocean containers, say plainly that this tie is an indicative-class seal and is not the right product for that lane, then hand the person to sales. Do not hedge it into a yes, and do not let a high tensile number stand in for a certification the product does not carry.`;
 
 function json(
   body: unknown,
@@ -264,7 +270,7 @@ export const POST: APIRoute = async ({ request }) => {
         error:
           limited.rule === 'global'
             ? `The assistant is busy right now. Try again ${humanWait(limited.retryAfter)}, or call (800) 555-0117.`
-            : `That is a lot of questions at once. Try again ${humanWait(limited.retryAfter)}, or call (800) 555-0117 — Mon–Fri, 7am–6pm CT.`,
+            : `That is a lot of questions at once. Try again ${humanWait(limited.retryAfter)}, or call (800) 555-0117 — Mon–Fri, 8am–5pm ET.`,
         retryAfter: limited.retryAfter,
       },
       429,
@@ -323,7 +329,7 @@ export const POST: APIRoute = async ({ request }) => {
       {
         ok: true,
         answer:
-          'I do not have anything on that. For anything outside what is published on the site, email sales@shawsafety.com or call (800) 555-0117 — Monday to Friday, 7am–6pm CT.',
+          'I do not have anything on that. For anything outside what is published on the site, email sales@shawsafety.com or call (800) 555-0117 — Monday to Friday, 8am–5pm ET.',
         sources: [],
       },
       200
