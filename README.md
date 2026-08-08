@@ -368,8 +368,40 @@ previous photo was deleted rather than left behind as an unreferenced asset.
 
 ## Brand assets
 
-`src/images/` holds the icon set and the social share image. There is **no
-`favicon.ico` in the repo** — it is generated at build time by
+### The logo
+
+Drop the file at **`src/images/logo.png`** and both the navbar and the footer
+pick it up — no code change. Any of `.png .jpg .webp .avif` works; the
+extension is not referenced anywhere.
+
+With no file present, `BrandLogo.astro` renders a drawn SVG wordmark instead,
+so the header is never empty and a missing or renamed file cannot break the
+build.
+
+What the artwork wants:
+
+- **Transparent background.** It sits on white in the navbar and on
+  `neutral-50` in the footer, so a baked-in white box will show as a pale
+  rectangle against the footer.
+- **A dark or maroon mark.** Both placements are light backgrounds. A white
+  or light logo will disappear.
+- **Roughly 3:1 to 5:1, wide.** Any ratio renders correctly — width follows the
+  source and nothing is squashed — but a tall or square logo will come out
+  small, since both placements are height-constrained to 28–32px.
+- **At least 320px tall**, ideally 400–600. It is displayed at 32px but
+  rendered at 160 so it stays sharp on retina; a small source cannot be
+  recovered. Do not pre-compress — Astro converts it to WebP and hashes it.
+
+Two things the raster logo cannot do that the drawn fallback could:
+
+- It does not inherit `currentColor`, so the `text-maroon-700` on the footer
+  usage now only tints the fallback. Recolouring means a new file.
+- It is a separate asset from `icon.png`. Replacing the logo does **not**
+  change the favicon, the Apple touch icon, or the PWA icon — see below.
+
+### Icons and social card
+
+There is **no `favicon.ico` in the repo** — it is generated at build time by
 `src/pages/favicon.ico.ts`, which reads `icon.png` and encodes 16px and 32px
 into a real `.ico`.
 

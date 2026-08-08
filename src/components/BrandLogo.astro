@@ -1,40 +1,93 @@
 ---
 /**
- * Shaw Safety wordmark. Pure inline SVG so it inherits `currentColor` and
- * stays crisp at any size — no raster asset to keep in sync.
+ * Shaw Safety wordmark, used in the navbar and the footer.
+ *
+ * Prefers a real logo file at `src/images/logo.*`. With no file present it
+ * falls back to the drawn wordmark below, so the header is never empty and a
+ * missing or renamed asset cannot break the build — globbed rather than
+ * imported for exactly that reason.
+ *
+ * Both placements sit on a light background, so one artwork covers them. The
+ * drawn fallback inherits `currentColor`; a raster logo cannot, which is why
+ * the `text-maroon-700` on the footer usage only affects the fallback.
  */
+import { getImage } from 'astro:assets';
+import type { ImageMetadata } from 'astro';
+
 interface Props {
   class?: string;
+  /**
+   * Empty when an ancestor already names the link — the navbar's anchor
+   * carries "Shaw Safety home", and a described image inside it would be
+   * announced twice.
+   */
+  alt?: string;
 }
 
-const { class: className = 'h-8 w-auto' } = Astro.props;
+const { class: className = 'h-8 w-auto', alt = 'Shaw Safety' } = Astro.props;
+
+const matches = import.meta.glob<{ default: ImageMetadata }>(
+  '/src/images/logo.{png,jpg,jpeg,webp,avif}',
+  { eager: true }
+);
+const source = Object.values(matches)[0]?.default;
+
+/*
+ * Rendered at 160px tall against a 28-32px display height. That is well past
+ * 2x, which costs little for a logo and keeps it sharp on any display — a
+ * wordmark rendered at 1x is the first thing that looks cheap on a retina
+ * screen. Width follows the source's own ratio, so any shape works without
+ * touching this file.
+ */
+const RENDER_HEIGHT = 160;
+const logo = source
+  ? await getImage({
+      src: source,
+      height: RENDER_HEIGHT,
+      width: Math.round(RENDER_HEIGHT * (source.width / source.height)),
+    })
+  : null;
 ---
 
-<svg
-  class={className}
-  viewBox="0 0 260 40"
-  fill="none"
-  role="img"
-  aria-label="Shaw Safety"
->
-  <title>Shaw Safety</title>
-  {/* Zip-tie glyph: head block plus tapered, ridged tail. */}
-  <g stroke="currentColor" stroke-width="2.6" stroke-linejoin="round">
-    <rect x="2" y="12.5" width="13" height="15" rx="3"></rect>
-    <path d="M7 17.5v5" stroke-linecap="round"></path>
-  </g>
-  <path d="M15 16.5h18l-2.5 7H15z" fill="currentColor" opacity="0.55"></path>
-  {/* Wordmark: heavy italic condensed, matching the storefront signage. */}
-  <text
-    x="40"
-    y="30"
-    fill="currentColor"
-    font-family="'Helvetica Neue', Helvetica, Arial, sans-serif"
-    font-size="27"
-    font-weight="800"
-    font-style="italic"
-    letter-spacing="-0.6"
-  >
-    SHAW SAFETY
-  </text>
-</svg>
+{
+  logo ? (
+    <img
+      src={logo.src}
+      alt={alt}
+      width={logo.options.width}
+      height={logo.options.height}
+      loading="eager"
+      decoding="sync"
+      class={className}
+    />
+  ) : (
+    <svg
+      class={className}
+      viewBox="0 0 260 40"
+      fill="none"
+      role="img"
+      aria-label={alt || undefined}
+      aria-hidden={alt ? undefined : 'true'}
+    >
+      {/* Zip-tie glyph: head block plus tapered, ridged tail. */}
+      <g stroke="currentColor" stroke-width="2.6" stroke-linejoin="round">
+        <rect x="2" y="12.5" width="13" height="15" rx="3" />
+        <path d="M7 17.5v5" stroke-linecap="round" />
+      </g>
+      <path d="M15 16.5h18l-2.5 7H15z" fill="currentColor" opacity="0.55" />
+      {/* Wordmark: heavy italic condensed, matching the storefront signage. */}
+      <text
+        x="40"
+        y="30"
+        fill="currentColor"
+        font-family="'Helvetica Neue', Helvetica, Arial, sans-serif"
+        font-size="27"
+        font-weight="800"
+        font-style="italic"
+        letter-spacing="-0.6"
+      >
+        SHAW SAFETY
+      </text>
+    </svg>
+  )
+}
