@@ -13,6 +13,11 @@ interface Props {
    * headings do not read as competing h1s.
    */
   compactHeading?: boolean;
+  /**
+   * Vertical rhythm for the section. Overridable so a page that already sets
+   * its own spacing above the section can keep the gap balanced.
+   */
+  spacingClass?: string;
 }
 
 const {
@@ -20,6 +25,7 @@ const {
   subTitle = 'One price list, published up front. The discount applies automatically at checkout — no account, no negotiation, no minimum order.',
   showCta = true,
   compactHeading = false,
+  spacingClass = 'py-16 lg:py-24',
 } = Astro.props;
 
 /**
@@ -62,7 +68,7 @@ const plans = [
 ];
 ---
 
-<section class="py-16 lg:py-24">
+<section class:list={[spacingClass]}>
   <div class="mx-auto max-w-2xl text-center">
     <h2
       class:list={[
