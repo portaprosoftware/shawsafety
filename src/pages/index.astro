@@ -3,7 +3,6 @@ import { getCollection } from 'astro:content';
 import MainLayout from '@/layouts/MainLayout.astro';
 import HeroSection from '@components/sections/landing/HeroSection.astro';
 import TrustStrip from '@components/sections/landing/TrustStrip.astro';
-import MarqueeBand from '@components/sections/landing/MarqueeBand.astro';
 import FeaturesGeneral from '@components/sections/features/FeaturesGeneral.astro';
 import VestCrossSell from '@components/sections/landing/VestCrossSell.astro';
 import HeroSectionAlt from '@components/sections/landing/HeroSectionAlt.astro';
@@ -55,7 +54,6 @@ const structuredData = {
   </div>
 
   <FeaturesGeneral product={zipTie} />
-  <MarqueeBand />
 
   <div class="mx-auto max-w-(--breakpoint-2xl) px-4 sm:px-6 lg:px-8">
     <PricingSection />

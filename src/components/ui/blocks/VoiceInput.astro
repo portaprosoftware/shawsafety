@@ -52,10 +52,11 @@ import Icon from '@components/ui/icons/Icon.astro';
   /**
    * Wires a dictation control to every textarea on the page.
    *
-   * Audio is recorded in the browser and posted to /api/transcribe, which
-   * holds the ElevenLabs key. Nothing is stored: the blob is discarded once
-   * the text comes back.
+   * Audio is recorded in the browser, normalised to WAV, and posted to
+   * /api/transcribe, which holds the ElevenLabs key. Nothing is stored: the
+   * blob is discarded once the text comes back.
    */
+  import { toWav } from '@scripts/wavEncoder';
 
   /** Auto-stop, in ms. A forgotten open mic is a bill and a privacy problem. */
   const MAX_RECORDING_MS = 120_000;
@@ -170,15 +171,33 @@ import Icon from '@components/ui/icons/Icon.astro';
       setStatus(`Recording ${mm}:${ss} — click Stop when finished`);
     };
 
-    const transcribe = async (blob: Blob) => {
+    const transcribe = async (recorded: Blob) => {
       el.button.disabled = true;
       setStatus('Transcribing…');
 
+      /*
+       * Convert to WAV before uploading. Browsers record in whatever container
+       * they prefer, and the parameterised type that comes with it
+       * (`audio/webm;codecs=opus`) is what upstream rejected with an opaque
+       * 400. WAV has no codec parameter and is accepted everywhere.
+       *
+       * If the browser cannot decode its own recording, send the original —
+       * the recorder's format may well transcribe fine, and a failed
+       * conversion is no reason to throw the audio away.
+       */
+      let blob = recorded;
+      let filename = recorded.type.includes('mp4')
+        ? 'recording.mp4'
+        : 'recording.webm';
+      try {
+        blob = await toWav(recorded);
+        filename = 'recording.wav';
+      } catch (error) {
+        console.warn('[voice] WAV conversion failed, sending original:', error);
+      }
+
       const body = new FormData();
-      // Extension matters to the upstream decoder, so derive it from the
-      // container the recorder actually used rather than hard-coding one.
-      const ext = blob.type.includes('mp4') ? 'mp4' : 'webm';
-      body.append('audio', blob, `recording.${ext}`);
+      body.append('audio', blob, filename);
 
       try {
         const response = await fetch('/api/transcribe', {

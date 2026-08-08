@@ -192,6 +192,29 @@ ElevenLabs' `scribe_v1` model. The route exists solely to keep the key server-
 side; calling ElevenLabs from the page would publish a billable credential to
 anyone who opens devtools.
 
+### Audio is normalised to WAV before upload
+
+`src/assets/scripts/wavEncoder.ts` converts every recording to **16 kHz mono
+16-bit PCM WAV** in the browser before it is sent. This is not cosmetic — it
+fixed a total failure of the feature.
+
+MediaRecorder hands back whatever container the browser prefers, and that type
+string rides along with the upload: Chrome produces `audio/webm;codecs=opus`,
+Safari `audio/mp4`. An upstream validator matching content types against an
+allowlist compares the whole string, so the codec parameter turned an otherwise
+accepted `audio/webm` into a rejection — every transcription came back
+`400 {"detail":…}` with nothing in it naming the offending field.
+
+WAV has one canonical type, no codec parameter, and is accepted everywhere. 16
+kHz mono is also what speech models resample to anyway, so sending 48 kHz
+stereo pays for bytes that get thrown away. The cost is size: PCM is roughly ten
+times Opus, about 32 KB per second, so the two-minute cap is under 4 MB.
+
+The server re-wraps the upload rather than forwarding the received `File`, which
+would carry its original type through, and strips any parameters as a second
+line of defence. If the browser cannot decode its own recording, the original
+blob is sent unconverted — a failed conversion is no reason to discard audio.
+
 | Variable             | Required | Purpose                                              |
 | -------------------- | -------- | ---------------------------------------------------- |
 | `ELEVENLABS_API_KEY` | no       | Transcription. Server-only — never prefix `PUBLIC_`. |
@@ -211,6 +234,14 @@ Behaviour worth knowing:
   secure context) nothing is rendered and the form works by typing.
 - **With no API key the button reports that dictation is unavailable** and tells
   the visitor to type. It never fails silently.
+- **`GET /api/transcribe` answers 405** rather than falling through to the
+  router's 404. Opening the endpoint in a browser is the first thing anyone does
+  when dictation misbehaves, and an unhandled GET logs a warning that reads like
+  a routing fault. The response also reports whether the key is configured —
+  never the key itself — which is the one setting worth checking from outside.
+- **An upstream rejection logs what was sent** (filename, content type, size,
+  model) next to the response body. The body alone does not say which field was
+  objected to, which is what made the content-type bug above so slow to place.
 
 `Permissions-Policy` in `vercel.json` must keep `microphone=(self)`. Dropping it
 is the non-obvious way to break this — the button renders and the permission

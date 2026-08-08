@@ -55,12 +55,3 @@ export const trustMarks = [
   { label: 'Direct Wholesale Pricing', icon: 'tag' },
   { label: 'Ships Next Business Day', icon: 'truck' },
 ];
-
-/** Scrolling band copy on the landing page. */
-export const marqueeItems = [
-  'Bulk Pricing',
-  'DOT Compliant Security Ties',
-  'Meets Intermodal Container Security Requirements',
-  'UL 21S Listed',
-  'Ships In 24 Hours, Not Weeks',
-];
