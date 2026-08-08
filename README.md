@@ -128,7 +128,7 @@ order — customer, phone, shipping address, line items, total — to `CONTACT_T
 via Resend, so fulfilment does not depend on watching the Stripe dashboard.
 
 Configure the webhook in Stripe against
-`https://shawsafety.com/api/stripe-webhook` with only that event enabled, and
+`https://shaw.portaprosoftware.com/api/stripe-webhook` with only that event
 put its signing secret in `STRIPE_CHECKOUT_WEBHOOK_SECRET`. The payload is
 verified with `constructEventAsync`, which covers both the signature and
 Stripe's five-minute replay window.

@@ -1,5 +1,5 @@
 ---
-title: 'Site map — where to find things on shawsafety.com'
+title: 'Site map — where to find things on the Shaw Safety site'
 topic: 'company'
 url: '/'
 sourceLabel: 'Navigation'
@@ -15,7 +15,7 @@ keywords:
   - 'links'
 ---
 
-The public pages on shawsafety.com:
+The public pages on the Shaw Safety site:
 
 - `/` — landing page: hero, trust marks, the four tie colors, feature
   highlights, pricing plans, vest cross-sell, FAQ, and the ground delivery map
