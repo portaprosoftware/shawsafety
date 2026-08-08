@@ -4,6 +4,10 @@ dist/
 .vercel/
 # generated types
 .astro/
+# RAG retrieval index — rebuilt by `pnpm build` from src/content/knowledge/.
+# Generated, not authored: committing it would mean a stale index whenever
+# someone edits a chunk and forgets to re-run the script.
+src/data_files/rag-index.json
 .idea/
 
 # dependencies
