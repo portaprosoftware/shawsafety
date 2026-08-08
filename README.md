@@ -449,25 +449,63 @@ word for it, "dispatch". They are never shown to the model as content.
 corpus as prose and are not derived from `src/content/products/`, so a price
 change has to be made in both places — grep the corpus for the old number.
 
-### Building the index
+### Turning the assistant on
 
-```bash
-pnpm rag:index --dry-run   # parse and report the corpus, no API call
-pnpm rag:index             # embed and write src/data_files/rag-index.json
+**Set `OPENAI_API_KEY` in the build environment and deploy.** That is the whole
+procedure. `pnpm build` embeds the corpus into `src/data_files/rag-index.json`
+before Astro runs, and the widget appears because the index now exists. There is
+nothing to commit and no separate step to remember.
+
+The last line of every build says which way it went:
+
+```
+RAG assistant: ON — 30 chunks, text-embedding-3-small (512d)
+RAG assistant: OFF — no index was produced, so the chat widget is not rendered.
 ```
 
-The index is a single JSON file and is **committed**. At thirty chunks a linear
-cosine scan in the route is microseconds, so a vector database would add a
-network hop, a second credential, and an operational dependency to lose to an
+That line exists because the gate is silent by design — no key means no
+launcher, no markup, no error — and "I deployed and see nothing" is otherwise a
+hunt. It prints at the very end, where it cannot scroll away, even though the
+index is built at the very start.
+
+Locally you can also run the script directly:
+
+```bash
+pnpm rag:index --dry-run   # parse and report the corpus, no API call, no spend
+pnpm rag:index             # embed and write the index now
+```
+
+**The index is generated, not committed** — it is gitignored. Committing it
+would mean a stale index every time someone edits a chunk and forgets to
+re-run. Embedding thirty chunks costs a fraction of a cent, so paying it per
+deploy rather than per edit is not worth optimising around.
+
+It stays a single JSON file rather than a vector database: at thirty chunks a
+linear cosine scan in the route is microseconds, so a store would add a network
+hop, a second credential, and an operational dependency to lose to an
 in-process loop. Vectors are truncated to 512 dimensions — the
 `text-embedding-3` models are trained so a prefix is still a usable embedding —
-which thirds the file for no measurable retrieval difference at this size.
+which thirds the file for no measurable retrieval difference at this size. The
+route reads the model and width back out of the index rather than pinning them
+separately, since a query is only comparable to vectors from the same model at
+the same width.
 
-Indexing is deliberately not part of `pnpm build`: the corpus changes far less
-often than the site deploys, and a billable call inside the build means a
-rotated key fails a deploy. The route reads the model and vector width back out
-of the index rather than pinning them separately, since a query is only
-comparable to vectors from the same model at the same width.
+**A failed index never fails the build.** No key, a rejected key, or an OpenAI
+outage leaves the index unwritten and the assistant off, reported loudly but not
+fatally — an upstream problem should not be able to block a pricing correction
+from reaching the storefront. Same call the checkout tier check makes: loud, not
+offline. A half-built index is discarded rather than written, since a partial
+corpus retrieves confidently from whichever chunks made it, which is worse than
+being off.
+
+To check a live deployment:
+
+```bash
+curl https://shaw.portaprosoftware.com/api/ask
+```
+
+`configured: true` means the key reached the build; a non-null `index` means the
+corpus deployed.
 
 | Variable                 | Required | Purpose                               |
 | ------------------------ | -------- | ------------------------------------- |
@@ -523,7 +561,9 @@ every page. **It renders nothing unless `OPENAI_API_KEY` is set _and_ an index i
 present** — the same rule the dictation button follows, since a chat button that
 can only apologise is worse than no chat button. That check runs at build time
 because the pages are prerendered, so adding the key in Vercel needs a redeploy
-before the launcher appears.
+before the launcher appears — the same redeploy that builds the index. If you
+have set the key and still see no launcher, read the last line of the build log
+before anything else.
 
 Behaviour worth knowing:
 

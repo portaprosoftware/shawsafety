@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "astro dev",
     "start": "astro dev",
-    "build": "astro check && astro build && node process-html.mjs && node scripts/check-images.mjs",
+    "build": "node --env-file-if-exists=.env scripts/build-rag-index.mjs && astro check && astro build && node process-html.mjs && node scripts/check-images.mjs && node scripts/build-rag-index.mjs --report",
     "format:check": "prettier --check .",
     "format:fix": "prettier --write .",
     "preview": "astro preview",

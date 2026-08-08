@@ -9,20 +9,38 @@
  * enough that a linear scan in the API route costs less than a network hop to
  * one would.
  *
- * Deliberately NOT part of `pnpm build`. The corpus changes when someone edits
- * it, which is far less often than the site is deployed, and wiring a billable
- * API call into every build means a deploy fails when the key rotates. Run it
- * after editing a chunk and commit the result.
+ * Runs as the first step of `pnpm build`, so deploying is the only thing an
+ * operator has to do: set OPENAI_API_KEY in the host's environment and the
+ * next deploy builds the index and turns the assistant on. The index is
+ * generated rather than committed, and is gitignored to keep it that way.
  *
- * `--dry-run` parses and reports the corpus without calling OpenAI or writing
- * anything, which is how you check a newly edited chunk without spending a
- * request or needing a key on hand.
+ * It must run before `astro build`, which reads the file at compile time.
+ *
+ * Embedding thirty chunks costs a fraction of a cent, so paying it per deploy
+ * rather than per corpus edit is not worth optimising around.
+ *
+ * ## This never fails the build
+ *
+ * No key, or an upstream error, leaves the index unwritten and the assistant
+ * switched off — reported loudly, but not fatally. An OpenAI outage should not
+ * be able to block a pricing correction from reaching the storefront, which is
+ * the same call the checkout tier check makes: loud, not offline.
+ *
+ * The tradeoff is that a broken assistant deploys quietly unless someone reads
+ * the log, so `--report` prints the outcome again at the very end of the build
+ * where it cannot scroll away.
+ *
+ * Modes:
+ *   --dry-run  parse and report the corpus, no API call, nothing written.
+ *              How to check a newly edited chunk without spending a request.
+ *   --report   print whether an index was produced. Runs last in the build.
  *
  * Environment:
- *   OPENAI_API_KEY          required, unless --dry-run.
+ *   OPENAI_API_KEY          required to produce an index; absent, the
+ *                           assistant stays off and the build carries on.
  *   OPENAI_EMBEDDING_MODEL  optional, defaults to text-embedding-3-small.
  */
-import { readdir, readFile, writeFile, mkdir } from 'node:fs/promises';
+import { readdir, readFile, writeFile, mkdir, rm } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -37,7 +55,7 @@ const MODEL = process.env.OPENAI_EMBEDDING_MODEL || 'text-embedding-3-small';
  *
  * text-embedding-3 models are trained so a prefix of the vector is still a
  * usable embedding, so asking for 512 instead of the native 1536 cuts the
- * committed index to a third of its size at a retrieval quality difference
+ * generated index to a third of its size at a retrieval quality difference
  * that does not show up on a corpus this small. The API route reads the width
  * back out of the index rather than assuming it, so changing this number here
  * and re-running is safe.
@@ -154,14 +172,54 @@ async function embedBatch(texts, apiKey) {
 }
 
 const dryRun = process.argv.includes('--dry-run');
+const reportOnly = process.argv.includes('--report');
+
+/**
+ * Say whether the assistant will be live, and why not when it will not.
+ *
+ * Printed at the end of the build precisely because the index is built at the
+ * start: an operator who set the key and expected a chat widget needs the
+ * answer where they will actually see it, not four hundred lines up.
+ */
+if (reportOnly) {
+  try {
+    const built = JSON.parse(await readFile(outFile, 'utf8'));
+    console.log(
+      `\nRAG assistant: ON — ${built.chunks.length} chunks, ${built.model} (${built.dimensions}d)\n`
+    );
+  } catch {
+    console.log(
+      '\nRAG assistant: OFF — no index was produced, so the chat widget is\n' +
+        '  not rendered. Set OPENAI_API_KEY in the build environment and\n' +
+        '  redeploy; look further up this log for the reason.\n'
+    );
+  }
+  process.exit(0);
+}
 
 const apiKey = process.env.OPENAI_API_KEY;
+
+/*
+ * A missing key is a configuration state, not a failure. It is how every
+ * contributor without one builds the site, and how a preview deploy runs when
+ * the variable is scoped to production only — neither should be a broken
+ * build. The assistant simply stays off, which the widget already handles by
+ * rendering nothing at all.
+ */
 if (!apiKey && !dryRun) {
-  console.error(
-    '\nOPENAI_API_KEY is not set. Put it in .env or export it, then re-run:\n' +
-      '  OPENAI_API_KEY=sk-... pnpm rag:index\n'
+  console.log(
+    '\nRAG assistant: OPENAI_API_KEY is not set, so no index will be built\n' +
+      '  and the chat widget will not render. Set it in the build environment\n' +
+      '  (Vercel → Settings → Environment Variables) to switch the assistant on.\n' +
+      '  Locally: put it in .env and re-run `pnpm rag:index`.\n'
   );
-  process.exit(1);
+  /*
+   * Remove a stale index rather than leaving one behind. Astro reads this file
+   * at compile time, so a leftover from an earlier keyed build would ship a
+   * widget that every visitor finds broken — worse than no widget.
+   */
+  await rm(outFile, { force: true });
+  process.exit(0);
 }
 
 const files = (await readdir(corpusDir)).filter(
@@ -221,10 +279,34 @@ console.log(
 );
 
 const embeddings = [];
-for (let i = 0; i < chunks.length; i += BATCH_SIZE) {
-  const batch = chunks.slice(i, i + BATCH_SIZE);
-  embeddings.push(...(await embedBatch(batch.map(embeddingText), apiKey)));
-  console.log(`  ${Math.min(i + BATCH_SIZE, chunks.length)}/${chunks.length}`);
+try {
+  for (let i = 0; i < chunks.length; i += BATCH_SIZE) {
+    const batch = chunks.slice(i, i + BATCH_SIZE);
+    embeddings.push(...(await embedBatch(batch.map(embeddingText), apiKey)));
+    console.log(
+      `  ${Math.min(i + BATCH_SIZE, chunks.length)}/${chunks.length}`
+    );
+  }
+} catch (error) {
+  /*
+   * A rejected key, a quota, an OpenAI outage. Loud, but not fatal: blocking a
+   * deploy of the storefront because a chat widget cannot be built would let
+   * an upstream problem hold up a pricing correction. The same call the
+   * checkout tier check makes.
+   *
+   * The half-built index is discarded rather than written — a partial corpus
+   * retrieves confidently from whichever chunks made it, which is a worse
+   * failure than the assistant being off.
+   */
+  console.error(
+    `\nRAG assistant: FAILED to build the index — ${error.message}`
+  );
+  console.error(
+    '  The site will deploy without the chat widget. Fix the key or retry the\n' +
+      '  deploy; nothing else on the site is affected.\n'
+  );
+  await rm(outFile, { force: true });
+  process.exit(0);
 }
 
 const index = {
@@ -239,7 +321,7 @@ const index = {
     sourceLabel: chunk.sourceLabel,
     text: chunk.body,
     // Six decimals is well past what cosine similarity can distinguish here
-    // and roughly halves the committed file.
+    // and roughly halves the file.
     embedding: embeddings[i].map(n => Number(n.toFixed(6))),
   })),
 };
@@ -250,5 +332,6 @@ await writeFile(outFile, `${JSON.stringify(index)}\n`);
 const kb = Math.round(JSON.stringify(index).length / 1024);
 console.log(`\nWrote ${outFile} (${kb} KB)\n`);
 console.log(
-  'Commit it — the API route serves retrieval straight from this file.\n'
+  'The API route serves retrieval straight from this file. It is gitignored\n' +
+    '  and rebuilt by `pnpm build`, so there is nothing to commit.\n'
 );
