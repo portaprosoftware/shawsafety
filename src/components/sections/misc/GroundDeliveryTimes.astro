@@ -31,11 +31,11 @@ const map = source ? await getImage({ src: source, width: 2000 }) : null;
  * tokens: these are the map's colours, not the brand's.
  */
 const bands = [
-  { hex: '#2e7f2e', label: '1 day' },
-  { hex: '#64b964', label: '2 days' },
-  { hex: '#ffd633', label: '3 days' },
-  { hex: '#f07800', label: '4 days' },
-  { hex: '#c72929', label: '5 days' },
+  { hex: '#2e7f2e', day: '1', label: '1 day' },
+  { hex: '#64b964', day: '2', label: '2 days' },
+  { hex: '#ffd633', day: '3', label: '3 days' },
+  { hex: '#f07800', day: '4', label: '4 days' },
+  { hex: '#c72929', day: '5', label: '5 days' },
 ];
 ---
 
@@ -63,21 +63,50 @@ const bands = [
   </div>
 
   {
-    /* The key is real text: at phone width the map's own legend is unreadable. */
+    /*
+      The key is real text: at phone width the map's own legend is unreadable.
+
+      Below sm the word "days" is said once, up front, and each band shows only
+      its number. Five "N days" pairs are wide enough that the narrowest phones
+      wrap the last one onto a row by itself, which reads as an orphan rather
+      than a key. From sm up the numbers give way to the full labels and the
+      "Days:" lead-in disappears, so desktop is untouched.
+
+      The visible text is aria-hidden and each band carries its full label as
+      screen-reader text, so the shorthand never reaches assistive tech.
+    */
   }
   <ul
-    class="mt-8 flex flex-wrap items-center justify-center gap-x-5 gap-y-2.5"
+    class="mt-8 flex flex-wrap items-center justify-center gap-x-3 gap-y-2.5 sm:gap-x-5"
     aria-label="Transit time key"
   >
+    <li
+      class="text-sm font-medium text-neutral-700 sm:hidden"
+      aria-hidden="true"
+    >
+      Days:
+    </li>
     {
       bands.map(band => (
-        <li class="inline-flex items-center gap-2">
+        <li class="inline-flex items-center gap-1.5 sm:gap-2">
           <span
             class="h-3.5 w-3.5 rounded-sm border border-neutral-400/60"
             style={`background:${band.hex}`}
             aria-hidden="true"
           />
-          <span class="text-sm font-medium text-neutral-700">{band.label}</span>
+          <span class="sr-only">{band.label}</span>
+          <span
+            class="text-sm font-medium text-neutral-700 sm:hidden"
+            aria-hidden="true"
+          >
+            {band.day}
+          </span>
+          <span
+            class="hidden text-sm font-medium text-neutral-700 sm:inline"
+            aria-hidden="true"
+          >
+            {band.label}
+          </span>
         </li>
       ))
     }
