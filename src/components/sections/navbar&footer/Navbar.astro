@@ -20,12 +20,59 @@ const searchIndex = products.flatMap(p =>
 );
 
 /*
+ * The shop dropdown lists a category on the left and its color swatches on the
+ * right, so the picker fans out from the same product entries used above. The
+ * `slug` maps a category label to its product page id.
+ */
+type ShopCategory = {
+  key: string;
+  label: string;
+  slug: string;
+  variants: { id: string; name: string; hex: string }[];
+};
+const categoryMap: Record<string, { label: string }> = {
+  'zip-ties': { label: 'Safety Ties' },
+  vests: { label: 'Safety Vests' },
+};
+const shopCategories: ShopCategory[] = products
+  .filter(p => p.data.category in categoryMap)
+  .sort((a, b) => (a.data.order ?? 99) - (b.data.order ?? 99))
+  .map(p => ({
+    key: p.data.category,
+    label: categoryMap[p.data.category].label,
+    slug: p.id,
+    variants: p.data.variants.map(v => ({
+      id: v.id,
+      name: v.name,
+      hex: v.hex,
+    })),
+  }));
+
+/*
+ * The phone number is duplicated in the footer; keeping the same literal here
+ * avoids a shared config module for one string.
+ */
+const phone = { display: '(800) 555-0117', href: 'tel:+18005550117' };
+
+/*
  * Pages build to directories, so `Astro.url.pathname` arrives as `/wholesale/`
  * while the links below are written `/wholesale`. Without trimming the trailing
  * slash the current-page comparisons never match and `aria-current` is never
  * emitted on any page.
  */
 const pathname = Astro.url.pathname.replace(/\/+$/, '') || '/';
+
+/*
+ * The dropdown covers both product pages, so any URL beginning with `/products`
+ * or the vest landing page should light up the trigger as the current section.
+ */
+const shopActive =
+  pathname === '/safety-vests' || pathname.startsWith('/products');
+
+// Non-shop links still render inline next to the dropdown.
+const otherLinks = navigation.navBarLinks.filter(
+  l => l.name === 'Wholesale'
+);
 ---
 
 <header
@@ -47,8 +94,86 @@ const pathname = Astro.url.pathname.replace(/\/+$/, '') || '/';
     </a>
 
     <ul class="hidden items-center gap-1 lg:flex">
+      <li class="relative" id="shop-dropdown">
+        <button
+          type="button"
+          id="shop-dropdown-trigger"
+          aria-haspopup="true"
+          aria-expanded="false"
+          aria-controls="shop-dropdown-panel"
+          class:list={[
+            'hover:text-maroon-700 inline-flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-semibold transition hover:bg-neutral-100',
+            shopActive ? 'text-maroon-700' : 'text-neutral-700',
+          ]}
+        >
+          Shop Safety Ties &amp; Vests
+          <Icon name="chevronDown" class="h-4 w-4" />
+        </button>
+        <div
+          id="shop-dropdown-panel"
+          data-active-category={shopCategories[0]?.key}
+          class="absolute top-full left-0 z-20 mt-1 hidden overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-xl"
+          role="menu"
+          aria-labelledby="shop-dropdown-trigger"
+        >
+          <div class="flex">
+            <ul class="w-52 shrink-0 border-r border-neutral-200 py-2">
+              {
+                shopCategories.map((cat, i) => (
+                  <li>
+                    <button
+                      type="button"
+                      class:list={[
+                        'shop-cat-btn flex w-full items-center justify-between gap-2 px-4 py-2.5 text-left text-sm font-semibold transition',
+                        i === 0
+                          ? 'bg-neutral-50 text-maroon-700'
+                          : 'text-neutral-700 hover:bg-neutral-50 hover:text-maroon-700',
+                      ]}
+                      data-category={cat.key}
+                      aria-current={i === 0 ? 'true' : undefined}
+                    >
+                      {cat.label}
+                      <Icon name="chevronRight" class="h-4 w-4" />
+                    </button>
+                  </li>
+                ))
+              }
+            </ul>
+            <div class="w-72 p-4">
+              {
+                shopCategories.map((cat, i) => (
+                  <div
+                    class:list={['shop-cat-panel', i === 0 ? '' : 'hidden']}
+                    data-panel={cat.key}
+                  >
+                    <p class="mb-3 text-xs font-semibold tracking-wide text-neutral-500 uppercase">
+                      Pick a color
+                    </p>
+                    <ul class="grid grid-cols-1 gap-1">
+                      {cat.variants.map(v => (
+                        <li>
+                          <a
+                            href={`/products/${cat.slug}?color=${v.id}`}
+                            class="hover:bg-maroon-50 flex items-center gap-3 rounded-lg px-2 py-2 text-sm text-neutral-800 transition"
+                          >
+                            <span
+                              class="h-5 w-5 shrink-0 rounded-full border border-neutral-300"
+                              style={`background:${v.hex}`}
+                            />
+                            <span class="font-medium">{v.name}</span>
+                          </a>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))
+              }
+            </div>
+          </div>
+        </div>
+      </li>
       {
-        navigation.navBarLinks.map(link => (
+        otherLinks.map(link => (
           <li>
             <a
               href={link.url}
@@ -65,7 +190,7 @@ const pathname = Astro.url.pathname.replace(/\/+$/, '') || '/';
       }
     </ul>
 
-    <div class="relative ml-auto hidden min-w-0 flex-1 md:block lg:max-w-xl">
+    <div class="relative ml-auto hidden min-w-0 flex-1 md:block lg:max-w-md">
       <label for="product-search" class="sr-only">Search products</label>
       <input
         id="product-search"
@@ -85,6 +210,24 @@ const pathname = Astro.url.pathname.replace(/\/+$/, '') || '/';
       >
       </ul>
     </div>
+
+    {
+      /*
+       * Phone number lives in the mobile header (centered between logo and
+       * cart) and again on desktop next to the account/contact CTAs. On mobile
+       * `flex-1` claims the whitespace left by removing the search bar; on
+       * desktop the block sits inline. Using `absolute` centering on mobile so
+       * the logo + cart cluster don't push it off-center on narrower phones.
+       */
+    }
+    <a
+      href={phone.href}
+      class="text-maroon-700 hover:text-maroon-800 absolute left-1/2 -translate-x-1/2 inline-flex items-center gap-1.5 text-sm font-semibold whitespace-nowrap transition md:static md:translate-x-0"
+      aria-label={`Call Shaw Safety at ${phone.display}`}
+    >
+      <Icon name="phone" class="h-4 w-4" />
+      <span>{phone.display}</span>
+    </a>
 
     <div class="ml-auto flex items-center gap-1 md:ml-0">
       {
@@ -129,8 +272,46 @@ const pathname = Astro.url.pathname.replace(/\/+$/, '') || '/';
 
   <div id="mobile-menu" class="hidden border-t border-neutral-200 lg:hidden">
     <ul class="space-y-1 px-4 py-3 sm:px-6">
+      <li>
+        <button
+          type="button"
+          class="mobile-shop-toggle hover:text-maroon-700 flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-sm font-semibold text-neutral-700 transition hover:bg-neutral-100"
+          aria-expanded="false"
+          aria-controls="mobile-shop-panel"
+        >
+          Shop Safety Ties &amp; Vests
+          <Icon name="chevronDown" class="h-4 w-4 mobile-shop-chevron transition" />
+        </button>
+        <div id="mobile-shop-panel" class="hidden pl-2">
+          {
+            shopCategories.map(cat => (
+              <div class="mt-1">
+                <p class="mt-2 px-3 text-xs font-semibold tracking-wide text-neutral-500 uppercase">
+                  {cat.label}
+                </p>
+                <ul class="mt-1 grid grid-cols-2 gap-1">
+                  {cat.variants.map(v => (
+                    <li>
+                      <a
+                        href={`/products/${cat.slug}?color=${v.id}`}
+                        class="hover:bg-maroon-50 flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-neutral-800 transition"
+                      >
+                        <span
+                          class="h-4 w-4 shrink-0 rounded-full border border-neutral-300"
+                          style={`background:${v.hex}`}
+                        />
+                        <span class="min-w-0 truncate">{v.name}</span>
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))
+          }
+        </div>
+      </li>
       {
-        navigation.navBarLinks.map(link => (
+        otherLinks.map(link => (
           <li>
             <a
               href={link.url}
@@ -174,6 +355,75 @@ const pathname = Astro.url.pathname.replace(/\/+$/, '') || '/';
     const open = menu?.classList.toggle('hidden') === false;
     toggle.setAttribute('aria-expanded', String(open));
     toggle.setAttribute('aria-label', open ? 'Close menu' : 'Open menu');
+  });
+
+  // Mobile shop accordion.
+  const mobileShopToggle = document.querySelector<HTMLButtonElement>(
+    '.mobile-shop-toggle'
+  );
+  const mobileShopPanel = document.getElementById('mobile-shop-panel');
+  const mobileShopChevron = document.querySelector<SVGElement>(
+    '.mobile-shop-chevron'
+  );
+  mobileShopToggle?.addEventListener('click', () => {
+    const open = mobileShopPanel?.classList.toggle('hidden') === false;
+    mobileShopToggle.setAttribute('aria-expanded', String(open));
+    mobileShopChevron?.classList.toggle('rotate-180', open);
+  });
+
+  // Desktop shop dropdown: click trigger to toggle, hover over categories to
+  // switch the right-hand panel. Closes on outside click or Escape.
+  const shopRoot = document.getElementById('shop-dropdown');
+  const shopTrigger = document.getElementById('shop-dropdown-trigger');
+  const shopPanel = document.getElementById('shop-dropdown-panel');
+  const openShop = () => {
+    shopPanel?.classList.remove('hidden');
+    shopTrigger?.setAttribute('aria-expanded', 'true');
+  };
+  const closeShop = () => {
+    shopPanel?.classList.add('hidden');
+    shopTrigger?.setAttribute('aria-expanded', 'false');
+  };
+  shopTrigger?.addEventListener('click', e => {
+    e.stopPropagation();
+    if (shopPanel?.classList.contains('hidden')) openShop();
+    else closeShop();
+  });
+  shopRoot?.addEventListener('mouseenter', openShop);
+  shopRoot?.addEventListener('mouseleave', closeShop);
+  document.addEventListener('click', e => {
+    if (!shopRoot?.contains(e.target as Node)) closeShop();
+  });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') closeShop();
+  });
+
+  const catButtons =
+    document.querySelectorAll<HTMLButtonElement>('.shop-cat-btn');
+  const catPanels =
+    document.querySelectorAll<HTMLElement>('.shop-cat-panel');
+  const activateCategory = (key: string) => {
+    catButtons.forEach(b => {
+      const active = b.dataset.category === key;
+      b.classList.toggle('bg-neutral-50', active);
+      b.classList.toggle('text-maroon-700', active);
+      b.classList.toggle('text-neutral-700', !active);
+      if (active) b.setAttribute('aria-current', 'true');
+      else b.removeAttribute('aria-current');
+    });
+    catPanels.forEach(p => {
+      p.classList.toggle('hidden', p.dataset.panel !== key);
+    });
+  };
+  catButtons.forEach(b => {
+    const key = b.dataset.category;
+    if (!key) return;
+    b.addEventListener('mouseenter', () => activateCategory(key));
+    b.addEventListener('focus', () => activateCategory(key));
+    b.addEventListener('click', ev => {
+      ev.stopPropagation();
+      activateCategory(key);
+    });
   });
 
   interface SearchEntry {
