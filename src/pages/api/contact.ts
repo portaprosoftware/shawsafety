@@ -72,9 +72,9 @@ function htmlResponse(
   body{margin:0;min-height:100vh;display:grid;place-items:center;background:#fff;
     font-family:system-ui,-apple-system,Segoe UI,sans-serif;color:#171717;padding:24px}
   .card{max-width:34rem;text-align:center}
-  h1{color:#9B1C2E;font-size:1.75rem;margin:0 0 .5rem}
+  h1{color:#A31D2E;font-size:1.75rem;margin:0 0 .5rem}
   p{color:#525252;line-height:1.6;margin:0 0 1.5rem}
-  a{display:inline-block;background:#9B1C2E;color:#fff;text-decoration:none;
+  a{display:inline-block;background:#A31D2E;color:#fff;text-decoration:none;
     font-weight:700;padding:.75rem 1.5rem;border-radius:.5rem}
 </style></head><body><div class="card">
 <h1>${title}</h1><p>${message}</p><a href="/">Back to Shaw Safety</a>
@@ -246,7 +246,7 @@ export const POST: APIRoute = async ({ request }) => {
 
   const html = `
     <div style="font-family:system-ui,-apple-system,Segoe UI,sans-serif;color:#171717">
-      <h2 style="margin:0 0 4px;color:#9B1C2E">
+      <h2 style="margin:0 0 4px;color:#A31D2E">
         ${isQuote ? 'Bulk Quote Request' : 'Contact Form Submission'}
       </h2>
       <p style="margin:0 0 20px;color:#737373;font-size:13px">via Shaw Safety</p>
@@ -264,7 +264,7 @@ export const POST: APIRoute = async ({ request }) => {
       <p style="margin:20px 0 6px;color:#737373;font-size:13px">
         ${isQuote ? 'Quantities and requirements' : 'Message'}
       </p>
-      <div style="white-space:pre-wrap;border-left:3px solid #9B1C2E;padding:8px 0 8px 14px;font-size:14px">${escapeHtml(
+      <div style="white-space:pre-wrap;border-left:3px solid #A31D2E;padding:8px 0 8px 14px;font-size:14px">${escapeHtml(
         submission.message
       )}</div>
     </div>`;
