@@ -502,6 +502,7 @@ Locally you can also run the script directly:
 pnpm rag:index --dry-run   # parse and report the corpus, no API call, no spend
 pnpm rag:index             # embed and write the index now
 pnpm rag:test              # embed real questions and assert what they retrieve
+pnpm rag:style             # generate real answers and grade how they read
 ```
 
 `rag:test` is the check a dry run cannot do. Parsing proves the corpus is
@@ -510,6 +511,20 @@ the documents that must appear in the top hits, and may also `forbid` text that
 must not appear in the retrieved context — the C-TPAT case asserts both that the
 answer explains the ISO 17712 boundary and that no unaffiliated supplier is
 named, which is a content rule no similarity score can enforce on its own.
+
+`rag:style` goes one step further and grades the answer built from those
+passages. Retrieval can be perfect while the reply is still wrong to ship: the
+assistant used to open with "the context does not mention blue", which is a
+correct retrieval described out loud. Each case runs the real pipeline — embed,
+retrieve at the route's own top-k and threshold, complete against the route's
+own system prompt — then asserts the mechanical parts of voice: no phrase that
+names the retrieval, no unaffiliated supplier, no sales contact stapled to an
+answer that needs no handoff, and a direct opening sentence. The full answers
+print, because the rest of "sounds like a rep" is still a human read.
+
+The prompt is **read out of `src/pages/api/ask.ts`**, not copied into the test.
+A second copy is a second thing to keep in sync, and the first time they diverged
+this would start certifying text the route does not send.
 
 **The index is generated, not committed** — it is gitignored. Committing it
 would mean a stale index every time someone edits a chunk and forgets to

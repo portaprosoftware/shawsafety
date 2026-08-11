@@ -12,7 +12,8 @@
     "astro": "astro",
     "test:smoke": "node scripts/smoke.mjs",
     "rag:index": "node --env-file-if-exists=.env scripts/build-rag-index.mjs",
-    "rag:test": "node --env-file-if-exists=.env scripts/rag-test.mjs"
+    "rag:test": "node --env-file-if-exists=.env scripts/rag-test.mjs",
+    "rag:style": "node --env-file-if-exists=.env scripts/rag-style-test.mjs"
   },
   "dependencies": {
     "@astrojs/check": "^0.9.10",
