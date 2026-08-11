@@ -75,9 +75,7 @@ const otherLinks = navigation.navBarLinks.filter(
 );
 ---
 
-<header
-  class="border-maroon-700 border-b-2 bg-white/95 backdrop-blur-md"
->
+<header class="border-b border-neutral-200 bg-white/95 backdrop-blur-md">
   <nav
     class="mx-auto flex max-w-(--breakpoint-2xl) items-center gap-4 px-4 py-3 sm:px-6 lg:px-8"
     aria-label="Main"
@@ -371,36 +369,26 @@ const otherLinks = navigation.navBarLinks.filter(
     mobileShopChevron?.classList.toggle('rotate-180', open);
   });
 
-  // Desktop shop dropdown: hover to preview, click to pin. A pinned panel
-  // ignores mouseleave and stays open until the user clicks outside or hits
-  // Escape, so a user who commits to the menu can move their pointer around
-  // the page without the panel evaporating.
+  // Desktop shop dropdown: hover to open. Once open the panel stays put
+  // regardless of pointer position — a quick hover-away won't collapse it.
+  // Only an outside click, a click on the trigger itself, or Escape closes.
   const shopRoot = document.getElementById('shop-dropdown');
   const shopTrigger = document.getElementById('shop-dropdown-trigger');
   const shopPanel = document.getElementById('shop-dropdown-panel');
-  let shopPinned = false;
   const openShop = () => {
     shopPanel?.classList.remove('hidden');
     shopTrigger?.setAttribute('aria-expanded', 'true');
   };
   const closeShop = () => {
-    shopPinned = false;
     shopPanel?.classList.add('hidden');
     shopTrigger?.setAttribute('aria-expanded', 'false');
   };
   shopTrigger?.addEventListener('click', e => {
     e.stopPropagation();
-    if (shopPinned) {
-      closeShop();
-    } else {
-      shopPinned = true;
-      openShop();
-    }
+    if (shopPanel?.classList.contains('hidden')) openShop();
+    else closeShop();
   });
   shopRoot?.addEventListener('mouseenter', openShop);
-  shopRoot?.addEventListener('mouseleave', () => {
-    if (!shopPinned) closeShop();
-  });
   document.addEventListener('click', e => {
     if (!shopRoot?.contains(e.target as Node)) closeShop();
   });
