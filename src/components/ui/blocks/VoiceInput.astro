@@ -88,9 +88,16 @@ import MicButton from '@components/ui/blocks/MicButton.astro';
      * "add a textarea and it just works" contract, the markup around the
      * field stays untouched, and the extra bottom padding stops a long
      * message from running underneath the microphone.
+     *
+     * `flex` is what makes the button's offsets mean what they say. A
+     * textarea is inline-level, so a plain block wrapper sits a few pixels
+     * taller than the field to leave room for a baseline descender, and
+     * everything measured from the wrapper's bottom edge lands that much low.
+     * A flex parent takes the field out of inline layout and the two boxes
+     * agree again.
      */
     const wrapper = document.createElement('div');
-    wrapper.className = 'relative';
+    wrapper.className = 'relative flex';
     field.insertAdjacentElement('beforebegin', wrapper);
     wrapper.appendChild(field);
     wrapper.appendChild(el.button);
