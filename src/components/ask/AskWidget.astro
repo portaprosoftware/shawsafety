@@ -125,10 +125,9 @@ const suggestions = [
         />
 
         {/*
-          The bottom padding clears the phone's home indicator. At full height
-          against the bottom edge the disclaimer otherwise sits under it, and
-          the phone number is the line a visitor reaches for when the assistant
-          cannot help.
+          The bottom padding clears the phone's home indicator. Full-screen on
+          mobile puts the composer against the bottom edge, where the send
+          button and the dictation status would otherwise sit under it.
         */}
         <div class="border-t border-neutral-200 bg-neutral-50 px-3 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))]">
           <form id="ask-form" class="flex items-end gap-2">
@@ -200,19 +199,6 @@ const suggestions = [
             role="status"
             aria-live="polite"
           />
-
-          <p class="mt-2 px-1 text-[11px] leading-snug text-neutral-500">
-            Answers come from this site and can be wrong. To place an order or
-            confirm a spec, call{' '}
-            <a
-              href="tel:+18005550117"
-              class="hover:text-maroon-700 font-semibold"
-            >
-              (800) 555-0117
-            </a>
-            .
-          </p>
-
         </div>
       </section>
     </div>
