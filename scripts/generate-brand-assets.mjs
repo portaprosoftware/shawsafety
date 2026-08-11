@@ -17,7 +17,7 @@ import sharp from 'sharp';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const images = resolve(root, 'src/images');
-const MAROON = '#9B1C2E';
+const MAROON = '#A31D2E';
 
 const source = await readFile(`${images}/icon.png`);
 const meta = await sharp(source).metadata();

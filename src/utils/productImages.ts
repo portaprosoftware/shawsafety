@@ -58,13 +58,13 @@ export function placeholderDataUri(stem: string): string {
   const label = `${stem}.jpg`;
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 720" width="720" height="720">
 <rect width="720" height="720" fill="#FAFAFA"/>
-<rect x="18" y="18" width="684" height="684" rx="20" fill="none" stroke="#9B1C2E" stroke-width="4" stroke-dasharray="18 14" opacity="0.55"/>
+<rect x="18" y="18" width="684" height="684" rx="20" fill="none" stroke="#A31D2E" stroke-width="4" stroke-dasharray="18 14" opacity="0.55"/>
 <g transform="translate(360 292)">
-<rect x="-46" y="-40" width="92" height="80" rx="14" fill="none" stroke="#9B1C2E" stroke-width="7" opacity="0.75"/>
-<circle cx="-16" cy="-12" r="11" fill="#9B1C2E" opacity="0.75"/>
-<path d="M-40 30 L-6 -4 L16 18 L32 4 L40 30 Z" fill="#9B1C2E" opacity="0.75"/>
+<rect x="-46" y="-40" width="92" height="80" rx="14" fill="none" stroke="#A31D2E" stroke-width="7" opacity="0.75"/>
+<circle cx="-16" cy="-12" r="11" fill="#A31D2E" opacity="0.75"/>
+<path d="M-40 30 L-6 -4 L16 18 L32 4 L40 30 Z" fill="#A31D2E" opacity="0.75"/>
 </g>
-<text x="360" y="404" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="30" font-weight="bold" fill="#9B1C2E" letter-spacing="3">PHOTO NEEDED</text>
+<text x="360" y="404" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="30" font-weight="bold" fill="#A31D2E" letter-spacing="3">PHOTO NEEDED</text>
 <text x="360" y="462" text-anchor="middle" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="30" fill="#404040">${label}</text>
 <text x="360" y="512" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="24" fill="#737373">add to src/images/products/</text>
 </svg>`;
