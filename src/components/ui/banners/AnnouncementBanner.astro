@@ -1,34 +1,74 @@
 ---
 interface Props {
-  text?: string;
+  messages?: string[];
 }
 
-const { text = 'Free U.S. Shipping On Retail Orders' } = Astro.props;
+const {
+  messages = [
+    'Free U.S. Shipping On Retail Orders',
+    'Order by 6pm for same day shipping',
+  ],
+} = Astro.props;
 ---
 
 <div class="bg-maroon-800 relative text-white">
-  <p
-    class="mx-auto max-w-(--breakpoint-2xl) px-4 py-2.5 text-center text-xs font-bold tracking-[0.18em] uppercase sm:px-6 lg:px-8"
+  <div
+    class="announcement-banner mx-auto max-w-(--breakpoint-2xl) px-4 py-2.5 text-center text-xs font-bold tracking-[0.18em] uppercase sm:px-6 lg:px-8"
+    data-announcement-banner
+    data-messages={JSON.stringify(messages)}
   >
-    {text}
-  </p>
+    <div class="announcement-banner__joined" data-joined>
+      {
+        messages.map((msg, i) => (
+          <>
+            {i > 0 && (
+              <span class="announcement-banner__dot" aria-hidden="true">
+                &bull;
+              </span>
+            )}
+            <span>{msg}</span>
+          </>
+        ))
+      }
+    </div>
+    <div class="announcement-banner__rotator" data-rotator hidden>
+      <span data-rotator-text>{messages[0]}</span>
+    </div>
+  </div>
   {
     /*
      * Mobile-only progress sweep. A darker hairline crosses the banner every
      * 8s to signal that the message rotates — subtle enough to read as chrome
      * rather than a live loader. Hidden at `sm` and up, where desktop users
-     * don't need the same cue and the wider layout can carry a static banner.
+     * see the joined messages inline and don't need the same cue.
      */
   }
   <span
     aria-hidden="true"
     class="pointer-events-none absolute right-0 bottom-0 left-0 block h-px overflow-hidden sm:hidden"
   >
-    <span class="bg-maroon-950/70 block h-full w-1/3 animate-[banner-sweep_8s_linear_infinite] will-change-transform"></span>
+    <span
+      class="bg-maroon-950/70 block h-full w-1/3 animate-[banner-sweep_8s_linear_infinite] will-change-transform"
+    ></span>
   </span>
 </div>
 
 <style>
+  .announcement-banner__joined {
+    white-space: nowrap;
+  }
+  .announcement-banner__dot {
+    display: inline-block;
+    margin: 0 0.75em;
+    opacity: 0.8;
+  }
+  .announcement-banner__rotator {
+    white-space: nowrap;
+  }
+  [hidden] {
+    display: none !important;
+  }
+
   @keyframes banner-sweep {
     0% {
       transform: translateX(-100%);
@@ -44,3 +84,90 @@ const { text = 'Free U.S. Shipping On Retail Orders' } = Astro.props;
     }
   }
 </style>
+
+<script>
+  const ROTATE_MS = 8000;
+
+  function init(container: HTMLElement) {
+    const joined = container.querySelector<HTMLElement>('[data-joined]');
+    const rotator = container.querySelector<HTMLElement>('[data-rotator]');
+    const rotatorText =
+      container.querySelector<HTMLElement>('[data-rotator-text]');
+    if (!joined || !rotator || !rotatorText) return;
+
+    let messages: string[] = [];
+    try {
+      messages = JSON.parse(container.dataset.messages || '[]');
+    } catch {
+      messages = [];
+    }
+    if (messages.length < 2) return;
+
+    let rotating = false;
+    let idx = 0;
+    let timer: number | null = null;
+
+    function startRotation() {
+      if (rotating) return;
+      rotating = true;
+      joined!.hidden = true;
+      rotator!.hidden = false;
+      idx = 0;
+      rotatorText!.textContent = messages[0];
+      timer = window.setInterval(() => {
+        idx = (idx + 1) % messages.length;
+        rotatorText!.textContent = messages[idx];
+      }, ROTATE_MS);
+    }
+
+    function stopRotation() {
+      if (!rotating) return;
+      rotating = false;
+      if (timer !== null) {
+        window.clearInterval(timer);
+        timer = null;
+      }
+      rotator!.hidden = true;
+      joined!.hidden = false;
+    }
+
+    function measure() {
+      // Temporarily show the joined version to measure.
+      const wasRotating = rotating;
+      joined!.hidden = false;
+      // Force layout read.
+      const overflow = joined!.scrollWidth > joined!.clientWidth + 1;
+      if (wasRotating) joined!.hidden = true;
+
+      if (overflow) {
+        startRotation();
+      } else {
+        stopRotation();
+      }
+    }
+
+    measure();
+
+    let raf = 0;
+    const onResize = () => {
+      if (raf) cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(measure);
+    };
+    window.addEventListener('resize', onResize);
+    if ('ResizeObserver' in window) {
+      new ResizeObserver(onResize).observe(container);
+    }
+  }
+
+  function boot() {
+    document
+      .querySelectorAll<HTMLElement>('[data-announcement-banner]')
+      .forEach(init);
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', boot);
+  } else {
+    boot();
+  }
+</script>
