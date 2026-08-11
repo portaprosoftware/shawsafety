@@ -89,6 +89,10 @@ const suggestions = [
             <h2 class="text-base font-bold tracking-tight text-white">
               Ask Shaw Safety
             </h2>
+            <p class="mt-1 text-[11px] leading-snug text-white/75">
+              This chat stays active for 5 minutes after you close the window,
+              then starts fresh.
+            </p>
           </div>
           <button
             type="button"
@@ -105,9 +109,17 @@ const suggestions = [
           than `assertive`: the visitor asked for it and is waiting, so there
           is nothing to interrupt.
         */}
+        {/*
+          `min-h-0` is what makes this scroll. A flex item defaults to
+          `min-height: auto`, so `flex-1` with `overflow-y-auto` grows to its
+          content instead of shrinking to its allotted space — the log then
+          pushes the composer off the panel and the whole thing scrolls with
+          the page. Forcing the flex minimum back to zero lets `overflow-y`
+          engage inside the panel's height instead.
+        */}
         <div
           id="ask-log"
-          class="flex-1 space-y-4 overflow-y-auto overscroll-contain px-4 py-4"
+          class="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-4 py-4"
           aria-live="polite"
           aria-busy="false"
         />
@@ -201,10 +213,6 @@ const suggestions = [
             .
           </p>
 
-          <p class="mt-1 px-1 text-[11px] leading-snug text-neutral-400">
-            This chat stays active for 5 minutes after you close the window,
-            then starts fresh.
-          </p>
         </div>
       </section>
     </div>
