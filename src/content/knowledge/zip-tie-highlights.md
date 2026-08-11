@@ -32,5 +32,6 @@ driver without counting.
 **Bulk pricing available.** Price drops automatically at 100 and 200 packs. No
 account, no negotiation, no minimum order.
 
-**Fast shipping.** Orders placed before 5pm ship the next business day. Seals
-ship in 24 hours, not weeks.
+**Fast shipping.** Orders placed before 5pm ET ship the next business day. Stock
+seals ship in 24 hours, not weeks; custom and printed runs ship after
+production, on a lead time confirmed with the quote.

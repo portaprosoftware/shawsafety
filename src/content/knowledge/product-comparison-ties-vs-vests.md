@@ -31,4 +31,4 @@ stock.
 
 Both share the same buying model: published pricing, no account, no minimum
 order, volume tiers applied automatically, quantity totaled across colors, and
-next-business-day dispatch on orders placed before 5pm CT.
+next-business-day dispatch on orders placed before 5pm ET.

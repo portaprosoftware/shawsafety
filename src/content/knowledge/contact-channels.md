@@ -18,7 +18,7 @@ keywords:
 
 Shaw Safety publishes three ways to make contact:
 
-- **Sales & orders:** (800) 555-0117, Monday to Friday, 7am–6pm CT
+- **Sales & orders:** (800) 555-0117, Monday to Friday, 8am–5pm ET
 - **Email:** sales@shawsafety.com, replies within one business day
 - **Contact form:** at /contact, with name, company, email, and message
 
