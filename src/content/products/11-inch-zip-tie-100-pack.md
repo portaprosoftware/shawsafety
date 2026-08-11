@@ -80,7 +80,7 @@ highlights:
     body: 'Fluorescent pigment stays legible at a distance and under low dock lighting, so drivers and inspectors can confirm a seal without breaking stride.'
   - icon: 'ruler'
     title: '11 Inches Long'
-    body: 'Sized specifically for intermodal container locking mechanisms — long enough to wrap the bar, short enough not to snag.'
+    body: 'Sized specifically for intermodal container locking mechanisms, long enough to wrap the bar, short enough not to snag.'
   - icon: 'shieldCheck'
     title: '75 lb Tensile Strength'
     body: 'Rated for daily transport operations. Holds through road vibration, weather, and yard handling without creeping.'
@@ -123,4 +123,4 @@ survive a full haul, and priced so a fleet can afford to use a fresh one on
 every door.
 
 Each pack holds 100 ties. Order 100 packs or more and the price drops
-automatically — no quote, no sales call.
+automatically. No quote, no sales call.

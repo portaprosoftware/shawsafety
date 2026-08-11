@@ -2,8 +2,8 @@
  * Maps a product variant to the environment variable holding its Stripe Price
  * ID.
  *
- * Price IDs are deployment configuration, not content — the same repo points
- * at test prices locally and live prices in production — so they live in env
+ * Price IDs are deployment configuration, not content, the same repo points
+ * at test prices locally and live prices in production, so they live in env
  * rather than in the Markdown frontmatter.
  *
  * A variant with no configured price simply cannot be bought yet; the checkout

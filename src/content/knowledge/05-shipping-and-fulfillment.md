@@ -31,7 +31,7 @@ keywords:
 Orders placed before 5pm Eastern on a business day ship the next business day
 from U.S. stock. This covers the four standard tie SKUs and the vests. Custom
 and printed runs ship after production instead, on a lead time confirmed with
-the quote. This is the operating rule that defines the category — most
+the quote. This is the operating rule that defines the category. Most
 competitors in industrial security seals quote multi-week lead times because
 they treat every order as a build-to-order run. Shaw Safety stocks the four
 standard SKUs so a next-day-ship promise is the default, not the exception.
@@ -42,14 +42,14 @@ Dispatch is subject to stock availability.
 
 Free ground shipping is offered on retail orders within the contiguous United
 States, with no minimum order size to qualify. Freight is quoted separately on
-pallet-scale wholesale orders — ask for a freight quote along with a bulk quote
+pallet-scale wholesale orders. Ask for a freight quote along with a bulk quote
 request. Shipping to Alaska, Hawaii, and Puerto Rico is available at published
 carrier rates calculated at checkout.
 
 ## Ground delivery times by region
 
 Business days in transit once the order leaves the dock. All times exclude
-weekends, holidays, and the ship day itself — add the next-business-day
+weekends, holidays, and the ship day itself. Add the next-business-day
 dispatch to get an arrival estimate.
 
 - **1 day:** Ohio, Pennsylvania, Indiana, Michigan, Kentucky, West Virginia,
@@ -69,10 +69,10 @@ confirmation before ordering.
 ## Expedited shipping
 
 Next-day-air and 2-day-air are available at published carrier rates, quoted at
-checkout or on request. For truly time-critical needs — a full trailer rollout
-scheduled for a specific week — request an expedite through the contact page
-and Shaw Safety will confirm carrier options and cost within the same business
-day.
+checkout or on request. For truly time-critical needs, such as a full trailer
+rollout scheduled for a specific week, request an expedite through the contact
+page and Shaw Safety will confirm carrier options and cost within the same
+business day.
 
 ## Shipping carriers
 
@@ -84,7 +84,7 @@ pallet shipment; a phone number for delivery scheduling is required.
 ## International shipping
 
 Shaw Safety does not currently ship internationally from the storefront. For a
-Canadian or Mexican delivery, contact sales — customer-arranged pickup by the
+Canadian or Mexican delivery, contact sales. Customer-arranged pickup by the
 buyer's own broker or freight forwarder can be accommodated.
 
 ## PO Box and residential addresses
@@ -116,15 +116,15 @@ within 5 business days of delivery with the order number and photos, and Shaw
 Safety will ship a replacement at no charge and pursue the carrier claim
 internally.
 
-For a lost shipment — no tracking movement for 5+ business days past the
-estimated delivery date — contact support and a replacement will be dispatched
+For a lost shipment, meaning no tracking movement for 5+ business days past the
+estimated delivery date, contact support and a replacement will be dispatched
 while the original is traced.
 
 ## Order confirmation timing
 
 An order confirmation email is sent immediately after checkout. This is the
 receipt and it should arrive within a few minutes; if it does not, the address
-used may have been mistyped — contact support with the last four digits of the
+used may have been mistyped. Contact support with the last four digits of the
 payment card or the shipping ZIP and the order can be located.
 
 ## Backorder handling
@@ -139,10 +139,9 @@ assignment on the receiving end instead.
 ## Shipping to multiple addresses
 
 Multi-address shipping is not supported through the standard cart. To ship one
-order to multiple locations — for example, a fleet with terminals in five
-states — either place separate orders per address, or contact sales for a bulk
-quote that includes a shipment schedule and multiple ship-to addresses under a
-single PO.
+order to multiple locations, for example a fleet with terminals in five states,
+either place separate orders per address, or contact sales for a bulk quote that
+includes a shipment schedule and multiple ship-to addresses under a single PO.
 
 ## Duties, taxes, and brokerage on cross-border shipments
 

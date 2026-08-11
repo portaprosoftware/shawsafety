@@ -3,7 +3,7 @@
  *
  * Every icon is a 24x24 stroke path drawn on the same grid, so they share a
  * single stroke width and optical weight. Color and size come from the
- * consuming component via `class` — deliberately not baked in here.
+ * consuming component via `class`, deliberately not baked in here.
  */
 export interface IconDef {
   /** One or more `d` attributes rendered as <path> elements. */

@@ -11,8 +11,8 @@
  *
  * Two kinds of assertion:
  *
- *   expect  — source documents that must appear in the top `within` hits.
- *   forbid  — text that must not appear anywhere in the retrieved context.
+ *   expect, source documents that must appear in the top `within` hits.
+ *   forbid, text that must not appear anywhere in the retrieved context.
  *
  * `forbid` exists because the corpus has standing content rules that are
  * invisible to a similarity score. A C-TPAT question retrieving a passage that
@@ -93,7 +93,7 @@ try {
 const apiKey = process.env.OPENAI_API_KEY;
 if (!apiKey) {
   console.log(
-    '\nrag:test — OPENAI_API_KEY is not set, so retrieval cannot be checked.\n' +
+    '\nrag:test: OPENAI_API_KEY is not set, so retrieval cannot be checked.\n' +
       `  The index itself looks readable: ${index.chunks.length} chunks, ` +
       `${index.model} (${index.dimensions}d).\n` +
       '  Set the key and re-run to verify the questions actually retrieve.\n'
@@ -121,7 +121,7 @@ async function embed(text) {
 }
 
 console.log(
-  `\nRetrieval checks — ${index.chunks.length} chunks, ${index.model} (${index.dimensions}d)\n`
+  `\nRetrieval checks, ${index.chunks.length} chunks, ${index.model} (${index.dimensions}d)\n`
 );
 
 let failures = 0;
@@ -129,7 +129,10 @@ let failures = 0;
 for (const testCase of CASES) {
   const queryEmbedding = await embed(testCase.query);
   const hits = index.chunks
-    .map(chunk => ({ chunk, score: cosineSimilarity(queryEmbedding, chunk.embedding) }))
+    .map(chunk => ({
+      chunk,
+      score: cosineSimilarity(queryEmbedding, chunk.embedding),
+    }))
     .filter(hit => hit.score >= MIN_SCORE)
     .sort((a, b) => b.score - a.score)
     .slice(0, TOP_K);
@@ -140,11 +143,16 @@ for (const testCase of CASES) {
 
   for (const wanted of testCase.expect ?? []) {
     if (!documents.includes(wanted)) {
-      problems.push(`expected ${wanted} in the top ${testCase.within ?? TOP_K}`);
+      problems.push(
+        `expected ${wanted} in the top ${testCase.within ?? TOP_K}`
+      );
     }
   }
 
-  const context = hits.map(hit => hit.chunk.text).join('\n').toLowerCase();
+  const context = hits
+    .map(hit => hit.chunk.text)
+    .join('\n')
+    .toLowerCase();
   for (const banned of testCase.forbid ?? []) {
     if (context.includes(banned.toLowerCase())) {
       problems.push(`retrieved context contains forbidden text "${banned}"`);

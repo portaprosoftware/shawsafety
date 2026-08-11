@@ -2,7 +2,7 @@
  * Retrieval over the knowledge corpus.
  *
  * The store is a single JSON file written by `pnpm rag:index`. At 30 chunks a
- * linear scan is microseconds — a vector database here would add a network
+ * linear scan is microseconds, a vector database here would add a network
  * hop, a second credential, and an operational dependency to beat an
  * in-process loop that is already faster than the embedding call preceding it.
  *

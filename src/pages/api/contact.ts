@@ -1,5 +1,5 @@
 /**
- * Form submission handler — sends contact and wholesale-quote enquiries by
+ * Form submission handler, sends contact and wholesale-quote enquiries by
  * email through Resend.
  *
  * Runs on demand rather than being prerendered: the Resend API key is a server
@@ -49,7 +49,7 @@ function json(body: unknown, status: number): Response {
 
 /**
  * True for a native (non-JS) form post. `fetch` sends `Accept: * / *`, whereas
- * a browser navigating a form asks for HTML — which is how we tell them apart.
+ * a browser navigating a form asks for HTML, which is how we tell them apart.
  */
 function wantsHtml(request: Request): boolean {
   return (request.headers.get('accept') ?? '').includes('text/html');
@@ -57,7 +57,7 @@ function wantsHtml(request: Request): boolean {
 
 /**
  * Minimal styled page for the no-JS path. Without this, submitting with
- * scripts disabled dumps raw JSON on screen — the message still sends, but it
+ * scripts disabled dumps raw JSON on screen, the message still sends, but it
  * looks broken.
  */
 function htmlResponse(
@@ -133,7 +133,7 @@ const RATE_LIMIT = {
 } as const;
 
 export const POST: APIRoute = async ({ request }) => {
-  // Rate limit before configuration or parsing — an abuser must not force
+  // Rate limit before configuration or parsing, an abuser must not force
   // the function to touch the form body or send anything.
   const caller = clientKey(request);
   const gate = await check(`contact:${caller}`, RATE_LIMIT);
@@ -234,14 +234,14 @@ export const POST: APIRoute = async ({ request }) => {
 
   const isQuote = submission.formType === 'quote';
   const subject = isQuote
-    ? `Bulk quote request — ${submission.company || submission.name}`
-    : `Contact form — ${submission.name}`;
+    ? `Bulk quote request: ${submission.company || submission.name}`
+    : `Contact form: ${submission.name}`;
 
   const rows: [string, string][] = [
     ['Name', submission.name],
-    ['Company', submission.company || '—'],
+    ['Company', submission.company || '-'],
     ['Email', submission.email],
-    ['Phone', submission.phone || '—'],
+    ['Phone', submission.phone || '-'],
   ];
 
   const html = `
@@ -304,7 +304,7 @@ export const POST: APIRoute = async ({ request }) => {
     request,
     200,
     { ok: true },
-    'Thanks — we have got it',
+    'Thanks. We have got it',
     'We reply within one business day.'
   );
 };

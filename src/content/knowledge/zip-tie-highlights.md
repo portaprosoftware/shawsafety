@@ -2,7 +2,7 @@
 title: 'Why buyers choose the 11-inch fluorescent tie'
 topic: 'product'
 url: '/products/11-inch-zip-tie-100-pack'
-sourceLabel: '11" Fluorescent Zip Tie — Highlights'
+sourceLabel: '11" Fluorescent Zip Tie: Highlights'
 questions:
   - 'What are the benefits of these zip ties?'
   - 'Why are the ties fluorescent?'
@@ -21,7 +21,7 @@ low dock lighting, so drivers and inspectors can confirm a seal without
 breaking stride.
 
 **11 inches long.** Sized specifically for intermodal container locking
-mechanisms — long enough to wrap the bar, short enough not to snag.
+mechanisms, long enough to wrap the bar, short enough not to snag.
 
 **75 lb tensile strength.** Rated for daily transport operations. Holds through
 road vibration, weather, and yard handling without creeping.

@@ -88,8 +88,8 @@ const productsCollection = defineCollection({
  * One file per chunk. Chunks are authored by hand rather than scraped from the
  * rendered site: the pages interleave copy with markup and price math, and a
  * scraper would produce fragments that read as fragments. Each chunk is
- * written to stand alone — it names the product it is about instead of relying
- * on a heading three sections up — because retrieval will hand it to the model
+ * written to stand alone. It names the product it is about instead of relying
+ * on a heading three sections up, because retrieval will hand it to the model
  * with no surrounding page.
  *
  * `questions` is the retrieval hook. Embedding the questions a chunk answers

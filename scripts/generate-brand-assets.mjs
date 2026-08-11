@@ -3,7 +3,7 @@
  * primary logo in `src/images/icon.png`.
  *
  * Those two were still carrying the upstream template's artwork, which is not
- * obvious because nothing on the site renders them — the maskable icon only
+ * obvious because nothing on the site renders them, the maskable icon only
  * appears when a phone installs the PWA, and social.png only when a link is
  * shared. Generating both from the real logo keeps them in sync.
  *
@@ -26,7 +26,7 @@ console.log(`Source logo: ${meta.width}x${meta.height} ${meta.format}`);
 /*
  * Exports named .png are sometimes actually JPEGs. Everything downstream
  * detects format by content so it still works, but the mismatch misleads
- * anything that trusts the extension — normalize it.
+ * anything that trusts the extension, normalize it.
  */
 if (meta.format !== 'png') {
   await writeFile(`${images}/icon.png`, await sharp(source).png().toBuffer());
@@ -34,8 +34,8 @@ if (meta.format !== 'png') {
 }
 
 /*
- * Apple touch icon. iOS does not honour transparency on home-screen icons —
- * it composites them onto black — so this one is explicitly flattened onto
+ * Apple touch icon. iOS does not honour transparency on home-screen icons,
+ * it composites them onto black, so this one is explicitly flattened onto
  * white. Generated separately rather than reusing icon.png, which may well
  * have an alpha channel.
  */
@@ -61,7 +61,7 @@ await sharp({
 /*
  * Maskable icon: Android crops to a circle, so the mark sits at ~62% of the
  * canvas with the rest as bleed. Flattened onto white for the same reason as
- * above — a transparent maskable icon renders as a blank plate.
+ * above, a transparent maskable icon renders as a blank plate.
  */
 const MASKABLE = 1024;
 const markSize = Math.round(MASKABLE * 0.62);

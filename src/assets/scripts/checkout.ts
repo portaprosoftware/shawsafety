@@ -1,11 +1,11 @@
 /**
- * Checkout adapter — the single seam between this storefront and Stripe.
+ * Checkout adapter, the single seam between this storefront and Stripe.
  *
  * The cart calls `checkout(items)` and that is the whole contract; no component
  * imports Stripe or knows how payment works.
  *
  * Only variant ids and quantities are sent. Prices shown in the cart are
- * display-only — `src/pages/api/checkout.ts` resolves the real Stripe Price for
+ * display-only, `src/pages/api/checkout.ts` resolves the real Stripe Price for
  * each variant server-side, so a tampered cart cannot set its own price.
  */
 
@@ -39,7 +39,7 @@ export async function checkout(items: CartItem[]): Promise<CheckoutResult> {
 
     if (response.ok && result?.ok && result.url) {
       // Hand off to Stripe's hosted page. The cart is cleared on return by
-      // /checkout/success, not here — abandoning checkout must keep the basket.
+      // /checkout/success, not here, abandoning checkout must keep the basket.
       window.location.assign(result.url);
       return { ok: true, message: 'Redirecting to secure checkout…' };
     }

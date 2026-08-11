@@ -12,7 +12,7 @@ import navigation from '@utils/navigation';
 const products = await getCollection('products');
 const searchIndex = products.flatMap(p =>
   p.data.variants.map(v => ({
-    title: `${p.data.shortTitle} — ${v.name}`,
+    title: `${p.data.shortTitle}, ${v.name}`,
     sku: v.sku,
     href: `/products/${p.id}?color=${v.id}`,
     hex: v.hex,
@@ -89,7 +89,7 @@ const pathname = Astro.url.pathname.replace(/\/+$/, '') || '/';
     <div class="ml-auto flex items-center gap-1 md:ml-0">
       {
         /*
-         * Same destination as the footer's Contact link — this just surfaces it
+         * Same destination as the footer's Contact link. This just surfaces it
          * without a scroll to the bottom of the page. Outlined rather than
          * solid so it reads as secondary to the product CTAs it sits beside.
          * Below `lg` it gives way to the entry in the mobile menu.

@@ -45,7 +45,7 @@ export function savingsPercent(tiers: Tier[], pricePerUnit: number): number {
 
 /**
  * The next cheaper tier and how many more units are needed to reach it.
- * Returns null once the buyer is already in the deepest tier — this drives
+ * Returns null once the buyer is already in the deepest tier. This drives
  * the "add N more to save X%" nudge on the PDP.
  */
 export function nextTierNudge(
@@ -68,7 +68,7 @@ export function roundMoney(value: number): number {
   return Math.round((value + Number.EPSILON) * 100) / 100;
 }
 
-/** `$2.69` — the single currency formatter for the whole site. */
+/** `$2.69`, the single currency formatter for the whole site. */
 export function formatMoney(value: number): string {
   return new Intl.NumberFormat('en-US', {
     style: 'currency',

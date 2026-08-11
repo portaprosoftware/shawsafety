@@ -49,7 +49,7 @@ highlights:
     body: 'Releases at the shoulders and sides if the vest catches on equipment.'
   - icon: 'box'
     title: 'Sold in 10-Packs'
-    body: 'Outfit a crew in one order. Mixed sizing available on bulk orders — note it on your quote request.'
+    body: 'Outfit a crew in one order. Mixed sizing available on bulk orders. Note it on your quote request.'
 specs:
   - label: 'Standard'
     value: 'ANSI/ISEA 107-2020 Type R Class 2'

@@ -26,8 +26,8 @@ keywords:
 ## The security seal landscape
 
 Cargo security seals fall into three broad classes under ISO 17712: indicative
-(I), security (S), and high security (H). Indicative seals — the category Shaw
-Safety's fluorescent tie sits in — prove a door was not opened between
+(I), security (S), and high security (H). Indicative seals, the category Shaw
+Safety's fluorescent tie sits in, prove a door was not opened between
 checkpoints and can be defeated by an attacker with tools. Security seals resist
 casual attack. High-security seals are hardened bolt seals or heavy cable seals
 that require bolt cutters and are required by C-TPAT for loaded ocean containers
@@ -62,9 +62,9 @@ international ocean freight, high-value domestic loads, and any lane that
 requires an ISO 17712 Class H seal.
 
 - **Shaw Safety tie:** 75-lb tensile, cut with a small hand tool, roughly
-  2–3 cents per tie, indicative class.
+  2-3 cents per tie, indicative class.
 - **Bolt seal:** several-thousand-pound tensile, requires bolt cutters to
-  remove, typically $1–$3 per seal depending on volume, high-security class.
+  remove, typically $1 to $3 per seal depending on volume, high-security class.
 
 Shaw Safety does not sell bolt seals. If a lane requires ISO 17712 Class H, that
 seal has to be sourced from a high-security barrier seal supplier. For sealing a
@@ -74,7 +74,7 @@ sensible product.
 ## Shaw Safety fluorescent tie vs cable seal
 
 A cable seal is a steel cable with a locking body. Cable seals sit between
-indicative and high security depending on cable diameter — 1.5 mm to 3.5 mm is
+indicative and high security depending on cable diameter, 1.5 mm to 3.5 mm is
 light-duty indicative use, 3.5 mm to 5 mm is medium-duty, and 5 mm and above
 with proper certification is ISO 17712 Class H.
 
@@ -115,7 +115,7 @@ not sell meter seals.
 
 ## Shaw Safety fluorescent tie vs padlock
 
-A padlock is a physical barrier — the tie is a tamper indicator. Many domestic
+A padlock is a physical barrier. The tie is a tamper indicator. Many domestic
 fleets use both: a padlock as the primary lock and a colored fluorescent tie as
 the tamper indicator on the second door handle or the vertical bar. The tie does
 not replace the padlock and the padlock does not replace the tie; they solve
@@ -134,11 +134,11 @@ Where the Shaw Safety fluorescent tie is the right product:
 
 Where it is not, and a different class of seal is required:
 
-- International ocean container or a C-TPAT lane — requires an ISO 17712
-  Class H bolt or cable seal.
+- International ocean container or a C-TPAT lane: requires an ISO 17712 Class H
+  bolt or cable seal.
 - High-value domestic freight where the shipper's policy specifies a
   security-class barrier seal.
-- Meter and utility sealing — a different form factor entirely.
+- Meter and utility sealing: a different form factor entirely.
 
 Shaw Safety's catalog covers the first list. For anything on the second list,
 sales will say so directly rather than stretching the product to fit.

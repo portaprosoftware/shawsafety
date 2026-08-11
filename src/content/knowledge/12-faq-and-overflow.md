@@ -35,13 +35,13 @@ mechanisms. If your terminal has a written seal specification, send it over and
 Shaw Safety will confirm the match in writing before you order.
 
 For international ocean container shipping under a C-TPAT program, a plastic tie
-is not the correct product regardless of tensile — CBP requires an ISO 17712
+is not the correct product regardless of tensile. CBP requires an ISO 17712
 Class H bolt seal or heavy cable seal, which Shaw Safety does not sell.
 
 ## How does volume pricing work?
 
 The discount is published on every product page and applies automatically at
-checkout. Order 1–99 packs and you pay retail; 100–199 packs is the middle tier
+checkout. Order 1-99 packs and you pay retail; 100-199 packs is the middle tier
 at roughly 11% off; 200 packs or more reaches the deepest tier at up to 19% off.
 There is no account to create, no minimum order, and no sales call in between.
 Mixed colors count toward the same volume tier.
@@ -81,8 +81,8 @@ the approved proof.
 
 ## Are these C-TPAT compliant?
 
-No, and this is important. C-TPAT requires ISO 17712 Class H seals — steel bolt
-seals or heavy cable seals with third-party lab certification — on loaded ocean
+No, and this is important. C-TPAT requires ISO 17712 Class H seals (steel bolt
+seals or heavy cable seals with third-party lab certification) on loaded ocean
 containers bound for the United States. A plastic zip tie is at most an ISO
 17712 Class I (indicative) seal and cannot substitute for a Class H seal in a
 C-TPAT lane.
@@ -107,7 +107,7 @@ not re-applied.
 ## What tools do I need to remove them?
 
 A pair of side-cutters, diagonal pliers, or a seal-cutter tool. Every driver in
-the fleet should carry one. Do not attempt to pry the head — the head is
+the fleet should carry one. Do not attempt to pry the head. The head is
 designed to not release, and prying deforms the head and leaves inconclusive
 tamper evidence.
 
@@ -115,7 +115,7 @@ tamper evidence.
 
 Yes. The working temperature range extends to -40 °F. The material becomes
 stiffer at low temperature, so seat the pawl firmly and give the tail a solid
-tug to confirm engagement — that is the only operational adjustment needed for
+tug to confirm engagement. That is the only operational adjustment needed for
 winter use.
 
 ## Do these work in hot weather?
@@ -127,7 +127,7 @@ sun stay well within the rating.
 ## Do you ship internationally?
 
 Not directly. Shaw Safety ships within the U.S. and Puerto Rico from the
-storefront. For Canadian or Mexican delivery, contact sales — customer-arranged
+storefront. For Canadian or Mexican delivery, contact sales. Customer-arranged
 broker pickup can be accommodated.
 
 ## Do you offer samples?
@@ -165,9 +165,9 @@ orders under the same account.
 ## Do you offer a discount for government or non-profit buyers?
 
 Standard published volume pricing already sits at direct-wholesale levels. For
-large committed volumes — a full-fiscal-year contract for a municipal fleet or a
-national non-profit — contact sales for a custom quote. Tax-exempt status is
-honored on presentation of a current certificate.
+large committed volumes, such as a full-fiscal-year contract for a municipal
+fleet or a national non-profit, contact sales for a custom quote. Tax-exempt
+status is honored on presentation of a current certificate.
 
 ## Can I get a spec sheet before ordering?
 
@@ -217,10 +217,10 @@ direct food contact.
 
 ## What is the difference between this and what my current supplier charges?
 
-Direct-wholesale pricing is roughly 30–50% below the going rate at national
+Direct-wholesale pricing is roughly 30-50% below the going rate at national
 industrial safety distributors for a Type 21S 11-inch tie in fluorescent colors.
 Fleets switching from a distributor to Shaw Safety typically see their per-tie
-cost drop from $0.05–$0.08 down to $0.02–$0.03. The catalog is narrower on
+cost drop from the $0.05 to $0.08 range down to $0.02 or $0.03. The catalog is narrower on
 purpose; the savings come from cutting the distributor margin, not from cutting
 the product spec.
 

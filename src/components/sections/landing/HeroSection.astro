@@ -5,7 +5,7 @@ import Icon from '@components/ui/icons/Icon.astro';
  * Background video for the hero, hosted on Gumlet.
  *
  * `background=true` gives a chromeless, muted, looping player with no
- * controls — it is decoration behind the headline, not something anyone is
+ * controls. It is decoration behind the headline, not something anyone is
  * meant to interact with, which is also why the wrapper is aria-hidden.
  *
  * Adding a host here is not enough on its own: the `frame-src` directive in
@@ -34,7 +34,7 @@ const VIDEO_SRC =
       The frame is injected by the script below rather than rendered here, so
       that a visitor who has asked for reduced motion never loads it at all.
       A cross-origin player cannot be paused from this page, so declining to
-      start it is the only way to honour that preference — WCAG 2.2.2 wants
+      start it is the only way to honour that preference, WCAG 2.2.2 wants
       motion that runs beyond five seconds to be stoppable.
 
       `container-type: size` makes cqw/cqh below resolve against this box.
@@ -54,7 +54,7 @@ const VIDEO_SRC =
         video is 16:9, so letting the frame fill the box would letterbox it.
         Taking the larger of "full width" and "the width a full-height 16:9
         frame needs" (and the same for height) guarantees the video overflows
-        on one axis instead — the standard cover trick, done in container units
+        on one axis instead, the standard cover trick, done in container units
         so it follows this box rather than the viewport.
       */
       }
@@ -77,7 +77,7 @@ const VIDEO_SRC =
     >
     </div>
 
-    {/* Fine engineering grid — the "futuristic" layer, kept subtle. */}
+    {/* Fine engineering grid, the "futuristic" layer, kept subtle. */}
     <div
       class="absolute inset-0 opacity-[0.14] mix-blend-overlay"
       style="background-image:linear-gradient(to right,#fff 1px,transparent 1px),linear-gradient(to bottom,#fff 1px,transparent 1px);background-size:64px 64px"
@@ -143,8 +143,8 @@ const VIDEO_SRC =
     /*
      * Start the background video only once motion is known to be welcome.
      * Injecting it rather than shipping it in the markup means a visitor who
-     * prefers reduced motion pays nothing for it — no frame, no request, no
-     * player — and simply sees the brand gradient, which the hero was designed
+     * prefers reduced motion pays nothing for it. No frame, no request, no
+     * player, and simply sees the brand gradient, which the hero was designed
      * to stand on anyway.
      */
     const slot = document.querySelector('[data-hero-video-slot]');

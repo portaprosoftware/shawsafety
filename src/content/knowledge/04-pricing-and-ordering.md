@@ -25,22 +25,22 @@ keywords:
   - 'cost per tie'
 ---
 
-## Retail vs wholesale — the whole model
+## Retail vs wholesale: the whole model
 
 Shaw Safety publishes one price list and applies the discount automatically at
 checkout based on total cart quantity. There is no login gate, no negotiation,
 no sales call, and no minimum order. Retail buyers pay the published retail
 price. Wholesale buyers reach the wholesale price the moment their cart totals
-100 packs or more. This is the entire model — it is what "sold direct at
+100 packs or more. This is the entire model. It is what "sold direct at
 wholesale pricing" refers to.
 
 ## Volume tier structure
 
 Volume tiers are total-cart quantities across all four colors combined.
 
-- **1–99 packs** — retail pricing.
-- **100–199 packs** — the middle tier, roughly 11% off retail.
-- **200+ packs** — the deepest tier, up to 19% off retail.
+- **1-99 packs**: retail pricing.
+- **100-199 packs**: the middle tier, roughly 11% off retail.
+- **200+ packs**: the deepest tier, up to 19% off retail.
 
 The discount appears on every product page as the "from" price under the retail
 price, and it recalculates in the cart as items are added. There is no code to
@@ -52,14 +52,14 @@ Prices are per 100-pack.
 
 **Fluorescent yellow** (the lead-in SKU, cheapest color):
 
-- 1–99 packs: $2.69 per pack
-- 100–199 packs: $2.39 per pack
+- 1-99 packs: $2.69 per pack
+- 100-199 packs: $2.39 per pack
 - 200+ packs: $2.19 per pack
 
 **Fluorescent pink, green, and orange:**
 
-- 1–99 packs: $2.99 per pack
-- 100–199 packs: $2.69 per pack
+- 1-99 packs: $2.99 per pack
+- 100-199 packs: $2.69 per pack
 - 200+ packs: $2.49 per pack
 
 Yellow is priced as the lead-in SKU. The other three colors carry a small color
@@ -71,7 +71,7 @@ or compliance.
 Each pack contains 100 ties. At the deepest yellow tier the cost works out to
 about 2.2 cents per tie; at retail across the four colors it averages closer to
 2.9 cents. For a fleet running four seals per truck per day across a 50-truck
-operation, that puts annualized seal spend under $2,000 at wholesale — a small
+operation, that puts annualized seal spend under $2,000 at wholesale, a small
 line item compared to the loss exposure a broken seal represents.
 
 ## Mixed colors count toward the volume tier
@@ -90,10 +90,9 @@ to order history and past invoices, but it is optional.
 
 ## Custom quote for large orders
 
-For orders that stretch beyond the published 200+ tier — for example, a
-full-year committed volume for a large fleet — request a custom quote through
-the bulk quote form. The quote comes back with a firm per-pack price and
-payment terms.
+For orders that stretch beyond the published 200+ tier, for example a full-year
+committed volume for a large fleet, request a custom quote through the bulk
+quote form. The quote comes back with a firm per-pack price and payment terms.
 
 ## Bulk quote workflow
 
@@ -126,10 +125,10 @@ of match can be returned before the order enters production.
 
 ## Payment methods
 
-- Credit card (Visa, Mastercard, American Express, Discover) — all order sizes.
-- ACH — wholesale orders on request.
-- Wire transfer — wholesale orders on request, useful for larger prepayments.
-- Net terms — see the net terms section above.
+- Credit card (Visa, Mastercard, American Express, Discover): all order sizes.
+- ACH: wholesale orders on request.
+- Wire transfer: wholesale orders on request, useful for larger prepayments.
+- Net terms: see the net terms section above.
 
 ## Sales tax
 

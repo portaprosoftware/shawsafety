@@ -1,8 +1,8 @@
 ---
-title: 'Why buy direct — wholesale terms and fulfillment'
+title: 'Why buy direct: wholesale terms and fulfillment'
 topic: 'pricing'
 url: '/wholesale'
-sourceLabel: 'Wholesale Pricing — Why Buy Direct'
+sourceLabel: 'Wholesale Pricing: Why Buy Direct'
 questions:
   - 'Do you offer net terms?'
   - 'Can I get net 30?'

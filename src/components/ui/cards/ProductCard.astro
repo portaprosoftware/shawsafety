@@ -22,7 +22,7 @@ const thumb = await resolveProductImage(variant.images[0], 160, 160);
 
 /*
  * The drawing opens straight from the card, so a buyer can check a dimension
- * without a trip to the product page. Rendered near natural width — the fine
+ * without a trip to the product page. Rendered near natural width, the fine
  * annotation on a spec sheet is unreadable at thumbnail size. Variants without
  * one (the vests) simply do not get the button.
  */
@@ -61,7 +61,7 @@ const href = `/products/${product.id}?color=${variant.id}`;
   <div class="flex flex-1 flex-col px-5 pb-5">
     <h3 class="text-sm leading-snug font-semibold text-neutral-900">
       <a href={href} class="hover:text-maroon-700 transition">
-        {p.shortTitle} — {variant.name}
+        {p.shortTitle}, {variant.name}
       </a>
     </h3>
 
@@ -90,9 +90,9 @@ const href = `/products/${product.id}?color=${variant.id}`;
       />
       {
         /*
-        Two secondary actions on one row. "Spec" opens the drawing in place —
+        Two secondary actions on one row. "Spec" opens the drawing in place,
         the shortest path from a grid of colors to the dimension someone came
-        to check — and "Details" keeps its old destination under a shorter
+        to check, and "Details" keeps its old destination under a shorter
         label so the pair fits a phone-width card.
       */
       }
@@ -112,7 +112,7 @@ const href = `/products/${product.id}?color=${variant.id}`;
               type="button"
               data-spec-open
               data-spec-src={spec}
-              data-spec-title={`${p.shortTitle} — ${variant.name}`}
+              data-spec-title={`${p.shortTitle}, ${variant.name}`}
               class="focus-visible:ring-maroon-700 flex items-center justify-center gap-1.5 rounded-lg border border-neutral-300 px-4 py-2.5 text-sm font-semibold text-neutral-700 transition hover:border-neutral-500 hover:text-neutral-900 focus:outline-hidden focus-visible:ring-2"
             >
               <Icon name="ruler" class="h-4 w-4 shrink-0" />

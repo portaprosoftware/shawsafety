@@ -15,7 +15,7 @@ import { readEnv } from '@utils/env';
 import { ragIndex } from '@utils/rag';
 
 /**
- * Never show a control that cannot work — the same rule the dictation button
+ * Never show a control that cannot work, the same rule the dictation button
  * follows. Both halves are required: the key makes the route answer, and the
  * index is what it answers from.
  *
@@ -81,7 +81,7 @@ const suggestions = [
       >
         {/*
           Full-screen on mobile, so the header runs under the notch or status
-          bar — the safe-area inset keeps the title clear of it. Reset at `sm`,
+          bar, the safe-area inset keeps the title clear of it. Reset at `sm`,
           where the panel is a floating card and the inset does not apply.
         */}
         <header class="from-brand-grad-from to-brand-grad-to flex items-start justify-between gap-4 bg-linear-to-tr px-5 py-4 pt-[max(1rem,env(safe-area-inset-top))] sm:pt-4">
@@ -112,13 +112,22 @@ const suggestions = [
         {/*
           `min-h-0` is what makes this scroll. A flex item defaults to
           `min-height: auto`, so `flex-1` with `overflow-y-auto` grows to its
-          content instead of shrinking to its allotted space — the log then
+          content instead of shrinking to its allotted space, the log then
           pushes the composer off the panel and the whole thing scrolls with
           the page. Forcing the flex minimum back to zero lets `overflow-y`
           engage inside the panel's height instead.
+
+          `data-lenis-prevent` is the other half, and without it the box above
+          still would not scroll. Lenis runs smooth scrolling for the whole
+          document by cancelling wheel and touch events and animating the page
+          itself, which leaves a nested scroller with no events to act on: the
+          log looked frozen once a conversation grew past its height. The
+          attribute tells Lenis to keep its hands off anything inside here and
+          let the browser scroll it natively.
         */}
         <div
           id="ask-log"
+          data-lenis-prevent
           class="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-4 py-4"
           aria-live="polite"
           aria-busy="false"
@@ -139,7 +148,7 @@ const suggestions = [
               `data-no-dictation` keeps VoiceInput off this field. That
               component attaches to every textarea on its page and positions
               its microphone inside the box, which is right for a tall form
-              field and wrong for a one-line composer — and it is only on two
+              field and wrong for a one-line composer, and it is only on two
               pages, while this widget is on all of them. The composer has its
               own microphone below instead, sharing the same recording code.
             */}
@@ -212,7 +221,6 @@ const suggestions = [
             </a>
             .
           </p>
-
         </div>
       </section>
     </div>
@@ -224,13 +232,14 @@ const suggestions = [
    * Chat client for /api/ask.
    *
    * The transcript is stored rather than held in memory: this is a multi-page
-   * site, so following a cited link — the thing the answers are built to
-   * encourage — would otherwise throw the conversation away on navigation.
+   * site, and half of what the assistant is asked about is on some other page,
+   * so going to look at it would otherwise throw the conversation away on
+   * navigation.
    *
    * Storage is localStorage with an explicit five-minute expiry, not
    * sessionStorage. sessionStorage dies with the tab, which cannot express
    * "close the window, come back inside five minutes, and the conversation is
-   * still there" — that needs storage outliving the tab, so the lifetime has
+   * still there". That needs storage outliving the tab, so the lifetime has
    * to be enforced on read instead of inherited from the session.
    */
   import {
@@ -240,17 +249,9 @@ const suggestions = [
     type Dictation,
   } from '@scripts/dictation';
 
-  interface Source {
-    n: number;
-    title: string;
-    url: string;
-    score: number;
-  }
-
   interface Message {
     role: 'user' | 'assistant';
     content: string;
-    sources?: Source[];
     /** Set on failures, which are shown in the transcript but never sent back. */
     error?: boolean;
   }
@@ -304,7 +305,7 @@ const suggestions = [
      * The endpoint is what actually enforces the limit; this only stops the
      * widget from firing requests it already knows will be refused, which
      * would push the window out and make the wait longer than the message
-     * promised. Capped, so a long window cannot leave the composer dead —
+     * promised. Capped, so a long window cannot leave the composer dead,
      * the bubble still says when to come back.
      */
     let cooldownUntil = 0;
@@ -313,8 +314,8 @@ const suggestions = [
     /**
      * One writer for the send button's enabled state.
      *
-     * Three independent things want to disable it — an answer in flight, a
-     * rate-limit cooldown, and a recording in progress — and when each set the
+     * Three independent things want to disable it, an answer in flight, a
+     * rate-limit cooldown, and a recording in progress, and when each set the
      * flag directly, whichever finished last decided, so ending a recording
      * could re-enable send in the middle of a cooldown. Everything now sets a
      * variable and calls this.
@@ -375,8 +376,9 @@ const suggestions = [
      * Restamp on the way out.
      *
      * The five minutes are meant to run from when the visitor leaves, not from
-     * their last message — otherwise reading a long answer and then following a
-     * cited link could lose the conversation mid-use. `pagehide` fires on both
+     * their last message, otherwise reading a long answer and then going off to
+     * check the page it describes could lose the conversation mid-use.
+     * `pagehide` fires on both
      * navigation and close, so the clock starts at the moment they actually go.
      */
     window.addEventListener('pagehide', () => save(isOpen()));
@@ -394,29 +396,23 @@ const suggestions = [
      *
      * Escaping comes first and everything after it works on escaped text:
      * this is model output, and the only safe assumption is that it is
-     * arbitrary. What survives is a deliberately small subset — bold, bullets,
-     * paragraphs — because the model is instructed to answer in prose and
+     * arbitrary. What survives is a deliberately small subset, bold, bullets,
+     * paragraphs, because the model is instructed to answer in prose and
      * lists, and a full Markdown renderer here would be a dependency and an
      * attack surface bought for two formatting features.
      */
-    const renderAnswer = (text: string, sources: Source[] = []) => {
-      const byNumber = new Map(sources.map(source => [source.n, source]));
-
+    const renderAnswer = (text: string) => {
       const inline = (chunk: string) =>
         escapeHtml(chunk)
           .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
           /*
-           * Citations become links to the page they came from. Only numbers
-           * the API actually returned are linked — a model that cites [7] with
-           * five passages in hand gets its bracket left as plain text rather
-           * than a link to nowhere. The href comes from our own index, never
-           * from the answer.
+           * Citation markers are dropped, not linked. The answer is a rep
+           * talking, and the bubble shows text only: no bracketed numbers, no
+           * source chips, no links out. The route strips these too, so this
+           * only catches a transcript restored from storage that was answered
+           * before it did.
            */
-          .replace(/\[(\d+)\]/g, (whole, digits) => {
-            const source = byNumber.get(Number(digits));
-            if (!source) return whole;
-            return `<a href="${escapeHtml(source.url)}" class="text-maroon-700 hover:text-maroon-800 font-semibold no-underline" title="${escapeHtml(source.title)}"><sup>[${digits}]</sup></a>`;
-          });
+          .replace(/\s*\[\d+(?:\s*,\s*\d+)*\]/g, '');
 
       return text
         .split(/\n{2,}/)
@@ -433,28 +429,6 @@ const suggestions = [
           return `<p>${inline(block).replace(/\n/g, '<br />')}</p>`;
         })
         .join('');
-    };
-
-    /** Distinct pages behind an answer, in citation order. */
-    const renderSources = (sources: Source[]) => {
-      const seen = new Set<string>();
-      const unique = sources.filter(source => {
-        if (seen.has(source.url)) return false;
-        seen.add(source.url);
-        return true;
-      });
-      if (!unique.length) return '';
-
-      return `
-        <div class="mt-2.5 flex flex-wrap items-center gap-1.5 border-t border-neutral-200 pt-2.5">
-          <span class="text-[11px] font-bold tracking-wide text-neutral-400 uppercase">Sources</span>
-          ${unique
-            .map(
-              source =>
-                `<a href="${escapeHtml(source.url)}" class="hover:border-maroon-700 hover:text-maroon-700 rounded-full border border-neutral-200 bg-white px-2 py-0.5 text-[11px] font-medium text-neutral-600 transition">${escapeHtml(source.title)}</a>`
-            )
-            .join('')}
-        </div>`;
     };
 
     const renderMessage = (message: Message) => {
@@ -474,8 +448,7 @@ const suggestions = [
               ? 'border border-red-200 bg-red-50 text-red-900'
               : 'bg-neutral-100 text-neutral-800'
           }">
-            <div class="space-y-2">${renderAnswer(message.content, message.sources)}</div>
-            ${message.error ? '' : renderSources(message.sources ?? [])}
+            <div class="space-y-2">${renderAnswer(message.content)}</div>
           </div>
         </div>`;
     };
@@ -484,7 +457,7 @@ const suggestions = [
       <div class="px-1 py-2">
         <p class="text-sm leading-relaxed text-neutral-600">
           Ask about specs, compliance, volume pricing, shipping, or returns.
-          Every answer is drawn from this site and cites the page it came from.
+          Every answer is drawn from what is published on this site.
         </p>
         <div class="mt-4 flex flex-col gap-2">
           ${suggestions
@@ -524,7 +497,7 @@ const suggestions = [
      *
      * The panel is `fixed inset-0`, which resolves against the layout viewport.
      * On iOS the layout viewport does not shrink when the keyboard opens, so
-     * the composer ends up underneath it — the visitor types into a box they
+     * the composer ends up underneath it, the visitor types into a box they
      * cannot see. The visual viewport does shrink, so while the panel is open
      * on a small screen its height and offset are driven from that instead.
      *
@@ -558,7 +531,7 @@ const suggestions = [
       /*
        * `inert` as well as `aria-hidden`, and not instead of it. The closed
        * panel is only faded out and pushed down, so its composer and buttons
-       * stay in the tab order — a keyboard visitor would otherwise tab from
+       * stay in the tab order, a keyboard visitor would otherwise tab from
        * the footer into a chat box they cannot see. `inert` takes the whole
        * subtree out of focus and hit-testing; `aria-hidden` is what silences
        * it for a screen reader.
@@ -606,7 +579,7 @@ const suggestions = [
     input.addEventListener('input', autosize);
 
     input.addEventListener('keydown', event => {
-      // Enter sends; Shift+Enter is a newline. IME composition must not send —
+      // Enter sends; Shift+Enter is a newline. IME composition must not send,
       // pressing Enter to accept a candidate would otherwise fire the question.
       if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) {
         event.preventDefault();
@@ -634,7 +607,7 @@ const suggestions = [
     };
 
     if (mic && isDictationSupported()) {
-      // Rendered hidden, revealed only now — see the note on the button.
+      // Rendered hidden, revealed only now. See the note on the button.
       mic.classList.remove('hidden');
       mic.classList.add('inline-flex');
 
@@ -717,18 +690,14 @@ const suggestions = [
             error: true,
           });
         } else {
-          messages.push({
-            role: 'assistant',
-            content: payload.answer,
-            sources: payload.sources ?? [],
-          });
+          messages.push({ role: 'assistant', content: payload.answer });
         }
       } catch {
         // Offline, or the request was cut off in flight.
         messages.push({
           role: 'assistant',
           content:
-            'No connection. Try again, or call (800) 555-0117 — Mon–Fri, 8am–5pm ET.',
+            'No connection. Try again, or call (800) 555-0117, Mon-Fri, 8am-5pm ET.',
           error: true,
         });
       } finally {
@@ -758,8 +727,8 @@ const suggestions = [
     const { open } = load();
     render();
     /*
-     * A widget left open before a navigation reopens itself, so following a
-     * cited link does not cost the conversation. Focus stays on the page:
+     * A widget left open before a navigation reopens itself, so going to look
+     * at a page mid-conversation does not cost it. Focus stays on the page:
      * stealing it on load would move a keyboard visitor into the chat box
      * every time they open a product page.
      */

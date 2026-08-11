@@ -21,7 +21,7 @@ artwork or a numbering scheme and Shaw Safety confirms pricing and lead time
 within one business day. This covers both logos and serial numbers on the zip
 ties, and logos heat-pressed on the back of the hi-vis vests.
 
-Mixed sizing across a vest pack is handled the same way — note it on the quote
+Mixed sizing across a vest pack is handled the same way. Note it on the quote
 request.
 
 Custom and printed seals ship once production is complete, which is a different

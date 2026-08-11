@@ -39,9 +39,9 @@ industrial safety supplier. Vests are sold in crew-sized 10-packs.
 ## Standards and compliance
 
 - ANSI/ISEA 107-2020 Class 2 background material
-- Type R (Roadway) — the class of garment required for workers exposed to public
+- Type R (Roadway): the class of garment required for workers exposed to public
   roadway traffic
-- OSHA 1926.201 compatible — the OSHA construction standard section that
+- OSHA 1926.201 compatible: the OSHA construction standard section that
   references high-visibility apparel for workers in traffic control zones
 - 2-inch retroreflective banding at ANSI-conformant placement
 - 5-point breakaway construction
@@ -49,7 +49,7 @@ industrial safety supplier. Vests are sold in crew-sized 10-packs.
 ## What ANSI/ISEA 107 Class 2 means
 
 ANSI/ISEA 107 is the American National Standard for High-Visibility Safety
-Apparel. Class 2 is the intermediate performance class — more fluorescent
+Apparel. Class 2 is the intermediate performance class, more fluorescent
 background material and more retroreflective tape than Class 1, less than
 Class 3. Class 2 is the legal minimum for workers exposed to traffic on public
 roadways at typical highway speeds.
@@ -77,18 +77,18 @@ which in turn references ANSI/ISEA 107 Class 2 or Class 3 as the visibility
 standard for flaggers and workers exposed to traffic. The Shaw Safety vest meets
 Class 2 Type R and is compatible with these requirements.
 
-For flaggers on high-speed roadways over 50 mph, Class 3 is often required —
+For flaggers on high-speed roadways over 50 mph, Class 3 is often required.
 Class 3 has full-sleeve coverage and is a separate product not currently in the
 Shaw Safety catalog.
 
 ## 5-point breakaway construction
 
-The vest is built with 5-point breakaway seams — the shoulder seams, side seams,
-and center front will release under a specified pull load. Breakaway
-construction is a safety feature for workers who could get caught on moving
-equipment (a trailer door, a forklift mast, a lifting boom). The vest releases
-before the wearer is dragged. Breakaway is standard on modern Type R roadway
-vests and is expected by most fleet safety programs.
+The vest is built with 5-point breakaway seams: the shoulder seams, side seams,
+and center front all release under a specified pull load. Breakaway construction
+is a safety feature for workers who could get caught on moving equipment (a
+trailer door, a forklift mast, a lifting boom). The vest releases before the
+wearer is dragged. Breakaway is standard on modern Type R roadway vests and is
+expected by most fleet safety programs.
 
 ## Sizing
 
@@ -104,20 +104,20 @@ sales.
 The vests come in Hi-Vis Lime (fluorescent yellow-green) and Hi-Vis Orange
 (fluorescent orange-red). Both are ANSI-conformant. Lime is the standard choice
 and the highest-contrast option against most roadside backgrounds. Orange is
-preferred where the local background is dominated by green vegetation —
-roadside brush, agricultural work zones — or where a fleet's other safety gear
+preferred where the local background is dominated by green vegetation,
+roadside brush, agricultural work zones, or where a fleet's other safety gear
 is already color-coded to orange.
 
 ## Pricing and volume tiers
 
 Vest pricing is per 10-pack and applies to both colors:
 
-- 1–9 packs: $74.90 per pack
-- 10–24 packs: $67.90 per pack
+- 1-9 packs: $74.90 per pack
+- 10-24 packs: $67.90 per pack
 - 25+ packs: $61.90 per pack
 
 Each pack contains 10 vests, so the price per vest runs from $7.49 at retail
-down to $6.19 at the deepest tier — well below the equivalent single-vest retail
+down to $6.19 at the deepest tier, well below the equivalent single-vest retail
 price at a national safety supplier. Quantity totals across colors, so a mixed
 lime-and-orange order reaches the same tier a single-color order would.
 
@@ -128,7 +128,7 @@ item than a pack of ties.
 ## Care and washing
 
 - Machine washable in cold water on a gentle cycle.
-- Do not bleach — bleach degrades both the fluorescent pigment and the
+- Do not bleach. Bleach degrades both the fluorescent pigment and the
   retroreflective tape.
 - Tumble dry low or line dry.
 - Do not iron the retroreflective tape.
@@ -142,8 +142,8 @@ meets the ANSI standard even if it looks superficially fine in daylight.
 
 For a driver who wears the vest for a full shift five days a week and washes it
 weekly, expect approximately 6 months of ANSI-conformant life before the
-retroreflective performance starts to degrade below spec. Rougher use — heavy
-dirt, frequent snags, weekly bleach cycles — will cut that life significantly.
+retroreflective performance starts to degrade below spec. Rougher use (heavy
+dirt, frequent snags, weekly bleach cycles) will cut that life significantly.
 
 For a fleet running a strict compliance program, plan on replacing vests every
 6 months regardless of visible condition. At $6.19 per vest at the deepest tier,
@@ -158,7 +158,7 @@ retroreflective placement. Local terminal or shipper policies may layer
 additional requirements on top of the OSHA/ANSI baseline.
 
 Check the specific requirement for the work being done and choose the correct
-class — a Class 2 vest is the right answer for most drayage, LTL, waste, and
+class, a Class 2 vest is the right answer for most drayage, LTL, waste, and
 service-truck operations, but not for every application.
 
 ## When to choose a vest vs a jacket

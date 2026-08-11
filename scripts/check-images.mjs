@@ -1,7 +1,7 @@
 /**
  * Reports which product photos are still missing.
  *
- * Runs as part of `pnpm build` and never fails it — a missing photo renders a
+ * Runs as part of `pnpm build` and never fails it, a missing photo renders a
  * labelled placeholder on the page rather than breaking the deploy. This is
  * purely so the build log tells you what is still outstanding.
  */
@@ -51,7 +51,7 @@ async function referencedStems() {
 
     for (const line of lines) {
       // Spec sheets are single scalars rather than a list, but they are still
-      // images resolved from the same folder — count them as referenced.
+      // images resolved from the same folder, count them as referenced.
       const spec = line.match(/^\s*spec:\s*'?([^'\n]+?)'?\s*$/);
       if (spec) {
         refs.push(spec[1].trim());
@@ -92,16 +92,16 @@ const have = referenced.length - missing.length;
 console.log(`\nProduct photos: ${have}/${referenced.length} present`);
 
 if (missing.length) {
-  console.log(`  Missing ${missing.length} — add to src/images/products/:`);
+  console.log(`  Missing ${missing.length}. Add to src/images/products/:`);
   for (const stem of missing) console.log(`    ${stem}.jpg`);
   console.log(
-    '  (any of .jpg .jpeg .png .webp .avif — the extension is not referenced)\n'
+    '  (any of .jpg .jpeg .png .webp .avif; the extension is not referenced)\n'
   );
 } else {
   console.log('  All referenced photos are present.\n');
 }
 
-// Unused files are worth knowing about too — usually a typo in a filename.
+// Unused files are worth knowing about too, usually a typo in a filename.
 const orphans = [...present].filter(stem => !referenced.includes(stem));
 if (orphans.length) {
   console.log(`  Note: ${orphans.length} image(s) present but unreferenced:`);

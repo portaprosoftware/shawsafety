@@ -13,7 +13,7 @@
  *   STRIPE_SECRET_KEY               required, to read the session's line items
  *   STRIPE_CHECKOUT_WEBHOOK_SECRET  required, verifies the payload really came
  *                                   from Stripe
- *   RESEND_API_KEY / RESEND_FROM / CONTACT_TO — see @utils/sendEmail
+ *   RESEND_API_KEY / RESEND_FROM / CONTACT_TO. See @utils/sendEmail
  */
 import type { APIRoute } from 'astro';
 import Stripe from 'stripe';
@@ -42,7 +42,7 @@ function remember(eventId: string): void {
 }
 
 function money(amount: number | null | undefined, currency = 'usd'): string {
-  if (amount == null) return '—';
+  if (amount == null) return '-';
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: currency.toUpperCase(),
@@ -76,7 +76,7 @@ function readShipping(
 }
 
 function formatAddress(address?: Stripe.Address | null): string {
-  if (!address) return '—';
+  if (!address) return '-';
   return [
     address.line1,
     address.line2,
@@ -150,12 +150,12 @@ export const POST: APIRoute = async ({ request }) => {
   const currency = session.currency ?? 'usd';
 
   const rows: [string, string][] = [
-    ['Name', customer?.name || shipping?.name || '—'],
-    ['Email', customer?.email || '—'],
-    ['Phone', customer?.phone || '—'],
+    ['Name', customer?.name || shipping?.name || '-'],
+    ['Email', customer?.email || '-'],
+    ['Phone', customer?.phone || '-'],
     ['Ship to', formatAddress(shipping?.address ?? customer?.address)],
     ['Order total', money(session.amount_total, currency)],
-    ['Payment', session.payment_status ?? '—'],
+    ['Payment', session.payment_status ?? '-'],
     ['Stripe session', session.id],
   ];
 
@@ -194,7 +194,7 @@ export const POST: APIRoute = async ({ request }) => {
                      </tr>`
                 )
                 .join('')
-            : '<tr><td style="padding:5px 0;color:#737373">Line items unavailable — see the Stripe dashboard.</td></tr>'
+            : '<tr><td style="padding:5px 0;color:#737373">Line items unavailable. See the Stripe dashboard.</td></tr>'
         }
       </table>
     </div>`;
@@ -205,13 +205,13 @@ export const POST: APIRoute = async ({ request }) => {
     '',
     'Items:',
     ...(itemLines.length
-      ? itemLines.map(i => `  ${i.label} x${i.qty} — ${i.amount}`)
-      : ['  (unavailable — see the Stripe dashboard)']),
+      ? itemLines.map(i => `  ${i.label} x${i.qty}, ${i.amount}`)
+      : ['  (unavailable. See the Stripe dashboard)']),
   ].join('\n');
 
   const result = await sendEmail({
-    subject: `New order — ${money(session.amount_total, currency)}${
-      customer?.name ? ` — ${customer.name}` : ''
+    subject: `New order: ${money(session.amount_total, currency)}${
+      customer?.name ? ` (${customer.name})` : ''
     }`,
     html,
     text,

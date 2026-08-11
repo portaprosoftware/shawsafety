@@ -20,7 +20,7 @@ deliberately short: an 11-inch fluorescent security zip tie sold in 100-packs
 in four colors, and an ANSI/ISEA 107 Class 2 hi-vis safety vest sold in
 10-packs in two colors.
 
-Everything is sold direct at published wholesale pricing — UL 21S listed, DOT
+Everything is sold direct at published wholesale pricing, UL 21S listed, DOT
 compliant, and shipped the next business day. There is no account to create,
 no minimum order, and no quote cycle between a buyer and a price. The company
 tagline is "Industrial Zip Ties & Hi-Vis Safety Gear".

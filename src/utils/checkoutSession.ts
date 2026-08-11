@@ -11,7 +11,7 @@ import { PRICE_ENV_BY_VARIANT } from './stripePrices';
 export const MAX_QTY_PER_LINE = 9999;
 
 export interface CatalogueVariant {
-  /** Human label used in error messages, e.g. `11" Zip Tie — Fluorescent Pink`. */
+  /** Human label used in error messages, e.g. `11" Zip Tie, Fluorescent Pink`. */
   label: string;
   /** The variant's price ladder, for the tier-consistency check. */
   tiers: { minQty: number; maxQty: number | null; pricePerUnit: number }[];
@@ -30,7 +30,7 @@ export interface ResolvedLines {
 /**
  * Turn a client request into Stripe line items.
  *
- * The request supplies variant ids and quantities and nothing else — any price
+ * The request supplies variant ids and quantities and nothing else, any price
  * or amount it sends is ignored, so a tampered cart cannot choose what it pays.
  */
 export function resolveLineItems(
@@ -113,7 +113,7 @@ export function buildSessionParams(
  *
  * A flat Stripe Price charges the same unit amount at every quantity, so a
  * published volume discount would silently never apply. Returns problems to
- * log rather than throwing — a pricing misconfiguration should be loud, but it
+ * log rather than throwing, a pricing misconfiguration should be loud, but it
  * should not take the storefront offline, and the customer sees the real total
  * on Stripe's page before paying.
  */

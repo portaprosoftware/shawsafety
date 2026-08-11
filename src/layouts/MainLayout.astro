@@ -13,7 +13,7 @@ import '@styles/global.css';
  * The two Heros cuts that every page paints above the fold. Preloading them
  * skips the round trip the browser would otherwise only start after parsing
  * the stylesheet, which is what makes the `font-display: swap` flash visible.
- * The italic cuts are deliberately left out — they are rare enough that the
+ * The italic cuts are deliberately left out. They are rare enough that the
  * lazy @font-face fetch is the cheaper trade. Imported with `?url` so these
  * point at the same fingerprinted files the CSS resolves to, not a second copy.
  */

@@ -5,7 +5,7 @@
  *
  * `rag:test` proves a question retrieves the right passages. This proves the
  * answer built from them sounds like a rep rather than a search result read
- * aloud — the failure that prompted the prompt rewrite, where a two-word
+ * aloud, the failure that prompted the prompt rewrite, where a two-word
  * question came back as a paragraph about what the retrieval did or did not
  * contain.
  *
@@ -14,8 +14,8 @@
  * The prompt is read out of src/pages/api/ask.ts rather than copied here, so
  * this cannot drift into testing a stale version of it.
  *
- * Style is graded by assertion where it can be — banned phrases are exact
- * strings — and printed in full where it cannot. A human still reads the
+ * Style is graded by assertion where it can be, banned phrases are exact
+ * strings, and printed in full where it cannot. A human still reads the
  * answers; the assertions catch the regressions that are mechanical.
  *
  * Requires OPENAI_API_KEY. Without one it explains what it could not check and
@@ -139,7 +139,7 @@ const apiKey = process.env.OPENAI_API_KEY;
 
 if (!apiKey) {
   console.log(
-    '\nrag:style — OPENAI_API_KEY is not set, so no answer can be generated.\n' +
+    '\nrag:style: OPENAI_API_KEY is not set, so no answer can be generated.\n' +
       `  Prompt read OK: ${systemPrompt.length} chars from src/pages/api/ask.ts\n` +
       `  Index read OK:  ${index.chunks.length} chunks\n` +
       `  Would check ${CASES.length} queries: ${CASES.map(c => `"${c.query}"`).join(', ')}\n\n` +
@@ -211,11 +211,20 @@ async function answer(question) {
   return { text: (payload.choices?.[0]?.message?.content ?? '').trim(), hits };
 }
 
-/** Strip citation markers before length checks — they are not the rep's words. */
+/**
+ * Strip citation markers before the length and prefix checks.
+ *
+ * Nothing should emit one any more, and the case fails below if anything does.
+ * Stripping happens anyway so a stray marker surfaces as the one problem it is
+ * rather than skewing every other assertion with it.
+ */
 const withoutCitations = text => text.replace(/\[\d+\]/g, '').trim();
 
+/** House style: the site uses no em or en dashes, and neither does the rep. */
+const DASHES = /[\u2014\u2013]/;
+
 console.log(
-  `\nResponse-style checks — ${chatModel}, ${index.chunks.length} chunks\n`
+  `\nResponse-style checks, ${chatModel}, ${index.chunks.length} chunks\n`
 );
 
 let failures = 0;
@@ -234,6 +243,16 @@ for (const testCase of CASES) {
     if (lower.includes(phrase)) problems.push(`names ${phrase}`);
   }
 
+  if (DASHES.test(text)) {
+    problems.push('uses an em or en dash, house style is a comma or a period');
+  }
+  if (/\[\d+\]/.test(text)) {
+    problems.push('cites a passage, answers carry no citation markers');
+  }
+  if (/https?:\/\/|\]\(/.test(text)) {
+    problems.push('emits a link, answers are text only');
+  }
+
   const hasContact = CONTACT.some(c => lower.includes(c.toLowerCase()));
   if (testCase.expectContact === false && hasContact) {
     problems.push('appends sales contact to an answer that needs no handoff');
@@ -250,7 +269,7 @@ for (const testCase of CASES) {
   }
   if (firstSentence.length > 160) {
     problems.push(
-      `opening sentence is ${firstSentence.length} chars — too long`
+      `opening sentence is ${firstSentence.length} chars, too long`
     );
   }
 
