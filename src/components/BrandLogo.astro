@@ -4,7 +4,7 @@
  *
  * Prefers a real logo file at `src/images/logo.*`. With no file present it
  * falls back to the drawn wordmark below, so the header is never empty and a
- * missing or renamed asset cannot break the build — globbed rather than
+ * missing or renamed asset cannot break the build, globbed rather than
  * imported for exactly that reason.
  *
  * Both placements sit on a light background, so one artwork covers them. The
@@ -17,7 +17,7 @@ import type { ImageMetadata } from 'astro';
 interface Props {
   class?: string;
   /**
-   * Empty when an ancestor already names the link — the navbar's anchor
+   * Empty when an ancestor already names the link, the navbar's anchor
    * carries "Shaw Safety home", and a described image inside it would be
    * announced twice.
    */
@@ -34,7 +34,7 @@ const source = Object.values(matches)[0]?.default;
 
 /*
  * Rendered at 160px tall against a 28-32px display height. That is well past
- * 2x, which costs little for a logo and keeps it sharp on any display — a
+ * 2x, which costs little for a logo and keeps it sharp on any display, a
  * wordmark rendered at 1x is the first thing that looks cheap on a retina
  * screen. Width follows the source's own ratio, so any shape works without
  * touching this file.

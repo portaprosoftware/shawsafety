@@ -8,7 +8,7 @@
  * Two things fall out of that:
  *
  * 1. Dropping `tie-fluorescent-pink-1.jpg` into the folder is the entire
- *    workflow — no content edit, because the extension is not written down
+ *    workflow. No content edit, because the extension is not written down
  *    anywhere.
  * 2. A missing photo renders a labelled placeholder instead of failing the
  *    build. The content collection previously used Astro's `image()` helper,

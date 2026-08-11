@@ -2,9 +2,9 @@
  * Browser-side dictation: record, normalise, transcribe.
  *
  * Extracted from VoiceInput so the chat composer can dictate too. The two
- * callers want completely different chrome — a microphone tucked into the
+ * callers want completely different chrome, a microphone tucked into the
  * corner of a tall form field, versus a button in a chat composer's button row
- * — but identical behaviour underneath, and the behaviour is the part with the
+ *, but identical behaviour underneath, and the behaviour is the part with the
  * sharp edges: MediaRecorder's per-browser containers, the WAV normalisation
  * that fixed an opaque upstream 400, the auto-stop that closes a forgotten
  * microphone, and releasing the device on every exit path.
@@ -26,7 +26,7 @@ export interface DictationHandlers {
   onText: (text: string) => void;
   /** Progress and errors, already phrased for a visitor. */
   onStatus: (text: string, isError: boolean) => void;
-  /** Recording started or stopped — for swapping the icon and colour. */
+  /** Recording started or stopped, for swapping the icon and colour. */
   onRecordingChange: (recording: boolean) => void;
   /** In flight to the transcription service; the control should be disabled. */
   onBusyChange?: (busy: boolean) => void;
@@ -42,7 +42,7 @@ export interface Dictation {
 /**
  * Recording needs both APIs and a secure context; getUserMedia is undefined
  * over plain HTTP. Callers use this to decide whether to render a control at
- * all — a button that cannot work is worse than no button.
+ * all, a button that cannot work is worse than no button.
  */
 export function isDictationSupported(): boolean {
   return (
@@ -66,7 +66,7 @@ function preferredMimeType(): string {
 /**
  * Insert text at the caret, keeping whatever is already typed.
  *
- * Dictation adds to a field rather than replacing it — someone who typed two
+ * Dictation adds to a field rather than replacing it, someone who typed two
  * sentences and then spoke a third should end up with three.
  */
 export function insertAtCaret(
@@ -79,7 +79,7 @@ export function insertAtCaret(
   const after = field.value.slice(end);
 
   // Space out from adjacent text, so speaking twice does not run words
-  // together — but never open the field with a leading space.
+  // together, but never open the field with a leading space.
   const lead = before && !/\s$/.test(before) ? ' ' : '';
   const trail = after && !/^\s/.test(after) ? ' ' : '';
   const insert = `${lead}${text}${trail}`;
@@ -114,7 +114,7 @@ export function createDictation(handlers: DictationHandlers): Dictation {
    * Drop the mic.
    *
    * Chrome lights the tab's recording dot for as long as anything holds a live
-   * capture, and it stays lit until every one of them lets go — so ending the
+   * capture, and it stays lit until every one of them lets go, so ending the
    * tracks is necessary but not sufficient. Two other references have to go
    * with them: the MediaRecorder, which keeps its own sink on the track and
    * would otherwise sit in the closure until the next recording, and the
@@ -135,7 +135,7 @@ export function createDictation(handlers: DictationHandlers): Dictation {
     const seconds = Math.floor((Date.now() - startedAt) / 1000);
     const mm = String(Math.floor(seconds / 60)).padStart(2, '0');
     const ss = String(seconds % 60).padStart(2, '0');
-    status(`Recording ${mm}:${ss} — tap stop when finished`);
+    status(`Recording ${mm}:${ss}, tap stop when finished`);
   };
 
   const transcribe = async (recorded: Blob) => {
@@ -149,7 +149,7 @@ export function createDictation(handlers: DictationHandlers): Dictation {
      * WAV has one canonical type, no codec parameter, and is accepted
      * everywhere.
      *
-     * If the browser cannot decode its own recording, send the original — the
+     * If the browser cannot decode its own recording, send the original, the
      * recorder's format may well transcribe fine, and a failed conversion is
      * no reason to throw the audio away.
      */
@@ -182,7 +182,7 @@ export function createDictation(handlers: DictationHandlers): Dictation {
       status('Added. Edit as needed.', false);
     } catch {
       // Offline, or the request was cut off mid-flight.
-      status('Network problem — the recording was not sent.', true);
+      status('Network problem. The recording was not sent.', true);
     } finally {
       handlers.onBusyChange?.(false);
     }
@@ -202,7 +202,7 @@ export function createDictation(handlers: DictationHandlers): Dictation {
 
     /*
      * Opening the microphone is asynchronous, and until it resolves there is
-     * no recorder for `toggle` to see as running — so a second click during
+     * no recorder for `toggle` to see as running, so a second click during
      * the wait used to open a second stream and overwrite the first, leaving
      * it live with nothing left holding a reference to stop it. That is the
      * open microphone that survives pressing stop and only clears on reload.
@@ -218,7 +218,7 @@ export function createDictation(handlers: DictationHandlers): Dictation {
       opened = await navigator.mediaDevices.getUserMedia({ audio: true });
     } catch (error) {
       starting = false;
-      // Denied, dismissed, or no input device — all land here, and the
+      // Denied, dismissed, or no input device, all land here, and the
       // distinction is what the visitor needs to hear.
       const denied =
         error instanceof DOMException &&
@@ -233,7 +233,7 @@ export function createDictation(handlers: DictationHandlers): Dictation {
     }
 
     /*
-     * Stopped while the permission prompt was still up — the chat panel does
+     * Stopped while the permission prompt was still up. The chat panel does
      * this when it is dismissed. The stream arrived after the decision to
      * stop, so close it here rather than opening a recording nobody asked for.
      */
@@ -260,7 +260,7 @@ export function createDictation(handlers: DictationHandlers): Dictation {
 
     active.addEventListener('stop', () => {
       /*
-       * `active`, not `recorder` — stopping releases the mic, which clears
+       * `active`, not `recorder`. Stopping releases the mic, which clears
        * `recorder` before this fires, and by then a later recording may
        * already own it.
        */
@@ -280,7 +280,7 @@ export function createDictation(handlers: DictationHandlers): Dictation {
     timer = window.setInterval(tick, 1000);
     autoStop = window.setTimeout(() => {
       stop();
-      status('Reached the 2 minute limit — transcribing what was said.', false);
+      status('Reached the 2 minute limit, transcribing what was said.', false);
     }, MAX_RECORDING_MS);
   };
 

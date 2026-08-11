@@ -1,8 +1,8 @@
 ---
-title: '11-inch zip tie — compliance and certifications'
+title: '11-inch zip tie: compliance and certifications'
 topic: 'product'
 url: '/products/11-inch-zip-tie-100-pack'
-sourceLabel: '11" Fluorescent Zip Tie — Compliance'
+sourceLabel: '11" Fluorescent Zip Tie: Compliance'
 questions:
   - 'Are these ties approved for intermodal container security?'
   - 'Are your zip ties UL listed?'

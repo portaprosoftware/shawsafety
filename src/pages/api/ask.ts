@@ -1,7 +1,10 @@
 /**
  * Grounded question answering over the Shaw Safety knowledge corpus.
  *
- * POST { question, history? } → { ok, answer, sources }
+ * POST { question, history? } → { ok, answer }
+ *
+ * The answer is plain text: no citations, no source list, no links. Retrieval
+ * grounds it, and then disappears.
  *
  * Retrieval-augmented rather than a bare model call: prices, tier breakpoints,
  * and compliance marks are exactly the facts a general model will invent
@@ -37,7 +40,7 @@ const TOP_K = 5;
  * A question longer than this is not a question.
  *
  * Bounds what an unauthenticated caller can push through a billable API, and
- * the ceiling is generous — a buyer pasting a terminal's seal specification
+ * the ceiling is generous, a buyer pasting a terminal's seal specification
  * into the box is a use worth supporting.
  */
 const MAX_QUESTION_CHARS = 800;
@@ -56,7 +59,7 @@ const UPSTREAM_TIMEOUT_MS = 20_000;
  * exists for them and bites immediately on a script. The hourly rule is the
  * one that bounds a day's worth of spend from a single source.
  *
- * Both are enforced per warm instance — see the note in @utils/rateLimit for
+ * Both are enforced per warm instance. See the note in @utils/rateLimit for
  * what that does and does not guarantee.
  */
 const PER_CALLER: Record<string, RateLimitRule> = {
@@ -68,8 +71,8 @@ const PER_CALLER: Record<string, RateLimitRule> = {
  * Instance-wide ceiling, on top of the per-caller rules.
  *
  * The per-caller limit is only as good as the caller's identity, and a
- * distributed source — or anything that reaches this without the edge setting
- * the forwarding headers — presents as many identities. This is the backstop
+ * distributed source, or anything that reaches this without the edge setting
+ * the forwarding headers, presents as many identities. This is the backstop
  * that bounds total spend regardless of how the traffic is spread. It is
  * generous enough that legitimate traffic will not reach it: forty simultaneous
  * conversations at the per-caller hourly limit still fit.
@@ -83,41 +86,43 @@ const GLOBAL_KEY = '__all__';
 
 const SYSTEM_PROMPT = `You are a Shaw Safety rep answering a customer on the site. Shaw Safety sells fluorescent security zip ties and ANSI Class 2 hi-vis safety vests, direct.
 
-You know the catalog because you work here — not because a system is feeding you documents. Answers must come from the numbered passages below, but the customer must never hear about the passages, the retrieval, or "what the context says". They are asking a person.
+You know the catalog because you work here, not because a system is feeding you documents. Answers must come from the numbered passages below, but the customer must never hear about the passages, the retrieval, or "what the context says". They are asking a person.
 
 Ground rules for facts:
 - Never invent or adjust a price, tier breakpoint, SKU, specification, or compliance mark. Quote them exactly as they appear in the passages.
-- Cite the passages you used with bracketed numbers, e.g. [1] or [2][3], at the end of the sentence they support. The citations render as small superscript links; treat them as receipts, not part of your voice.
-- If the passages genuinely do not cover something, say so as a rep would ("I don't have that at hand") and offer the next step — never guess a number to fill a gap.
+- Never cite. No bracketed numbers, no "[1]", no source names, no URLs, no links. The answer is a person talking, and a person does not read footnotes aloud.
+- If the passages genuinely do not cover something, say so as a rep would ("I don't have that at hand") and offer the next step. Never guess a number to fill a gap.
 - You take orders for nobody: if asked to place, change, or cancel an order, or to approve terms or a discount, explain that a person handles that and give the contact.
 
 How to sound:
 - Answer the question first, in one sentence when the answer is one sentence. Detail after, only if it adds something.
-- Direct, plain, American English. Contractions are fine. Short sentences are fine. Match the voice of the site itself — "Industrial zip ties securing fleets for less", not "premium fastening solutions for the modern logistics enterprise".
+- Direct, plain, American English. Contractions are fine. Short sentences are fine. Match the voice of the site itself: "Industrial zip ties securing fleets for less", not "premium fastening solutions for the modern logistics enterprise".
+- Never use an em dash or an en dash. Use a comma, a colon, or a period and a new sentence. Plain hyphens inside words and number ranges are fine.
 - Never narrate the retrieval. Do not say "the context", "the knowledge base", "the provided information", "based on what I have", "the documents show", "according to the information", or any variation. The customer does not know a retrieval system exists.
 - No corporate throat-clearing. Skip "For further inquiries, please contact us at…" as a default sign-off. Every answer does not end with the phone number.
-- When the answer is no, say no clearly — then pivot to what Shaw Safety does offer, if there is something honest to pivot to. Never leave a dead end when a real product answer is available.
-- Surface sales contact only when the question genuinely needs a human — a custom quote, an unlisted spec, a bulk order, a documentation request that will take more than one exchange. Phrase it the way a rep would: "sales can pull that for you — sales@shawsafety.com or (800) 555-0117."
+- When the answer is no, say no clearly, then pivot to what Shaw Safety does offer, if there is something honest to pivot to. Never leave a dead end when a real product answer is available.
+- Surface sales contact only when the question genuinely needs a human: a custom quote, an unlisted spec, a bulk order, a documentation request that will take more than one exchange. Phrase it the way a rep would: "sales can pull that for you, sales@shawsafety.com or (800) 555-0117."
 
-Scope of the compliance marks — this boundary is not negotiable, and the passages will not always state it for you:
+Scope of the compliance marks. This boundary is not negotiable, and the passages will not always state it for you:
 - UL 21S is a cable-management listing under UL 62275. It is not a security-seal certification. It does NOT establish C-TPAT compliance, ISO 17712 conformance, or any CBP or WCO requirement.
-- The passages call the tie "meets intermodal container security requirements". Read that as domestic use — drayage, dry van, LTL, yard moves. Never extend it to international ocean freight.
+- The passages call the tie "meets intermodal container security requirements". Read that as domestic use, drayage, dry van, LTL, yard moves. Never extend it to international ocean freight.
 - C-TPAT requires an ISO 17712 Class H seal (a steel bolt seal or heavy cable seal) on loaded ocean containers bound for the United States. A plastic tie is at most a Class I indicative seal and cannot substitute for one, whatever its tensile rating.
-- On a C-TPAT / ISO 17712 / CBP / international-ocean question: say plainly this tie is an indicative-class seal and is not the right product for that lane, and that Shaw Safety does not carry the bolt or cable seals that would qualify. Do not name any other supplier — Shaw Safety does not have a referral partner. Hand the person to sales if they want help sourcing it.
+- On a C-TPAT / ISO 17712 / CBP / international-ocean question: say plainly this tie is an indicative-class seal and is not the right product for that lane, and that Shaw Safety does not carry the bolt or cable seals that would qualify. Do not name any other supplier, Shaw Safety does not have a referral partner. Hand the person to sales if they want help sourcing it.
 
 Concrete before / after:
 
 Q: "Do you carry blue?"
 Bad: "The context does not mention blue as one of the available colors for the ties. The four colors listed are fluorescent yellow, pink, green, and orange. For further inquiries, please contact us at sales@shawsafety.com or (800) 555-0117."
-Good: "No — we carry four colors: fluorescent yellow, pink, green, and orange [1]. If you need blue for a specific color-coding scheme, tell me what the color is meant to signal and I can suggest which of the four would work best."
+Bad: "No — we carry four colors [1][2]." (an em dash, and citations the customer never asked for)
+Good: "No, we carry four colors: fluorescent yellow, pink, green, and orange. If you need blue for a specific color-coding scheme, tell me what the color is meant to signal and I can suggest which of the four would work best."
 
 Q: "Are these C-TPAT compliant?"
 Bad: "Based on the provided context, the Shaw Safety zip ties are UL 21S listed but not certified for C-TPAT compliance. For C-TPAT requirements, please contact us at sales@shawsafety.com."
-Good: "No — C-TPAT needs an ISO 17712 Class H bolt or cable seal on the container, and Shaw Safety doesn't carry those. Where an indicative seal is what the terminal wants — domestic drayage, yard, LTL — our UL 21S tie is the right product [1]. If you need help sourcing a Class H seal, sales can point you in the right direction."
+Good: "No, C-TPAT needs an ISO 17712 Class H bolt or cable seal on the container, and Shaw Safety doesn't carry those. Where an indicative seal is what the terminal wants (domestic drayage, yard, LTL), our UL 21S tie is the right product. If you need help sourcing a Class H seal, sales can point you in the right direction."
 
 Q: "What's your return policy?"
 Bad: "According to the provided information, unopened packs can be returned within 30 days for a full refund."
-Good: "Unopened packs, 30 days from delivery, full refund. If a tie ever fails to meet its published spec we replace the affected lot at no cost — no time limit on that one [1]."`;
+Good: "Unopened packs, 30 days from delivery, full refund. If a tie ever fails to meet its published spec we replace the affected lot at no cost, with no time limit on that one."`;
 
 function json(
   body: unknown,
@@ -130,7 +135,27 @@ function json(
   });
 }
 
-/** "in 45 seconds" / "in 3 minutes" — a wait a person can act on. */
+/**
+ * Last pass over the model's text before it reaches the widget.
+ *
+ * The prompt forbids both of these, and the prompt is where the fix belongs;
+ * this is the belt to that pair of braces. A citation the widget no longer
+ * renders would otherwise show up as a literal "[2]" in the bubble, and an em
+ * dash is the one piece of punctuation this site does not use anywhere.
+ *
+ * Both replacements are text-level and lossless in meaning: the bracket goes,
+ * the dash becomes the comma it was standing in for.
+ */
+function clean(text: string): string {
+  return text
+    .replace(/\s*\[\d+(?:\s*,\s*\d+)*\]/g, '')
+    .replace(/\s*[—–]\s*/g, ', ')
+    .replace(/\s+([.,;:!?])/g, '$1')
+    .replace(/,\s*,/g, ',')
+    .trim();
+}
+
+/** "in 45 seconds" / "in 3 minutes", a wait a person can act on. */
 function humanWait(seconds: number): string {
   if (seconds < 90) return `in ${seconds} second${seconds === 1 ? '' : 's'}`;
   const minutes = Math.ceil(seconds / 60);
@@ -246,7 +271,7 @@ export const POST: APIRoute = async ({ request }) => {
   }
 
   if (!ragIndex || ragIndex.chunks.length === 0) {
-    console.error('[ask] no retrieval index — run `pnpm rag:index` and deploy');
+    console.error('[ask] no retrieval index. Run `pnpm rag:index` and deploy');
     return json(
       {
         ok: false,
@@ -259,7 +284,7 @@ export const POST: APIRoute = async ({ request }) => {
 
   /*
    * Limits are checked before the body is read, so a flood is rejected without
-   * this route parsing anything — and long before either OpenAI call.
+   * this route parsing anything, and long before either OpenAI call.
    *
    * Both sets of rules are tested before either is charged, so a request the
    * instance ceiling turns away does not also spend the caller's own
@@ -290,7 +315,7 @@ export const POST: APIRoute = async ({ request }) => {
         error:
           limited.rule === 'global'
             ? `The assistant is busy right now. Try again ${humanWait(limited.retryAfter)}, or call (800) 555-0117.`
-            : `That is a lot of questions at once. Try again ${humanWait(limited.retryAfter)}, or call (800) 555-0117 — Mon–Fri, 8am–5pm ET.`,
+            : `That is a lot of questions at once. Try again ${humanWait(limited.retryAfter)}, or call (800) 555-0117, Mon-Fri, 8am-5pm ET.`,
         retryAfter: limited.retryAfter,
       },
       429,
@@ -341,7 +366,7 @@ export const POST: APIRoute = async ({ request }) => {
   /*
    * Nothing retrieved means the corpus has nothing to say. Answering anyway
    * from an empty context is precisely how a storefront assistant ends up
-   * inventing a return window, so the route declines instead — and does it
+   * inventing a return window, so the route declines instead, and does it
    * without spending a completion call.
    */
   if (hits.length === 0) {
@@ -349,7 +374,7 @@ export const POST: APIRoute = async ({ request }) => {
       {
         ok: true,
         answer:
-          'I do not have anything on that. For anything outside what is published on the site, email sales@shawsafety.com or call (800) 555-0117 — Monday to Friday, 8am–5pm ET.',
+          'I do not have anything on that. For anything outside what is published on the site, email sales@shawsafety.com or call (800) 555-0117, Monday to Friday, 8am-5pm ET.',
         sources: [],
       },
       200
@@ -415,22 +440,20 @@ export const POST: APIRoute = async ({ request }) => {
   }
 
   /*
-   * Sources are returned for every retrieved passage in citation order, so a
-   * caller can render "[2]" as a link to the page it came from. Scores ride
-   * along because they are the only signal available for tuning the retrieval
-   * threshold against real questions.
+   * The answer ships as text and nothing else. No source list, no citation
+   * numbers, no links: the widget renders a rep talking, and a rep does not
+   * hand over a bibliography. Retrieval is still what the answer is built
+   * from, it just never surfaces.
+   *
+   * Which passages were used is logged rather than returned, because the
+   * scores are the only signal available for tuning the retrieval threshold
+   * against real questions and losing them would make that untunable.
    */
-  return json(
-    {
-      ok: true,
-      answer,
-      sources: hits.map((hit, i) => ({
-        n: i + 1,
-        title: hit.chunk.sourceLabel,
-        url: hit.chunk.url,
-        score: Number(hit.score.toFixed(3)),
-      })),
-    },
-    200
+  console.info(
+    `[ask] answered from ${hits
+      .map(hit => `${hit.chunk.id}@${hit.score.toFixed(3)}`)
+      .join(', ')}`
   );
+
+  return json({ ok: true, answer: clean(answer) }, 200);
 };

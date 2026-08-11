@@ -1,8 +1,8 @@
 ---
-title: '11-inch zip tie — full technical specifications'
+title: '11-inch zip tie: full technical specifications'
 topic: 'product'
 url: '/products/11-inch-zip-tie-100-pack'
-sourceLabel: '11" Fluorescent Zip Tie — Specifications'
+sourceLabel: '11" Fluorescent Zip Tie: Specifications'
 questions:
   - 'What is the tensile strength of your zip ties?'
   - 'How long are the ties?'
@@ -31,7 +31,7 @@ product page:
 - **Flammability rating:** UL 94 V-2
 
 The 11-inch length is sized specifically for intermodal container locking
-mechanisms — long enough to wrap the bar, short enough not to snag. The 75-lb
+mechanisms, long enough to wrap the bar, short enough not to snag. The 75-lb
 rating is intended for daily transport operations and holds through road
 vibration, weather, and yard handling without creeping. A dimensioned spec
 drawing is available per color from the "View Spec" link on the product page.

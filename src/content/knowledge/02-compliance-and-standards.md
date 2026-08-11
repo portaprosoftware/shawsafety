@@ -2,7 +2,7 @@
 title: 'Compliance and standards'
 topic: 'product'
 url: '/products/11-inch-zip-tie-100-pack'
-sourceLabel: '11" Fluorescent Zip Tie — Compliance'
+sourceLabel: '11" Fluorescent Zip Tie: Compliance'
 chunkBy: 'section'
 questions:
   - 'Are these C-TPAT compliant?'
@@ -29,11 +29,11 @@ keywords:
 
 ## What "UL 21S listed" actually means
 
-UL 21S is a cable tie type classification under UL 62275, the standard for
-Cable Management Systems. A Type 21S tie has to meet the same requirements as a
-Type 21 tie — 100% retention of declared loop tensile strength after specified
-environmental conditioning, plus material qualification under UL 746A
-(short-term) and UL 746B (long-term) — with one added requirement: a minimum
+UL 21S is a cable tie type classification under UL 62275, the standard for Cable
+Management Systems. A Type 21S tie has to meet the same requirements as a Type
+21 tie. That means 100% retention of declared loop tensile strength after
+specified environmental conditioning, plus material qualification under UL 746A
+(short-term) and UL 746B (long-term), with one added requirement: a minimum
 declared loop tensile strength of 50 lb (220 N). Shaw Safety's 11" fluorescent
 tie is declared at 75 lb (334 N), well above the 21S floor.
 
@@ -62,7 +62,7 @@ Class H seals. Anyone who needs one should source it from a supplier of
 high-security barrier seals; Shaw Safety's sales team can confirm the boundary
 in writing but cannot supply that class of product.
 
-## ISO 17712 — when Shaw Safety is not the right product
+## ISO 17712: when Shaw Safety is not the right product
 
 ISO 17712 is the international standard for mechanical freight container seals.
 It defines three barrier classes: "I" indicative, "S" security, and "H" high
@@ -116,7 +116,7 @@ inside their warehouse.
 
 ## When indicative seals are the right tool
 
-Indicative seals — the category Shaw Safety's tie sits in — are designed to
+Indicative seals, the category Shaw Safety's tie sits in, are designed to
 prove that a door was not opened between two known checkpoints, not to
 physically resist a determined attacker. They are the correct product for:
 
@@ -138,7 +138,7 @@ without leaving obvious damage to the head casing or the pawl teeth.
 Any attempt to defeat the seal will show one of three signatures: a visibly
 deformed head, a partially cut and re-tied body, or a color mismatch if the tie
 was replaced with a substitute. This is why fluorescent color assignment per
-lane or shift matters — a swap is instantly visible even without checking a
+lane or shift matters. A swap is instantly visible even without checking a
 serial number.
 
 ## Documentation and certificates
@@ -158,9 +158,9 @@ complete a standard supplier questionnaire.
 
 ## Written seal specification match
 
-If a terminal, broker, or receiver has a written seal specification — for
+If a terminal, broker, or receiver has a written seal specification (for
 example, an SOP that requires "an 11-inch indicative security seal, UL 21S
-listed, minimum 50-lb tensile, fluorescent color" — send the specification to
+listed, minimum 50-lb tensile, fluorescent color"), send the specification to
 Shaw Safety before ordering. A team member will compare the spec to the current
 product datasheet and reply in writing confirming the match, or flag any line
 item that does not conform, before the purchase is committed. This step is free

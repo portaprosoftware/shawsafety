@@ -58,10 +58,7 @@ export function attachFormHandler({
 
       if (response.ok && result?.ok) {
         form.reset();
-        show(
-          'Thanks — we have got it. We reply within one business day.',
-          'ok'
-        );
+        show('Thanks. We have got it. We reply within one business day.', 'ok');
         // Nothing left to submit; leave the button disabled.
         submit.textContent = 'Sent';
         return;

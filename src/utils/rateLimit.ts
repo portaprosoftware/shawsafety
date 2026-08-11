@@ -1,9 +1,9 @@
 /**
  * Sliding-window rate limiter for public API endpoints.
  *
- * A test one endpoint applies against several rules at once — `/api/ask`
+ * A test one endpoint applies against several rules at once, `/api/ask`
  * enforces a burst rule and an hourly rule per caller, and an instance-wide
- * ceiling on top of that — so the interface takes a `rules` object rather than
+ * ceiling on top of that, so the interface takes a `rules` object rather than
  * a single limit and returns the name of the rule that rejected. Two independent
  * peek-then-commit checks then let a request be rejected by the ceiling without
  * charging its per-caller quota for a question that was never answered.
@@ -15,15 +15,15 @@
  * ## Backend
  *
  * State is held either in **Upstash Redis** (via its HTTP API, no client SDK)
- * or in a module-scoped map. The module chooses at call time — set the
+ * or in a module-scoped map. The module chooses at call time. Set the
  * `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` pair (or one of the
  * common aliases below) and every hit goes to Redis; leave them unset and it
  * runs in memory.
  *
  * The in-memory path only catches repeat calls landing on the same warm
  * serverless instance, so a scripted attacker cycling requests across cold
- * starts gets unlimited quota. It is meaningfully better than nothing — a
- * real user hammering a button hits it every time — but is not a guarantee.
+ * starts gets unlimited quota. It is meaningfully better than nothing, a
+ * real user hammering a button hits it every time, but is not a guarantee.
  * The point of the Upstash path is to make the limit actually global. On
  * Upstash failure the limiter fails **open** with a loud log: a Redis outage
  * should not take these endpoints offline for real users, and monitoring
@@ -54,8 +54,8 @@ export interface CheckOptions {
    * Whether a passing check consumes the allowance.
    *
    * `false` tests without spending, which is what lets a caller be checked
-   * against two independent sets of rules — its own and an instance-wide
-   * ceiling — and only charged once both have passed. Charging as it goes
+   * against two independent sets of rules, its own and an instance-wide
+   * ceiling, and only charged once both have passed. Charging as it goes
    * would make a request rejected by the second rule still cost the caller
    * its allowance under the first, for a question that was never answered.
    */
@@ -65,8 +65,8 @@ export interface CheckOptions {
 /**
  * Backend contract.
  *
- * A store answers one question — "for this key, how many timestamps are
- * still inside each of these windows?" — and, on `record`, adds one more.
+ * A store answers one question, "for this key, how many timestamps are
+ * still inside each of these windows?", and, on `record`, adds one more.
  * The reject/allow decision itself lives in `check()`, so both backends stay
  * dumb: no rule vocabulary, no logging, no HTTP.
  */
@@ -91,7 +91,7 @@ const hits = new Map<string, number[]>();
 /**
  * Ceiling on tracked keys.
  *
- * Without it, one request per forged IP grows the table without bound — the
+ * Without it, one request per forged IP grows the table without bound, the
  * limiter becomes the memory leak it was added to prevent. At the cap the
  * least recently seen keys are dropped, which is the right thing to lose:
  * a key with no recent hits is a caller that is no longer near its limit.
@@ -139,7 +139,7 @@ interface UpstashConfig {
  * The bare names are the ones this repo documents and expects. The `KV_*`
  * pair matches Vercel's older KV integration. The absurd
  * `UPSTASH_REDIS_REST_KV_REST_API_*` names are what the current Vercel
- * Marketplace integration for Upstash actually injects — the Marketplace
+ * Marketplace integration for Upstash actually injects, the Marketplace
  * prefixes every variable with the storage slug, and the integration's slug
  * happens to be `UPSTASH_REDIS_REST`. Recognising all three means a real
  * deploy works without adding manual aliases in the dashboard.
@@ -199,7 +199,7 @@ async function upstashCountsAndMaybeRecord(
   }
   if (record) {
     // Member must be unique per ZADD, so a random tail is appended. Score is
-    // still the raw timestamp — that is what the window is measured against.
+    // still the raw timestamp. That is what the window is measured against.
     const member = `${now}-${Math.floor(Math.random() * 1e9)}`;
     commands.push(['ZADD', key, String(now), member]);
     // Expiry is a hair over the horizon so an idle key gets cleaned up but
@@ -275,7 +275,7 @@ function pickStore(): Store {
  *
  * Nothing is recorded on rejection: a caller who keeps hammering while
  * limited would otherwise push their own window forward on every attempt and
- * never come back — a limiter that turns a burst into a permanent ban.
+ * never come back, a limiter that turns a burst into a permanent ban.
  */
 export async function check(
   key: string,
@@ -290,7 +290,7 @@ export async function check(
     key,
     now,
     windowsMs,
-    // Read first, without recording — the write only happens if every rule
+    // Read first, without recording, the write only happens if every rule
     // passes.
     false
   );
@@ -315,7 +315,7 @@ export async function check(
  * Identify the caller.
  *
  * On Vercel every request arrives through the edge, which sets these headers
- * itself and overwrites anything the client sent — so they are trustworthy
+ * itself and overwrites anything the client sent, so they are trustworthy
  * *there*. Running this behind something that forwards client headers
  * blindly would let a caller pick its own bucket, which is worth knowing
  * before moving the deploy.
@@ -354,7 +354,7 @@ export function backendInfo(): {
 }
 
 /**
- * Test hook. Not part of the public interface — the in-memory store is a
+ * Test hook. Not part of the public interface, the in-memory store is a
  * module-scoped singleton and tests need a way to reset it between cases so
  * one case does not exhaust another's quota.
  */

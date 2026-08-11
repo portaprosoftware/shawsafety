@@ -21,7 +21,7 @@ const activeIndex = Math.max(
 
 /**
  * Pre-optimize every variant image up front. The color switcher is
- * client-side, so all sources must already exist in the HTML — swapping
+ * client-side, so all sources must already exist in the HTML, swapping
  * colors must not trigger a network round trip.
  */
 const variants = await Promise.all(
@@ -38,7 +38,7 @@ const variants = await Promise.all(
 
     /*
      * Spec sheets are dimensioned drawings with fine annotation, so they are
-     * rendered near their natural width rather than thumbnailed — anything
+     * rendered near their natural width rather than thumbnailed. Anything
      * smaller is unreadable.
      */
     const spec = variant.spec
@@ -334,7 +334,7 @@ const clientData = {
     {
       /*
       Compliance marks. Pills sized to their text wrap into a ragged staircase
-      on a phone — one on the first row, two on the next — which reads as a
+      on a phone, one on the first row, two on the next, which reads as a
       layout bug rather than a list. Below `sm` they become full-width rows of
       equal height with the ticks in one column; the pills return with the
       space to sit on a line together.
@@ -421,7 +421,7 @@ const clientData = {
           There was an "Open full size" link here. It was removed because it
           did not deliver: the spec renders at 1600px into a modal already
           close to that wide, so the new tab was barely larger than the view
-          it replaced — a control that costs a tab and returns nothing.
+          it replaced, a control that costs a tab and returns nothing.
         */
         }
         <button
@@ -513,14 +513,14 @@ const clientData = {
           const range =
             tier.maxQty === null
               ? `${tier.minQty}+`
-              : `${tier.minQty}–${tier.maxQty}`;
+              : `${tier.minQty}-${tier.maxQty}`;
           return `
             <tr class="border-b border-neutral-100 last:border-0 transition-colors ${
               isActive ? 'bg-maroon-50' : ''
             }">
               <td class="px-4 py-2.5 font-medium ${isActive ? 'text-maroon-800' : 'text-neutral-700'}">${range}</td>
               <td class="px-4 py-2.5 font-semibold ${isActive ? 'text-maroon-800' : 'text-neutral-900'}">${formatMoney(tier.pricePerUnit)}</td>
-              <td class="px-4 py-2.5 ${saved > 0 ? 'font-semibold text-green-700' : 'text-neutral-400'}">${saved > 0 ? `${saved}% off` : '—'}</td>
+              <td class="px-4 py-2.5 ${saved > 0 ? 'font-semibold text-green-700' : 'text-neutral-400'}">${saved > 0 ? `${saved}% off` : '-'}</td>
             </tr>`;
         })
         .join('');
@@ -559,7 +559,7 @@ const clientData = {
         if (nudge && nudge.unitsAway > 0) {
           nudgeEl.textContent = `Add ${nudge.unitsAway} more ${data.unit}${
             nudge.unitsAway === 1 ? '' : 's'
-          } to save ${nudge.percent}% — ${formatMoney(nudge.pricePerUnit)} per ${data.unit}.`;
+          } to save ${nudge.percent}%, ${formatMoney(nudge.pricePerUnit)} per ${data.unit}.`;
           nudgeEl.classList.remove('hidden');
         } else {
           nudgeEl.classList.add('hidden');

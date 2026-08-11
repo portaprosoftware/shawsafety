@@ -1,5 +1,5 @@
 ---
-title: 'Why Shaw Safety exists — the business model'
+title: 'Why Shaw Safety exists: the business model'
 topic: 'company'
 url: '/about'
 sourceLabel: 'About Shaw Safety'

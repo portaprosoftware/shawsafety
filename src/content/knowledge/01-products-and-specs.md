@@ -2,7 +2,7 @@
 title: 'Products and specifications'
 topic: 'product'
 url: '/products/11-inch-zip-tie-100-pack'
-sourceLabel: '11" Fluorescent Zip Tie — Specifications'
+sourceLabel: '11" Fluorescent Zip Tie: Specifications'
 chunkBy: 'section'
 questions:
   - 'What products does Shaw Safety sell?'
@@ -36,18 +36,18 @@ required to order.
 ## The four fluorescent zip tie SKUs
 
 All four ties are identical in construction, dimensions, tensile strength, and
-compliance — the only difference is the pigment. Fleets typically pick a color
+compliance. The only difference is the pigment. Fleets typically pick a color
 per lane, per shift, per month, or per driver so a broken or swapped seal is
 immediately obvious at a glance without needing to read a serial number.
 
-- 11" Fluorescent Yellow Zip Tie, 100-Pack — the lead-in SKU and highest-volume
+- 11" Fluorescent Yellow Zip Tie, 100-Pack: the lead-in SKU and highest-volume
   color. Retail $2.69 per pack, down to $2.19 at volume.
-- 11" Fluorescent Pink Zip Tie, 100-Pack — retail $2.99 per pack, down to $2.49
+- 11" Fluorescent Pink Zip Tie, 100-Pack: retail $2.99 per pack, down to $2.49
   at volume.
-- 11" Fluorescent Green Zip Tie, 100-Pack — retail $2.99 per pack, down to
-  $2.49 at volume.
-- 11" Fluorescent Orange Zip Tie, 100-Pack — retail $2.99 per pack, down to
-  $2.49 at volume.
+- 11" Fluorescent Green Zip Tie, 100-Pack: retail $2.99 per pack, down to $2.49
+  at volume.
+- 11" Fluorescent Orange Zip Tie, 100-Pack: retail $2.99 per pack, down to $2.49
+  at volume.
 
 ## Full mechanical specification
 

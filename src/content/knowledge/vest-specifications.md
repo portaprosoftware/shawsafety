@@ -1,8 +1,8 @@
 ---
-title: 'Hi-vis safety vest — full specifications'
+title: 'Hi-vis safety vest: full specifications'
 topic: 'product'
 url: '/products/class-2-hi-vis-safety-vest'
-sourceLabel: 'Class 2 Hi-Vis Safety Vest — Specifications'
+sourceLabel: 'Class 2 Hi-Vis Safety Vest: Specifications'
 questions:
   - 'What are the vest specifications?'
   - 'What sizes do the vests come in?'

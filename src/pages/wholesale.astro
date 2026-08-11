@@ -15,7 +15,7 @@ const products = (await getCollection('products')).sort(
 const calcOptions = products.flatMap(p =>
   p.data.variants.map(v => ({
     id: `${p.id}::${v.id}`,
-    label: `${p.data.shortTitle} — ${v.name}`,
+    label: `${p.data.shortTitle}, ${v.name}`,
     unit: p.data.unit,
     packSize: p.data.packSize,
     subUnit: p.data.subUnit ?? null,
@@ -101,7 +101,7 @@ const reasons = [
             {
               icon: 'container',
               title: 'Consistent Inventory',
-              body: 'Stock you can plan around — every color, every size, ready to ship when the job calls for it.',
+              body: 'Stock you can plan around. Every color, every size, ready to ship when the job calls for it.',
             },
             {
               icon: 'tag',
@@ -136,7 +136,7 @@ const reasons = [
 
   <PricingSection
     title="Two Tiers, Published Up Front"
-    subTitle="Discounts apply automatically at checkout. The deeper tier is not a negotiated rate — it is the price at that quantity."
+    subTitle="Discounts apply automatically at checkout. The deeper tier is not a negotiated rate. It is the price at that quantity."
     showCta={false}
     compactHeading
     spacingClass="py-14 lg:py-20"
@@ -274,8 +274,8 @@ const reasons = [
           Request a Bulk Quote
         </h2>
         <p class="mt-4 text-white/85">
-          Pallet-scale orders, mixed sizing, printed ties, or serialized seals —
-          tell us what the job needs and we will come back with pricing and a
+          Pallet-scale orders, mixed sizing, printed ties, or serialized seals.
+          Tell us what the job needs and we will come back with pricing and a
           lead time within one business day.
         </p>
         <ul class="mt-8 space-y-3">
@@ -441,7 +441,7 @@ const reasons = [
 
     if (totalEl) totalEl.textContent = formatMoney(total);
     if (unitEl) unitEl.textContent = formatMoney(unitPrice);
-    if (savingsEl) savingsEl.textContent = saved > 0 ? formatMoney(saved) : '—';
+    if (savingsEl) savingsEl.textContent = saved > 0 ? formatMoney(saved) : '-';
     if (unitsEl)
       unitsEl.textContent = `${(qty * option.packSize).toLocaleString('en-US')} ${
         option.subUnit ? `${option.subUnit}s` : 'units'
@@ -452,7 +452,7 @@ const reasons = [
       if (nudge && nudge.unitsAway > 0) {
         nudgeEl.textContent = `Add ${nudge.unitsAway} more ${option.unit}${
           nudge.unitsAway === 1 ? '' : 's'
-        } to reach ${formatMoney(nudge.pricePerUnit)} per ${option.unit} — ${nudge.percent}% off.`;
+        } to reach ${formatMoney(nudge.pricePerUnit)} per ${option.unit}, ${nudge.percent}% off.`;
         nudgeEl.classList.remove('hidden');
       } else {
         nudgeEl.classList.add('hidden');

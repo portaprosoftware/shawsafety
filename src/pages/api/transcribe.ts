@@ -2,7 +2,7 @@
  * Speech-to-text for the dictation button on multi-line form fields.
  *
  * The browser records audio, posts it here, and gets plain text back. This
- * route exists purely so the ElevenLabs key stays on the server — calling
+ * route exists purely so the ElevenLabs key stays on the server, calling
  * their API straight from the page would publish it to anyone who opens
  * devtools, and it is a billable credential.
  *
@@ -21,7 +21,7 @@ export const prerender = false;
  *
  * Two names rather than one because both exist in the project right now.
  * Ordered, not merged: whichever is found first wins outright, so there is
- * always a single answer to "which key is live" — and `GET` reports which,
+ * always a single answer to "which key is live", and `GET` reports which,
  * since two configured keys mean a failure could belong to either.
  */
 const KEY_VARS = ['SHAW_ELEVENLABS', 'ELEVENLABS_API_KEY'] as const;
@@ -40,7 +40,7 @@ const ELEVENLABS_STT_URL = 'https://api.elevenlabs.io/v1/speech-to-text';
 /**
  * ElevenLabs' general-purpose transcription model.
  *
- * Availability is per account, not universal — a plan without this model
+ * Availability is per account, not universal, a plan without this model
  * returns a 400 naming it, which surfaces here as "Could not transcribe that
  * audio" with the model id in the server log.
  */
@@ -50,7 +50,7 @@ const MODEL_ID = 'scribe_v2';
  * Per-caller throttle for a public, billable endpoint.
  *
  * Ten recordings per minute is generous for a real visitor tapping the mic
- * repeatedly, and punishing for a script — a scraper trying to burn
+ * repeatedly, and punishing for a script, a scraper trying to burn
  * ElevenLabs credits gets exactly ten. Rules are named because the shared
  * limiter reports which one rejected, which is useful when logs need to name
  * the reason.
@@ -63,9 +63,9 @@ const RATE_LIMIT = {
  * Ceiling on an upload, in bytes.
  *
  * The client sends 16 kHz mono 16-bit WAV capped at ten seconds by the UI,
- * which is around 320 KB plus header. 2 MB is comfortably above that — it
+ * which is around 320 KB plus header. 2 MB is comfortably above that. It
  * covers a legitimate recording that Safari happened to send at a higher
- * rate, or an encoder we later swap in that spends more bytes — while still
+ * rate, or an encoder we later swap in that spends more bytes, while still
  * refusing anything an attacker would send to burn credits or bandwidth
  * against this unauthenticated endpoint.
  */
@@ -90,7 +90,7 @@ function json(body: unknown, status: number): Response {
  * dictation misbehaves, and an unhandled GET logs a router warning that looks
  * like a routing fault rather than someone visiting a POST-only URL. Reports
  * whether the key is configured, which is the one piece of setup worth
- * checking from outside — the key itself is never echoed.
+ * checking from outside, the key itself is never echoed.
  */
 export const GET: APIRoute = () => {
   const key = resolveKey();
@@ -101,14 +101,14 @@ export const GET: APIRoute = () => {
       configured: Boolean(key),
       /*
        * Which variable supplied it. With two names in play, "the key is
-       * wrong" is not actionable without knowing which one is being read —
+       * wrong" is not actionable without knowing which one is being read,
        * fixing the wrong variable looks exactly like the fix not working.
        */
       keySource: key?.name ?? null,
       /*
        * Shape only, never the value. A key set to something that is not an
-       * ElevenLabs key at all — a webhook secret, a token from another
-       * service — is indistinguishable from a correct one until a real
+       * ElevenLabs key at all, a webhook secret, a token from another
+       * service, is indistinguishable from a correct one until a real
        * request fails, and the failure reads like an audio problem. This
        * makes that visible without a recording.
        */
@@ -129,7 +129,7 @@ export const GET: APIRoute = () => {
  *
  * A validator matching against an allowlist compares the whole string, so the
  * codec parameter the browser attaches turns an accepted type into a rejected
- * one — and the resulting 400 says nothing about why.
+ * one, and the resulting 400 says nothing about why.
  */
 function baseType(type: string): string {
   return type.split(';')[0]!.trim().toLowerCase();
@@ -137,7 +137,7 @@ function baseType(type: string): string {
 
 export const POST: APIRoute = async ({ request }) => {
   /*
-   * Throttle before doing any work — every earlier check either reads
+   * Throttle before doing any work. Every earlier check either reads
    * headers or spends bytes parsing the body. Rate-limit rejection at the
    * front means an abuser cannot force the function to touch multipart or
    * hit ElevenLabs at all.
@@ -204,7 +204,7 @@ export const POST: APIRoute = async ({ request }) => {
 
   /*
    * The type is browser-reported and trivially forgeable, so this is not a
-   * security boundary — it just fails an obvious mistake here instead of
+   * security boundary. It just fails an obvious mistake here instead of
    * spending an API call to have ElevenLabs reject it.
    */
   if (audio.type && !ACCEPTED_TYPE.test(audio.type)) {
@@ -248,7 +248,7 @@ export const POST: APIRoute = async ({ request }) => {
      * quota state, which is nothing a visitor should see.
      *
      * The request shape is logged alongside it because the body on its own
-     * does not say what was sent — an earlier round of this failed with a bare
+     * does not say what was sent, an earlier round of this failed with a bare
      * `400 {"detail":...}` and no way to tell which field it objected to.
      */
     const body = await response.text().catch(() => '(no body)');
@@ -271,7 +271,7 @@ export const POST: APIRoute = async ({ request }) => {
      * reporting it as the latter is actively misleading: it sends whoever is
      * debugging to look at audio formats while the real problem is one
      * environment variable. ElevenLabs signals this as 401/403, and also as a
-     * 400 carrying an authentication_error — hence matching the body too.
+     * 400 carrying an authentication_error, hence matching the body too.
      *
      * Reported to the visitor exactly like a missing key, because from where
      * they stand it is the same thing: dictation is not set up, and no amount
@@ -284,7 +284,7 @@ export const POST: APIRoute = async ({ request }) => {
     ) {
       console.error(
         `[transcribe] the key in ${key.name} was rejected by ElevenLabs. ` +
-          'Check that value in Vercel — an ElevenLabs key begins with "sk_". ' +
+          'Check that value in Vercel, an ElevenLabs key begins with "sk_". ' +
           'Dictation stays off until it is corrected.'
       );
       return json(

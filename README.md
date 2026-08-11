@@ -1,6 +1,6 @@
 # Shaw Safety
 
-Storefront for Shaw Safety — fluorescent security zip ties and ANSI Class 2
+Storefront for Shaw Safety, fluorescent security zip ties and ANSI Class 2
 hi-vis vests, sold direct at published wholesale pricing.
 
 Built with [Astro 7](https://astro.build), Tailwind CSS v4, and
@@ -13,7 +13,7 @@ pnpm install
 pnpm dev        # http://localhost:4321
 pnpm build      # check → build → minify → report missing product photos
 pnpm test:smoke # serves dist/ and asserts every route resolves
-pnpm format:fix # CI fails on unformatted files — run before committing
+pnpm format:fix # CI fails on unformatted files. Run before committing
 ```
 
 ## Structure
@@ -24,7 +24,7 @@ pnpm format:fix # CI fails on unformatted files — run before committing
 | `src/content/products/`        | Product data as Markdown frontmatter. Schema in `src/content.config.ts`.               |
 | `src/content/knowledge/`       | RAG corpus. Page-anchored chunks plus section-split reference documents.               |
 | `src/assets/scripts/`          | Cart store, pricing math, and the checkout adapter.                                    |
-| `src/assets/styles/global.css` | The entire theme. Tailwind v4 `@theme` block — there is no `tailwind.config.js`.       |
+| `src/assets/styles/global.css` | The entire theme. Tailwind v4 `@theme` block. There is no `tailwind.config.js`.        |
 | `src/data_files/constants.ts`  | Site metadata, trust marks, marquee copy.                                              |
 | `src/utils/navigation.ts`      | Nav and footer links.                                                                  |
 
@@ -36,7 +36,7 @@ used in markup must be declared in the `@theme` block of
 
 The brand is one maroon scale anchored on `#9B1C2E`, plus semantic aliases
 (`--color-brand`, `--color-brand-grad-from`/`-to`). To retune the brand, edit
-those tokens — no component markup references a raw hex.
+those tokens. No component markup references a raw hex.
 
 `--color-fluoro-*` are _product_ colors (the actual tie pigments) and should
 never be used for UI chrome.
@@ -44,7 +44,7 @@ never be used for UI chrome.
 ### Icons sit on the page, never in a tile
 
 A site-wide rule: an icon is never given a filled shape behind it. No rounded
-squares, no circles, no pastel wash, no translucent or blurred "glass" panel —
+squares, no circles, no pastel wash, no translucent or blurred "glass" panel,
 the icon draws directly on whatever the page background already is, and colour
 carries it.
 
@@ -53,7 +53,7 @@ a white glyph on maroon becomes a maroon glyph, and a black glyph on a
 fluorescent swatch becomes a fluorescent glyph. `TrustStrip.astro` is the
 reference implementation.
 
-Icons _inside a control_ are not tiles and are left alone — the glyph in a
+Icons _inside a control_ are not tiles and are left alone, the glyph in a
 button, in the search field's submit affordance, or in a labelled chip is part
 of that control's own surface. The rule is about decorative containers whose
 only job is to sit behind an icon.
@@ -66,7 +66,7 @@ can never disagree.
 
 Volume tiers are authored per product in content frontmatter, ascending, with
 the last tier open-ended (`maxQty: null`). A variant may override the product's
-default ladder — fluorescent yellow does this as the lead-in SKU.
+default ladder, fluorescent yellow does this as the lead-in SKU.
 
 ## Cart and checkout
 
@@ -84,14 +84,14 @@ imports so it can be tested directly.
 | Variable                                               | Required | Purpose                                     |
 | ------------------------------------------------------ | -------- | ------------------------------------------- |
 | `STRIPE_SECRET_KEY`                                    | yes      | Creates the Checkout Session. Server-only.  |
-| `STRIPE_PRICE_YELLOW` / `_PINK` / `_GREEN` / `_ORANGE` | —        | Price ID per tie colour. All four are live. |
-| `STRIPE_PRICE_VEST_LIME` / `_VEST_ORANGE`              | —        | The vests.                                  |
+| `STRIPE_PRICE_YELLOW` / `_PINK` / `_GREEN` / `_ORANGE` | no       | Price ID per tie colour. All four are live. |
+| `STRIPE_PRICE_VEST_LIME` / `_VEST_ORANGE`              | no       | The vests.                                  |
 | `STRIPE_CHECKOUT_WEBHOOK_SECRET`                       | yes      | Verifies order webhooks. Server-only.       |
 
 The variant-to-variable mapping is `src/utils/stripePrices.ts`. **A variant
 with no Price ID cannot be bought**: checkout refuses the whole order and names
 the item, rather than quietly dropping it and charging for the rest. Adding a
-colour is one environment variable — no code change.
+colour is one environment variable. No code change.
 
 ### Volume tiers must be configured in Stripe
 
@@ -103,7 +103,7 @@ while the page says otherwise.
 
 Set the Stripe Price to **graduated or volume tiers** matching the ladder in the
 product frontmatter. On every checkout the endpoint retrieves the Price and logs
-an error if the two disagree — either because the Price is flat while the site
+an error if the two disagree, either because the Price is flat while the site
 advertises tiers, or because the unit amount does not match the listed price.
 Check the Vercel function log after the first live order.
 
@@ -118,13 +118,13 @@ pays.
 Stripe. An explicit zero-cost shipping rate is attached so the customer sees
 "Free U.S. shipping" rather than a blank line. Promotion codes are enabled.
 
-On return, `/checkout/success` clears the cart — deliberately not at redirect
+On return, `/checkout/success` clears the cart, deliberately not at redirect
 time, so abandoning Stripe keeps the basket intact.
 
 ### Order notifications
 
 `/api/stripe-webhook` listens for `checkout.session.completed` and emails the
-order — customer, phone, shipping address, line items, total — to `CONTACT_TO`
+order, customer, phone, shipping address, line items, total, to `CONTACT_TO`
 via Resend, so fulfilment does not depend on watching the Stripe dashboard.
 
 Configure the webhook in Stripe against
@@ -145,7 +145,7 @@ Two behaviours worth knowing:
 ### CSRF
 
 Astro rejects cross-site form POSTs, so `/api/contact` and `/api/transcribe`
-both require a matching `Origin` header — browsers send one, `curl` does not.
+both require a matching `Origin` header, browsers send one, `curl` does not.
 That protection is a side effect of their content type (form-encoded and
 multipart respectively), not something either route asks for. JSON endpoints
 (`/api/checkout`, `/api/stripe-webhook`, `/api/ask`) are exempt, which is why
@@ -157,7 +157,7 @@ The contact form and the wholesale quote form both POST to `/api/contact`,
 which sends the enquiry via [Resend](https://resend.com).
 
 This is why the project has the Vercel adapter. Pages are still fully
-prerendered — `output: 'static'` — and only the routes under `src/pages/api/`
+prerendered, `output: 'static'`, and only the routes under `src/pages/api/`
 opt out with `export const prerender = false` and run as serverless functions.
 A server is unavoidable here: the Resend and Stripe secrets must never reach
 the browser.
@@ -168,33 +168,33 @@ Set in Vercel → Project → Settings → Environment Variables. See `.env.exam
 
 | Variable         | Required | Purpose                                                                                                    |
 | ---------------- | -------- | ---------------------------------------------------------------------------------------------------------- |
-| `RESEND_API_KEY` | yes      | Authenticates the send. Server-only — never prefix with `PUBLIC_`.                                         |
-| `RESEND_FROM`    | yes      | From address. Must be on `mail.portaprosoftware.com`, the domain verified in Resend — see the note below.  |
+| `RESEND_API_KEY` | yes      | Authenticates the send. Server-only. Never prefix with `PUBLIC_`.                                          |
+| `RESEND_FROM`    | yes      | From address. Must be on `mail.portaprosoftware.com`, the domain verified in Resend. See the note below.   |
 | `CONTACT_TO`     | no       | Where enquiries are delivered. Comma-separated for several recipients. Defaults to `sales@shawsafety.com`. |
 
 The sending domain verified in Resend is the subdomain
 `mail.portaprosoftware.com`. The apex `portaprosoftware.com` is **not** verified,
 so a From address like `shaw-safety@portaprosoftware.com` is rejected with a 403
 (`The portaprosoftware.com domain is not verified`) even though that alias
-receives and sends mail fine elsewhere — Resend checks its own domain list, not
+receives and sends mail fine elsewhere, Resend checks its own domain list, not
 whether the mailbox exists. Use `something@mail.portaprosoftware.com`. The
 address does not need to be a real mailbox: replies reach the customer through
 `Reply-To`, and enquiries are delivered to `CONTACT_TO`.
 
 Read through `src/utils/env.ts`, which prefers `process.env` over
 `import.meta.env`. Vite can inline `import.meta.env` at build time, which would
-freeze a secret into the bundle — rotating the key in Vercel would then have no
+freeze a secret into the bundle, rotating the key in Vercel would then have no
 effect until the next deploy.
 
 ### Behaviour worth knowing
 
 - **Reply-To is the customer**, so replying to a notification reaches them
-  directly. Addresses containing newlines are dropped rather than sanitised —
+  directly. Addresses containing newlines are dropped rather than sanitised,
   a newline in a header lets an attacker append their own.
 - **A hidden honeypot field** catches basic bots. They get a 200 so they cannot
   tell they were filtered.
 - **Misconfiguration fails loudly.** With no API key the endpoint returns 503
-  and tells the visitor to call instead — it never fakes a success.
+  and tells the visitor to call instead. It never fakes a success.
 - **Upstream errors stay server-side.** Resend's reason is logged; the visitor
   sees a generic message.
 - **No JavaScript still works.** The forms carry a real `action`/`method`, and
@@ -212,7 +212,7 @@ into the field. Single-line inputs deliberately do not: a name or an email is
 faster to type than to speak and correct.
 
 `src/components/ui/blocks/VoiceInput.astro` finds the textareas itself, so
-adding a field needs no wiring — drop the component on the page once and every
+adding a field needs no wiring, drop the component on the page once and every
 multi-line field on it is covered, including ones added later.
 
 The browser posts the recording to `/api/transcribe`, which forwards it to
@@ -223,14 +223,14 @@ anyone who opens devtools.
 ### Audio is normalised to WAV before upload
 
 `src/assets/scripts/wavEncoder.ts` converts every recording to **16 kHz mono
-16-bit PCM WAV** in the browser before it is sent. This is not cosmetic — it
+16-bit PCM WAV** in the browser before it is sent. This is not cosmetic. It
 fixed a total failure of the feature.
 
 MediaRecorder hands back whatever container the browser prefers, and that type
 string rides along with the upload: Chrome produces `audio/webm;codecs=opus`,
 Safari `audio/mp4`. An upstream validator matching content types against an
 allowlist compares the whole string, so the codec parameter turned an otherwise
-accepted `audio/webm` into a rejection — every transcription came back
+accepted `audio/webm` into a rejection. Every transcription came back
 `400 {"detail":…}` with nothing in it naming the offending field.
 
 WAV has one canonical type, no codec parameter, and is accepted everywhere. 16
@@ -241,11 +241,11 @@ times Opus, about 32 KB per second, so the ten-second cap is under 350 KB.
 The server re-wraps the upload rather than forwarding the received `File`, which
 would carry its original type through, and strips any parameters as a second
 line of defence. If the browser cannot decode its own recording, the original
-blob is sent unconverted — a failed conversion is no reason to discard audio.
+blob is sent unconverted, a failed conversion is no reason to discard audio.
 
-| Variable          | Required | Purpose                                              |
-| ----------------- | -------- | ---------------------------------------------------- |
-| `SHAW_ELEVENLABS` | no       | Transcription. Server-only — never prefix `PUBLIC_`. |
+| Variable          | Required | Purpose                                             |
+| ----------------- | -------- | --------------------------------------------------- |
+| `SHAW_ELEVENLABS` | no       | Transcription. Server-only. Never prefix `PUBLIC_`. |
 
 Behaviour worth knowing:
 
@@ -256,15 +256,15 @@ Behaviour worth knowing:
 - **Recording stops itself after ten seconds**, with a live countdown in the
   status line. A forgotten open mic is a bill and a privacy problem on an
   unauthenticated endpoint, and ten seconds is enough for one thought at a
-  form field — needing more means pressing again, which is deliberate. The
+  form field, needing more means pressing again, which is deliberate. The
   cap is `MAX_RECORDING_MS` at the top of the client script if it ever needs
   to change.
 - **The button pulses with radio-wave rings while recording**, driven by two
   staggered `animate-ping` layers. The rings sit inside the wrapper (not the
   button itself) so `animate-ping`'s scale is not clipped, and they are hidden
   outright when idle so the paint cost is zero the rest of the time.
-- **The microphone is released on every exit path** — stop, error, or leaving
-  the page — so the browser's recording indicator always clears.
+- **The microphone is released on every exit path**: stop, error, or leaving
+  the page, so the browser's recording indicator always clears.
 - **An unusable button is never shown.** Where `MediaRecorder` or `getUserMedia`
   is missing (notably any plain-HTTP origin, since getUserMedia requires a
   secure context) nothing is rendered and the form works by typing.
@@ -273,7 +273,7 @@ Behaviour worth knowing:
 - **A rejected key is reported as misconfiguration, not as a bad recording.**
   ElevenLabs signals this as 401/403 or as a 400 carrying
   `authentication_error`; all three return 503 and the "not configured" message,
-  because from the visitor's side it is the same thing — dictation is not set up
+  because from the visitor's side it is the same thing, dictation is not set up
   and retrying will not help. Getting this wrong is expensive: an invalid key
   once surfaced as "Could not transcribe that audio", which sent two people
   hunting through audio formats for a problem that was one environment
@@ -281,7 +281,7 @@ Behaviour worth knowing:
 - **`GET /api/transcribe` answers 405** rather than falling through to the
   router's 404. Opening the endpoint in a browser is the first thing anyone does
   when dictation misbehaves, and an unhandled GET logs a warning that reads like
-  a routing fault. It reports `configured` and `keyLooksValid` — shape only,
+  a routing fault. It reports `configured` and `keyLooksValid`, shape only,
   never the value. A key set to something that is not an ElevenLabs key at all
   (a webhook secret, a token from another service) is otherwise
   indistinguishable from a correct one until a real recording fails:
@@ -299,10 +299,10 @@ Behaviour worth knowing:
 
 `SHAW_ELEVENLABS` comes from **ElevenLabs → Profile → API Keys** and begins
 with `sk_`. `ELEVENLABS_API_KEY` is still read as a fallback, but only when
-`SHAW_ELEVENLABS` is unset — whichever is found first wins outright, so there
+`SHAW_ELEVENLABS` is unset, whichever is found first wins outright, so there
 is always one answer to "which key is live", and `GET /api/transcribe` reports
 it as `keySource`. It is not a webhook signing secret and not a hash from any other
-dashboard — a 64-character hex string is a sure sign the wrong value was
+dashboard, a 64-character hex string is a sure sign the wrong value was
 pasted. Server-only: no `PUBLIC_` prefix, and `api.elevenlabs.io` cannot be
 called from the browser anyway, which is the reason this route exists.
 
@@ -316,10 +316,10 @@ the server log with the model id attached. `scribe_v1` is the drop-in fallback.
   objected to, which is what made the content-type bug above so slow to place.
 
 `Permissions-Policy` in `vercel.json` must keep `microphone=(self)`. Dropping it
-is the non-obvious way to break this — the button renders and the permission
+is the non-obvious way to break this, the button renders and the permission
 prompt never appears.
 
-Rate-limited at ten calls per caller per minute — see below.
+Rate-limited at ten calls per caller per minute. See below.
 
 ## Rate limiting
 
@@ -333,7 +333,7 @@ seconds so any client that honours it backs off automatically.
 | `/api/contact`    | 5 / caller / min                                     | Room to fix a typo and resubmit; scripted flooders are cut off at the door.                          |
 | `/api/ask`        | 6 / caller / min + 40 / caller / hr + 600 / hr total | OpenAI is the most expensive of the three per call; the instance ceiling bounds a bad day.           |
 
-The limiter is a sliding window (log of timestamps), not a fixed bucket — the
+The limiter is a sliding window (log of timestamps), not a fixed bucket, the
 boundary of a fixed bucket lets a caller spend its whole allowance at the tail
 of one bucket and again at the head of the next, doubling the effective rate.
 `/api/ask` in particular relies on this to enforce a burst rule and an hourly
@@ -341,7 +341,7 @@ rule together without either interfering with the other.
 
 The caller is the client IP, read from the forwarding headers Vercel's edge
 sets itself. **That identity is only trustworthy behind an edge that overwrites
-those headers** — deployed somewhere that forwards client headers blindly, a
+those headers**: deployed somewhere that forwards client headers blindly, a
 caller could pick its own bucket. Requests with no usable header share one
 `unknown` bucket rather than each getting a fresh allowance.
 
@@ -364,11 +364,11 @@ Upstash needs to be set.
 | `UPSTASH_REDIS_REST_URL`   | pair     | Upstash Redis REST endpoint |
 | `UPSTASH_REDIS_REST_TOKEN` | pair     | Bearer token for the above  |
 
-"Pair" means both or neither — one on its own falls through to the in-memory
+"Pair" means both or neither, one on its own falls through to the in-memory
 fallback.
 
 **The Vercel Marketplace integration for Upstash injects these under different
-names**, prefixing every variable with the storage slug — a project set up
+names**, prefixing every variable with the storage slug, a project set up
 that way sees `UPSTASH_REDIS_REST_KV_REST_API_URL` and
 `…_KV_REST_API_TOKEN` in its env. The code recognises three name pairs, in
 order:
@@ -397,12 +397,12 @@ integration.
   does not lock out the others.
 - **A rejected request is not recorded.** A caller who keeps hammering while
   limited would otherwise push their own window forward on every attempt and
-  never come back — a limiter that turns a burst into a permanent ban.
+  never come back, a limiter that turns a burst into a permanent ban.
 - **The in-memory table is capped at 10,000 keys**, evicted oldest-first, so
   forged IPs cannot turn the limiter into the memory leak it was added to
   prevent.
 
-Change any limit at the constant in the route itself (`src/pages/api/*.ts`) —
+Change any limit at the constant in the route itself (`src/pages/api/*.ts`),
 they are deliberately not runtime settings.
 
 ## RAG assistant
@@ -420,17 +420,13 @@ curl -s localhost:4321/api/ask -X POST -H 'Content-Type: application/json' \
 ```jsonc
 {
   "ok": true,
-  "answer": "Yes — quantity totals across every color and SKU … [1][2]",
-  "sources": [
-    {
-      "n": 1,
-      "title": "Wholesale Pricing",
-      "url": "/wholesale",
-      "score": 0.612,
-    },
-  ],
+  "answer": "Yes, quantity totals across every color and SKU …",
 }
 ```
+
+The answer is plain text and nothing else. No citation markers, no source
+list, no links: retrieval grounds the answer and then disappears. Which chunks
+were used, and at what score, is logged by the route rather than returned.
 
 `history` may be passed alongside `question` as an array of
 `{ role: 'user' | 'assistant', content }` turns; the last six are kept.
@@ -443,12 +439,12 @@ Retrieval always runs against the current question.
 total.
 
 **Page-anchored chunks** are one topic per file, embedded whole. Thirty of
-these, 100–300 words each, cover the products, specs, compliance marks, price
+these, 100-300 words each, cover the products, specs, compliance marks, price
 ladders, shipping, returns, ordering, and both legal pages. Each is drawn from
-live site copy and cites the page it came from.
+live site copy and records the page it came from.
 
 **Reference documents** set `chunkBy: 'section'` and split into one chunk per
-`## ` heading — eleven documents producing 154 chunks, carrying depth the site
+`## ` heading, eleven documents producing 154 chunks, carrying depth the site
 pages do not: use cases, seal-class comparisons, installation and VVTT
 inspection practice, ANSI and UL standards explainers. Splitting on H2 keeps the
 editable unit a document a person can read top to bottom while the retrieval
@@ -456,7 +452,7 @@ unit stays a single section; embedding a two-thousand-word document as one
 vector retrieves badly and crowds the context with fifteen sections to answer a
 question about one.
 
-Where the two disagree, **the page-anchored chunk wins** — it is the one tied to
+Where the two disagree, **the page-anchored chunk wins**: it is the one tied to
 published copy. A reference document must never restate a price or a cutoff in
 terms that conflict with the site. `src/content/knowledge/_README.md` carries
 the standing content rules (it starts with an underscore, so both the collection
@@ -465,7 +461,7 @@ glob and the build script skip it).
 They are authored rather than extracted from the rendered pages for two
 reasons. The pages interleave copy with markup and price math, so a scraper
 yields fragments that read as fragments. And a retrieved chunk arrives at the
-model with no surrounding page — so each one names the product it is about
+model with no surrounding page, so each one names the product it is about
 instead of relying on a heading three sections up.
 
 Frontmatter carries a `questions` list: the questions that chunk answers,
@@ -475,7 +471,7 @@ word for it, "dispatch". They are never shown to the model as content.
 
 **Editing a chunk means re-running the index.** Prices and tiers appear in the
 corpus as prose and are not derived from `src/content/products/`, so a price
-change has to be made in both places — grep the corpus for the old number.
+change has to be made in both places, grep the corpus for the old number.
 
 ### Turning the assistant on
 
@@ -487,12 +483,12 @@ nothing to commit and no separate step to remember.
 The last line of every build says which way it went:
 
 ```
-RAG assistant: ON — 184 chunks, text-embedding-3-small (512d)
-RAG assistant: OFF — no index was produced, so the chat widget is not rendered.
+RAG assistant: ON, 184 chunks, text-embedding-3-small (512d)
+RAG assistant: OFF. No index was produced, so the chat widget is not rendered.
 ```
 
-That line exists because the gate is silent by design — no key means no
-launcher, no markup, no error — and "I deployed and see nothing" is otherwise a
+That line exists because the gate is silent by design. No key means no
+launcher, no markup, no error, and "I deployed and see nothing" is otherwise a
 hunt. It prints at the very end, where it cannot scroll away, even though the
 index is built at the very start.
 
@@ -508,16 +504,16 @@ pnpm rag:style             # generate real answers and grade how they read
 `rag:test` is the check a dry run cannot do. Parsing proves the corpus is
 well-formed; only retrieval proves a question finds its answer. Each case names
 the documents that must appear in the top hits, and may also `forbid` text that
-must not appear in the retrieved context — the C-TPAT case asserts both that the
+must not appear in the retrieved context, the C-TPAT case asserts both that the
 answer explains the ISO 17712 boundary and that no unaffiliated supplier is
 named, which is a content rule no similarity score can enforce on its own.
 
 `rag:style` goes one step further and grades the answer built from those
 passages. Retrieval can be perfect while the reply is still wrong to ship: the
 assistant used to open with "the context does not mention blue", which is a
-correct retrieval described out loud. Each case runs the real pipeline — embed,
+correct retrieval described out loud. Each case runs the real pipeline, embed,
 retrieve at the route's own top-k and threshold, complete against the route's
-own system prompt — then asserts the mechanical parts of voice: no phrase that
+own system prompt, then asserts the mechanical parts of voice: no phrase that
 names the retrieval, no unaffiliated supplier, no sales contact stapled to an
 answer that needs no handoff, and a direct opening sentence. The full answers
 print, because the rest of "sounds like a rep" is still a human read.
@@ -526,7 +522,7 @@ The prompt is **read out of `src/pages/api/ask.ts`**, not copied into the test.
 A second copy is a second thing to keep in sync, and the first time they diverged
 this would start certifying text the route does not send.
 
-**The index is generated, not committed** — it is gitignored. Committing it
+**The index is generated, not committed**: it is gitignored. Committing it
 would mean a stale index every time someone edits a chunk and forgets to
 re-run. Embedding the corpus costs a fraction of a cent, so paying it per
 deploy rather than per edit is not worth optimising around.
@@ -534,16 +530,17 @@ deploy rather than per edit is not worth optimising around.
 It stays a single JSON file rather than a vector database: at thirty chunks a
 linear cosine scan in the route is microseconds, so a store would add a network
 hop, a second credential, and an operational dependency to lose to an
-in-process loop. Vectors are truncated to 512 dimensions — the
-`text-embedding-3` models are trained so a prefix is still a usable embedding —
-which thirds the file for no measurable retrieval difference at this size. The
+in-process loop. Vectors are truncated to 512 dimensions. The
+`text-embedding-3` models are trained so that a prefix is still a usable
+embedding, which thirds the file for no measurable retrieval difference at this
+size. The
 route reads the model and width back out of the index rather than pinning them
 separately, since a query is only comparable to vectors from the same model at
 the same width.
 
 **A failed index never fails the build.** No key, a rejected key, or an OpenAI
 outage leaves the index unwritten and the assistant off, reported loudly but not
-fatally — an upstream problem should not be able to block a pricing correction
+fatally, an upstream problem should not be able to block a pricing correction
 from reaching the storefront. Same call the checkout tier check makes: loud, not
 offline. A half-built index is discarded rather than written, since a partial
 corpus retrieves confidently from whichever chunks made it, which is worse than
@@ -569,25 +566,26 @@ Behaviour worth knowing:
 - **The answer is grounded or refused.** The system prompt forbids answering
   outside the retrieved passages, and passages scoring below 0.25 similarity are
   dropped before the model sees them. A question that retrieves nothing is
-  answered with the phone number and email, without spending a completion call —
+  answered with the phone number and email, without spending a completion call,
   a storefront assistant inventing a return window is the failure mode this is
   built to avoid.
 - **Nothing is derived at answer time.** Prices, SKUs, and tier breakpoints are
   quoted from the corpus verbatim; the model is told never to compute or adjust
   one.
-- **Sources come back numbered** in citation order, so `[2]` in the answer maps
-  to a real page. Similarity scores ride along — the only signal available for
-  tuning the threshold against real questions.
+- **The answer comes back as text and nothing else.** No source list, no
+  citation markers, no links. Which chunks were used, and at what score, is
+  logged by the route instead, because those scores are the only signal
+  available for tuning the retrieval threshold against real questions.
 - **With no key, or no index built, the route answers 503** and points the
   visitor at sales@shawsafety.com. Neither the key nor the corpus is echoed.
 - **`GET /api/ask` answers 405** and reports whether the key is set and what
   index is deployed, matching `/api/transcribe`.
 - **The index is globbed, not imported**, so a fresh clone with no index builds
-  and deploys fine — same reasoning as the product photos.
+  and deploys fine. Same reasoning as the product photos.
 
 ### Rate limiting
 
-Covered in the top-level **Rate limiting** section — same limiter, same store,
+Covered in the top-level **Rate limiting** section. Same limiter, same store,
 same failure modes. `/api/ask` uses it with the sharpest ruleset because every
 allowed call spends two OpenAI credits: 6 per minute plus 40 per hour per
 caller, and a 600 per hour ceiling for the whole instance.
@@ -609,10 +607,10 @@ also spends money per call.
 
 `src/components/ask/AskWidget.astro` sits in `MainLayout`, so the launcher is on
 every page. **It renders nothing unless `OPENAI_API_KEY` is set _and_ an index is
-present** — the same rule the dictation button follows, since a chat button that
+present**: the same rule the dictation button follows, since a chat button that
 can only apologise is worse than no chat button. That check runs at build time
 because the pages are prerendered, so adding the key in Vercel needs a redeploy
-before the launcher appears — the same redeploy that builds the index. If you
+before the launcher appears, the same redeploy that builds the index. If you
 have set the key and still see no launcher, read the last line of the build log
 before anything else.
 
@@ -630,27 +628,33 @@ Behaviour worth knowing:
   because `dvh` changes with it. It is now `fixed inset-0` on small screens,
   pinned to the viewport box rather than to a unit that moves. Because iOS does
   not shrink the layout viewport for the keyboard, the open panel is also sized
-  from `visualViewport` — without that the composer sits underneath the keyboard.
+  from `visualViewport`. Without that the composer sits underneath the keyboard.
   Desktop clears those inline styles and keeps the CSS sizing.
+- **The log scrolls because it opts out of Lenis.** The page runs Lenis smooth
+  scrolling, which cancels wheel and touch events on the document and animates
+  the page itself, so a nested scroller never sees the event and looks frozen
+  once the conversation is taller than the panel. `min-h-0` gives the log a
+  height to scroll within, and `data-lenis-prevent` on it hands wheel and touch
+  inside the log back to the browser. Any other nested scroller on the site
+  needs the same attribute.
 - **The transcript lives in `localStorage` with a five-minute expiry,** and a
-  panel left open reopens itself. Following a cited link is the thing the answers
-  are built to encourage, and on a multi-page site that would otherwise discard
-  the conversation. `sessionStorage` cannot express the intended lifetime — it
-  dies with the tab, so closing the window and coming back a minute later would
-  lose everything — so the entry is stamped and every read drops anything older
+  panel left open reopens itself. Half of what the assistant is asked about is
+  on some other page, and on a multi-page site going to look at it would
+  otherwise discard the conversation. `sessionStorage` cannot express the
+  intended lifetime. It dies with the tab, so closing the window and coming back a minute later would
+  lose everything, so the entry is stamped and every read drops anything older
   than `TTL_MS`. A stamp that is missing, unparseable, or in the future counts as
   expired, so a bad clock cannot resurrect a stale conversation. `pagehide`
   restamps on the way out, which means the five minutes run from when the visitor
   actually leaves rather than from their last message. The composer footer states
   the behaviour, because a chat that remembers is a chat the visitor should know
   remembers. Focus is not stolen on restore.
-- **Citations become links.** `[2]` in an answer is rendered as a superscript
-  link to the page that passage came from, and distinct sources are listed as
-  chips beneath. Only numbers the API actually returned are linked — a model
-  citing `[7]` with five passages in hand gets plain text, and every href comes
-  from our own index rather than from the answer.
+- **The bubble is text only.** No citation markers, no source chips, no links
+  out. The prompt forbids citing at all, the route strips any `[2]` the model
+  emits anyway, and the widget strips them again on render so a transcript
+  restored from storage cannot show one either.
 - **Answers are escaped before anything else.** What survives is a deliberately
-  small subset — bold, bullets, paragraphs — because a full Markdown renderer
+  small subset, bold, bullets, paragraphs, because a full Markdown renderer
   here is a dependency and an attack surface bought for two formatting features.
 - **Error bubbles are never sent back as history.** A network failure is UI, not
   something the model said; feeding it back invites the next answer to apologise
@@ -663,13 +667,13 @@ Behaviour worth knowing:
 ### Dictating a question
 
 The chat composer carries a microphone beside the send button, so a visitor can
-talk to the assistant instead of typing — useful for exactly the people this is
+talk to the assistant instead of typing, useful for exactly the people this is
 built for, who are often on a dock with gloves on.
 
 The recording itself is `src/assets/scripts/dictation.ts`, shared with
-`VoiceInput`. That module owns everything with a sharp edge — MediaRecorder's
+`VoiceInput`. That module owns everything with a sharp edge, MediaRecorder's
 per-browser containers, the WAV normalisation, the two-minute auto-stop, and
-releasing the device on every exit path — and owns no markup. A caller passes
+releasing the device on every exit path, and owns no markup. A caller passes
 callbacks and gets a controller back, which is what lets a microphone tucked
 into the corner of a tall form field and a button in a chat composer's button
 row share one implementation.
@@ -695,7 +699,7 @@ Behaviour worth knowing:
   dismissed panel keeps the browser's recording indicator lit for something the
   visitor believes they closed.
 - **One writer owns the send button's disabled state.** Three things want to
-  disable it — an answer in flight, a rate-limit cooldown, a recording — and
+  disable it, an answer in flight, a rate-limit cooldown, a recording, and
   when each set the flag directly, whichever finished last won, so ending a
   recording could re-enable send mid-cooldown.
 
@@ -703,7 +707,7 @@ Behaviour worth knowing:
 
 Images live in `src/images/products/` and are committed to the repo. They go
 through Astro's build pipeline, which resizes, converts, and content-hashes
-them — each source image becomes several optimized variants (160px thumbnail,
+them. Each source image becomes several optimized variants (160px thumbnail,
 720px gallery, 1600px zoom).
 
 **Do not put product images in `public/`.** Files there are served
@@ -717,21 +721,21 @@ content edit. Frontmatter references an extension-less stem
 whatever real file exists in any supported format.
 
 The `products/` subfolder is not optional. `src/images/` itself holds brand
-assets and is not scanned, so a product photo landing there is invisible — the
+assets and is not scanned, so a product photo landing there is invisible, the
 page keeps showing the placeholder and the build still reports the file as
 missing. That report is the tell: if a photo you just added is still listed as
 missing, check which folder it is in before anything else.
 
 **A missing photo does not break the build.** It renders a placeholder naming
 the file to add. (The collection used to use Astro's `image()` helper, which
-resolves at build time and hard-fails with `[ImageNotFound]` — deleting a photo
+resolves at build time and hard-fails with `[ImageNotFound]`, deleting a photo
 broke the deploy.)
 
 Every build prints what is still outstanding:
 
 ```
 Product photos: 3/14 present
-  Missing 11 — add to src/images/products/:
+  Missing 11. Add to src/images/products/:
     tie-fluorescent-pink-1.jpg
     ...
 ```
@@ -741,14 +745,14 @@ present but unreferenced, which usually means a typo in a filename.
 
 Shoot square-ish on a white background: the gallery and cards use
 `object-contain`, so off-ratio images letterbox rather than crop. Don't
-pre-resize or compress — upload the largest version you have. The main photo is
+pre-resize or compress, upload the largest version you have. The main photo is
 served at 1100px into a ~560px box so the in-place magnifier (1.75x, following
 the cursor) reveals real detail rather than upscaled pixels. Change `ZOOM` in
 `src/components/ui/blocks/ImageZoom.astro` to adjust the magnification. Use JPG for photographs; PNG or WebP are fine too.
 
 ### Filename manifest
 
-14 files. `-1` is the primary shot — it appears on product cards and as the
+14 files. `-1` is the primary shot. It appears on product cards and as the
 cart thumbnail, so it should be the cleanest one.
 
 | File                                           | Shows                   |
@@ -758,14 +762,14 @@ cart thumbnail, so it should be the cleanest one.
 | `tie-fluorescent-{yellow,pink,green,orange}-3` | The 100-count bag       |
 | `vest-hi-vis-{lime,orange}-1`                  | Vest, front             |
 
-Three per color is not a rule — add or remove entries in the `images:` array in
+Three per color is not a rule. Add or remove entries in the `images:` array in
 `src/content/products/*.md` and the thumbnail rail follows. Counts need not
 match across colors.
 
 ### Spec sheets
 
 Each tie colour has a dimensioned drawing behind a **View Spec** link on the
-product page, opened in a modal with an "Open full size" escape hatch — the
+product page, opened in a modal with an "Open full size" escape hatch, the
 annotation is too fine to read at fitted size on a phone.
 
 Add one by putting the image in `src/images/products/` and setting `spec:` on
@@ -779,7 +783,7 @@ link, which is why the vests have none.
 footer on the landing page and both product pages
 (`src/components/sections/misc/GroundDeliveryTimes.astro`). Like the hero, it is
 globbed rather than imported, so replacing or removing it cannot break the
-build — with no file the section still renders its text key.
+build, with no file the section still renders its text key.
 
 The five-band colour key beside the map is real HTML, with swatch hex values
 sampled from the legend baked into the artwork. **Replacing the map with one
@@ -809,7 +813,7 @@ Three things will each break it on their own:
 - **The iframe is injected by script, not rendered in the markup**, and only
   when the visitor has not asked for reduced motion. A cross-origin player
   cannot be paused from this page, so not starting it is the only way to honour
-  that preference. Reduced motion, or no JavaScript, gets the brand gradient —
+  that preference. Reduced motion, or no JavaScript, gets the brand gradient,
   which the hero was designed to stand on.
 
 There is no longer a `hero-image.*` fallback; the gradient is the fallback. The
@@ -820,7 +824,7 @@ previous photo was deleted rather than left behind as an unreferenced asset.
 ### The logo
 
 Drop the file at **`src/images/logo.png`** and both the navbar and the footer
-pick it up — no code change. Any of `.png .jpg .webp .avif` works; the
+pick it up. No code change. Any of `.png .jpg .webp .avif` works; the
 extension is not referenced anywhere.
 
 With no file present, `BrandLogo.astro` renders a drawn SVG wordmark instead,
@@ -834,23 +838,23 @@ What the artwork wants:
   rectangle against the footer.
 - **A dark or maroon mark.** Both placements are light backgrounds. A white
   or light logo will disappear.
-- **Roughly 3:1 to 5:1, wide.** Any ratio renders correctly — width follows the
-  source and nothing is squashed — but a tall or square logo will come out
-  small, since both placements are height-constrained to 28–32px.
-- **At least 320px tall**, ideally 400–600. It is displayed at 32px but
+- **Roughly 3:1 to 5:1, wide.** Any ratio renders correctly, width follows the
+  source and nothing is squashed, but a tall or square logo will come out
+  small, since both placements are height-constrained to 28-32px.
+- **At least 320px tall**, ideally 400-600. It is displayed at 32px but
   rendered at 160 so it stays sharp on retina; a small source cannot be
-  recovered. Do not pre-compress — Astro converts it to WebP and hashes it.
+  recovered. Do not pre-compress, Astro converts it to WebP and hashes it.
 
 Two things the raster logo cannot do that the drawn fallback could:
 
 - It does not inherit `currentColor`, so the `text-maroon-700` on the footer
   usage now only tints the fallback. Recolouring means a new file.
 - It is a separate asset from `icon.png`. Replacing the logo does **not**
-  change the favicon, the Apple touch icon, or the PWA icon — see below.
+  change the favicon, the Apple touch icon, or the PWA icon. See below.
 
 ### Icons and social card
 
-There is **no `favicon.ico` in the repo** — it is generated at build time by
+There is **no `favicon.ico` in the repo**: it is generated at build time by
 `src/pages/favicon.ico.ts`, which reads `icon.png` and encodes 16px and 32px
 into a real `.ico`.
 
@@ -862,7 +866,7 @@ into a real `.ico`.
 
 `icon.png` is the only one to hand-edit. Replace it, then run
 `node scripts/generate-brand-assets.mjs` to re-derive the maskable icon and the
-social card from it — otherwise those two silently keep the old logo, and
+social card from it, otherwise those two silently keep the old logo, and
 neither is visible on the site (the maskable icon only shows when a phone
 installs the PWA, and `social.png` only when a link is shared).
 
@@ -874,4 +878,4 @@ Two gotchas:
   mark to ~62% for this; keep that in mind if you hand-author a replacement.
 
 There is no SVG favicon. Modern browsers are served the PNG, which is
-universally supported — one less file to keep in sync.
+universally supported, one less file to keep in sync.

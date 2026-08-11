@@ -28,7 +28,7 @@ keywords:
 Unopened packs can be returned within 30 days of delivery for a full refund. If
 a tie fails to meet its published spec, tell Shaw Safety and the affected lot is
 replaced at no cost. There is no restocking fee on standard-stock SKUs and no
-return authorization form to fill out — a note to support with the order number
+return authorization form to fill out. A note to support with the order number
 is enough to start the process.
 
 ## Standard 30-day return
@@ -54,10 +54,10 @@ expense or discarded, whichever is simpler.
 
 ## Failure-to-spec guarantee
 
-If a tie in a delivered lot does not meet the published specification — for
+If a tie in a delivered lot does not meet the published specification (for
 example, a batch where the pawl does not engage reliably, a lot where the
 tensile is measurably below the 75-lb declaration, or a color batch where the
-fluorescent pigment is out of tolerance — Shaw Safety replaces the affected lot
+fluorescent pigment is out of tolerance), Shaw Safety replaces the affected lot
 at cost, including shipping.
 
 Contact support with the order number, the lot code printed on the polybag, and
@@ -68,7 +68,7 @@ within one business day of the report.
 
 The 30-day window applies to change-of-mind returns of unopened product. The
 failure-to-spec guarantee is broader and is not time-bound to the 30-day return
-window — if a customer discovers a defect in a stored lot six months after
+window. If a customer discovers a defect in a stored lot six months after
 delivery, the same replacement process applies as long as the lot code is
 legible on the packaging.
 
@@ -79,13 +79,13 @@ needed, and defects sometimes only surface at use.
 
 Custom-printed and privately-labeled orders are non-returnable except in the
 case of a manufacturing defect or an error against the approved proof. If the
-delivered product does not match the approved proof — wrong artwork, wrong
-numbering range, misprinted logo — the affected lot is replaced at Shaw
-Safety's expense with no time limit. If the delivered product matches the
-approved proof but the customer's requirements have changed, the run cannot be
-returned; contact sales to discuss options.
+delivered product does not match the approved proof (wrong artwork, wrong
+numbering range, misprinted logo), the affected lot is replaced at Shaw Safety's
+expense with no time limit. If the delivered product matches the approved proof
+but the customer's requirements have changed, the run cannot be returned;
+contact sales to discuss options.
 
-## Damage in transit — carrier claims
+## Damage in transit: carrier claims
 
 Damage caused in transit is Shaw Safety's problem to resolve, not the
 customer's. Note the damage with the carrier at delivery, take photos, and
@@ -115,7 +115,7 @@ defective lot.
 
 Refunds hit the original payment method within 5 business days of the returned
 goods arriving at the warehouse. Credit card refunds typically appear on the
-statement within 3–7 business days after that depending on the issuer. ACH and
+statement within 3-7 business days after that depending on the issuer. ACH and
 wire refunds are processed on the same 5-business-day cycle. For net-terms
 customers, refunds are applied as a credit against the account and can be
 applied to a future invoice or paid out on request.
@@ -130,15 +130,15 @@ generally not accepted for return.
 ## Compliance certificate replacement
 
 If a customer needs a replacement UL 21S listing letter, SDS, or statement of
-origin for an order that already shipped — for example, the paperwork was lost
-in an audit hand-off — request the document through the contact page and it is
-re-issued at no charge within one business day. Documentation is tied to the
+origin for an order that already shipped, for example where the paperwork was
+lost in an audit hand-off, request the document through the contact page and it
+is re-issued at no charge within one business day. Documentation is tied to the
 specific lot and order, and Shaw Safety keeps a rolling archive by lot code.
 
 ## Satisfaction and referrals
 
 Shaw Safety operates on a direct-sales model and does not lock buyers into
-contracts. If the product is not the right fit for a specific operation — for
-example, the tie is under-specified for the terminal's seal policy — the return
-process runs on the same 30-day window, and sales will say so plainly rather
-than selling a product the buyer cannot use.
+contracts. If the product is not the right fit for a specific operation, for
+example where the tie is under-specified for the terminal's seal policy, the
+return process runs on the same 30-day window, and sales will say so plainly
+rather than selling a product the buyer cannot use.

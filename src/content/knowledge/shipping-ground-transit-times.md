@@ -16,7 +16,7 @@ keywords:
 ---
 
 Ground transit times count business days in transit **once an order leaves the
-dock** — add the next-business-day dispatch to get an arrival estimate. The
+dock**: add the next-business-day dispatch to get an arrival estimate. The
 transit map published on the landing page and product pages breaks the country
 into five bands:
 

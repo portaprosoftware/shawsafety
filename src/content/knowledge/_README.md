@@ -1,4 +1,4 @@
-# Knowledge corpus — ingestion notes
+# Knowledge corpus: ingestion notes
 
 This directory is the whole retrieval corpus for the site assistant. Everything
 in it is embedded at build time by `scripts/build-rag-index.mjs` and served from
@@ -11,12 +11,12 @@ want the assistant to be able to say does not.
 
 ## Two shapes of file
 
-**Page-anchored chunks** — one topic per file, embedded whole. These are drawn
+**Page-anchored chunks**: one topic per file, embedded whole. These are drawn
 from live site copy and each one cites the page it came from. They are the
 authority for anything the site publishes as a promise: prices, tier
 breakpoints, cutoffs, policy.
 
-**Reference documents** — long-form treatments set to `chunkBy: 'section'`,
+**Reference documents**: long-form treatments set to `chunkBy: 'section'`,
 split into one retrieval chunk per `## ` heading. These carry depth the site
 pages do not: use cases, seal-class comparisons, installation and inspection
 practice, standards explainers.
@@ -59,3 +59,8 @@ than failing the build.
 - Custom-print lead times are unverified and deliberately absent from this
   corpus. Do not add one without confirming it.
 - Times are US Eastern.
+- **No em dashes or en dashes, anywhere.** Use a comma, a colon, or a period and
+  a new sentence; hyphens inside words and number ranges (11-inch, 1-99 packs)
+  are fine. The assistant is told the same thing in its prompt, and it picks up
+  the punctuation of the passages it is answering from, so a dash here becomes a
+  dash in an answer. `pnpm rag:style` fails on one.

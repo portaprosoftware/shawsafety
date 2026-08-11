@@ -29,10 +29,10 @@ keywords:
 
 Shaw Safety is a focused direct-wholesale brand selling ANSI/UL-certified
 fluorescent safety ties and ANSI/ISEA 107 Class 2 hi-vis vests for logistics
-operators. The catalog is intentionally narrow — four fluorescent tie SKUs and a
-Class 2 vest — because the target customer (trucking, drayage, intermodal,
-waste, portable sanitation, septic) has a specific, repeating purchase need and
-does not want to sort through a 500-SKU industrial supply catalog to find it.
+operators. The catalog is intentionally narrow (four fluorescent tie SKUs and a
+Class 2 vest) because the target customer (trucking, drayage, intermodal, waste,
+portable sanitation, septic) has a specific, repeating purchase need and does
+not want to sort through a 500-SKU industrial supply catalog to find it.
 
 Prices are published; there is no account gate, no minimum order, and no sales
 call between the product page and the shopping cart.
@@ -65,7 +65,7 @@ transit estimates by state.
 ## Business hours
 
 Standard business hours are Monday through Friday, 8am to 5pm Eastern. Orders
-placed at any time — including nights, weekends, and holidays — are accepted;
+placed at any time, including nights, weekends, and holidays, are accepted;
 the ship cutoff for next-business-day dispatch is 5pm Eastern on a business day.
 
 ## Account features
@@ -84,8 +84,8 @@ The optional account section on the site provides:
 Repeat orders can be placed by adding items to the cart at the product page or
 by using the reorder action on any past order in the account section. For fleets
 that consume a predictable weekly or monthly volume, contact sales to set up a
-standing order — the same order ships on a fixed cadence without needing a new
-PO each cycle.
+standing order. The same order ships on a fixed cadence without needing a new PO
+each cycle.
 
 ## Payment methods
 
@@ -112,8 +112,8 @@ business day.
 
 ## Privacy and data
 
-Customer information collected at checkout — name, email, shipping address,
-billing address, payment method — is used only for fulfilling the order and for
+Customer information collected at checkout (name, email, shipping address,
+billing address, payment method) is used only for fulfilling the order and for
 account-related communications. Shaw Safety does not sell customer data to third
 parties. Marketing email is opt-in and can be unsubscribed at any time.
 
@@ -128,7 +128,7 @@ tracking, delivery notification) regardless of marketing opt-in status.
 
 Shaw Safety operates as a direct-to-fleet distribution model without a public
 showroom or walk-in retail. All purchasing happens through the website or
-through direct sales contact for bulk quotes. This is deliberate — the model is
+through direct sales contact for bulk quotes. This is deliberate. The model is
 built for operators who know what they need and want it shipped, not for
 browse-and-compare shoppers.
 
@@ -143,5 +143,5 @@ the contact page.
 Any issue that is not resolved through the standard support channel can be
 escalated by asking for a supervisor or the founder in a contact form message.
 Shaw Safety is small enough that founder-level attention is available for any
-customer who needs it, and this is intentional — the direct-wholesale model
+customer who needs it, and this is intentional, the direct-wholesale model
 depends on a short chain from customer to decision maker.

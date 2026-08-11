@@ -1,5 +1,5 @@
 ---
-title: 'Privacy policy — what is collected and how it is used'
+title: 'Privacy policy: what is collected and how it is used'
 topic: 'policy'
 url: '/privacy'
 sourceLabel: 'Privacy Policy'

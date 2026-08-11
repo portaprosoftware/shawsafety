@@ -1,8 +1,8 @@
 ---
-title: 'How Shaw Safety operates — four principles'
+title: 'How Shaw Safety operates: four principles'
 topic: 'company'
 url: '/about'
-sourceLabel: 'About Shaw Safety — How We Operate'
+sourceLabel: 'About Shaw Safety: How We Operate'
 questions:
   - 'How does Shaw Safety operate?'
   - 'Do I need an account or a quote to see prices?'
@@ -30,5 +30,5 @@ to six weeks. Shaw Safety's ship the next business day because they are held
 in inventory rather than ordered once a customer does.
 
 **Built for intermodal.** Length, tensile rating, and visibility are all chosen
-against container locking mechanisms and yard conditions — not adapted from a
+against container locking mechanisms and yard conditions, not adapted from a
 general-purpose cable tie.

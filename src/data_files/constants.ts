@@ -7,7 +7,7 @@ export const SITE = {
     'Shaw Safety supplies fluorescent security zip ties and ANSI-rated hi-vis vests to intermodal hubs and fleets nationwide. UL 21S listed, DOT compliant, direct wholesale pricing, ships next business day.',
   description_short:
     'Fluorescent security zip ties and hi-vis safety vests for intermodal hubs and fleets. Direct wholesale pricing, ships next business day.',
-  // Must match `site` in astro.config.mjs — see the note there on why this is
+  // Must match `site` in astro.config.mjs. See the note there on why this is
   // not shawsafety.com.
   url: 'https://shaw.portaprosoftware.com',
   author: 'Shaw Safety',

@@ -2,7 +2,7 @@
 title: 'The four zip tie colors and their SKUs'
 topic: 'product'
 url: '/products/11-inch-zip-tie-100-pack'
-sourceLabel: '11" Fluorescent Zip Tie — Colors'
+sourceLabel: '11" Fluorescent Zip Tie: Colors'
 questions:
   - 'What colors do the zip ties come in?'
   - 'What is the difference between the four colors?'

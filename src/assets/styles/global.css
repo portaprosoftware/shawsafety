@@ -9,11 +9,11 @@
 @plugin '@tailwindcss/typography';
 
 /*
-  TeX Gyre Heros — self-hosted. The family is a GUST/URW Helvetica clone under
+  TeX Gyre Heros, self-hosted. The family is a GUST/URW Helvetica clone under
   the GUST Font License; the unmodified upstream OTFs (v2.004) were converted
   to WOFF2 and live in ../fonts/ alongside GUST-FONT-LICENSE.txt. They are
   referenced through the bundler (not served from /public) so Vite fingerprints
-  them into /_astro/ — the filename changes whenever the bytes do, which is what
+  them into /_astro/, the filename changes whenever the bytes do, which is what
   makes them safe to cache hard.
 
   The family ships two weights only, so the ranges below cover the whole
@@ -72,7 +72,7 @@
 
   /*
     Shaw Safety brand scale, anchored on #9B1C2E (maroon-700).
-    This is the ONE place the brand color is defined — to retune the brand,
+    This is the ONE place the brand color is defined, to retune the brand,
     edit these eleven steps and nothing else.
   */
   --color-maroon-50: oklch(0.971 0.014 17.4);
@@ -101,7 +101,7 @@
 
   /*
     Fluorescent product swatches. These are physical product colors, not
-    brand colors — they exist so the PDP color chips and card accents can
+    brand colors. They exist so the PDP color chips and card accents can
     render the actual tie color. Do not use them for UI chrome.
   */
   --color-fluoro-yellow: oklch(0.93 0.22 118);

@@ -82,7 +82,7 @@ import Icon from '@components/ui/icons/Icon.astro';
       lastFocused = trigger;
       image.src = src;
       image.alt = `Specification drawing for ${trigger.dataset.specTitle ?? ''}`;
-      title.textContent = `Specification — ${trigger.dataset.specTitle ?? ''}`;
+      title.textContent = `Specification: ${trigger.dataset.specTitle ?? ''}`;
 
       overlay.classList.remove('hidden');
       overlay.classList.add('flex');

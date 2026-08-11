@@ -17,13 +17,13 @@ keywords:
 ---
 
 The discount is published on every product page and applies automatically at
-checkout. For the zip ties: 1–99 packs is retail; 100–199 packs drops the price
+checkout. For the zip ties: 1-99 packs is retail; 100-199 packs drops the price
 roughly 11%; 200 packs or more drops it roughly 19%.
 
 There is no account to create, no minimum order, and no sales call in between.
-The ladder is published in full — a buyer pays the tier their quantity lands
-in whether they call Shaw Safety or never speak to anyone. The deeper tier is
-not a negotiated rate; it is simply the price at that quantity.
+The ladder is published in full. A buyer pays the tier their quantity lands in
+whether they call Shaw Safety or never speak to anyone. The deeper tier is not a
+negotiated rate; it is simply the price at that quantity.
 
 Quantity is counted in packs, not individual ties or vests. Prices are shown in
 U.S. dollars and exclude applicable taxes and, where noted, freight. Published

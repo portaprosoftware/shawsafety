@@ -1,8 +1,8 @@
 /**
  * Converts a recorded audio blob to 16 kHz mono 16-bit PCM WAV.
  *
- * MediaRecorder gives you whatever container the browser prefers — Chrome and
- * Firefox produce `audio/webm;codecs=opus`, Safari `audio/mp4` — and that type
+ * MediaRecorder gives you whatever container the browser prefers, Chrome and
+ * Firefox produce `audio/webm;codecs=opus`, Safari `audio/mp4`, and that type
  * string travels with the upload. A transcription API that validates the part's
  * content type against an allowlist will reject a parameterised type like
  * `audio/webm;codecs=opus` even when it accepts `audio/webm`, which is an
@@ -10,7 +10,7 @@
  *
  * Normalising to WAV before upload removes the whole class of failure: one
  * container, one content type, no codec parameter, accepted everywhere. 16 kHz
- * mono is also what speech models want — anything above it is resampled away
+ * mono is also what speech models want. Anything above it is resampled away
  * upstream, so sending 48 kHz stereo just pays for bytes that get discarded.
  *
  * The trade is size: PCM is roughly ten times Opus, about 32 KB per second of
@@ -23,7 +23,7 @@ export const TARGET_SAMPLE_RATE = 16000;
 /**
  * Downmix to mono and resample, using the browser's own resampler.
  *
- * Falls back to the source rate if the platform refuses the target — older
+ * Falls back to the source rate if the platform refuses the target, older
  * Safari only allowed hardware sample rates in an OfflineAudioContext. A
  * higher-rate WAV is still perfectly transcribable, just larger, so this
  * degrades on size rather than failing.
@@ -100,7 +100,7 @@ function encodeWav(samples: Float32Array, sampleRate: number): Blob {
  * Recorded blob in, WAV blob out.
  *
  * Throws if the browser cannot decode what it just recorded, which the caller
- * should treat as "send the original instead" rather than as a dead end — an
+ * should treat as "send the original instead" rather than as a dead end, an
  * upload in the recorder's own format may still transcribe fine.
  */
 export async function toWav(blob: Blob): Promise<Blob> {

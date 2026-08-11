@@ -4,7 +4,7 @@
  * Runs on demand: the Stripe secret key is a server secret.
  *
  * The client sends only variant ids and quantities. Everything that decides
- * money — which Price to charge, what it costs — is resolved here from the
+ * money, which Price to charge, what it costs, is resolved here from the
  * content collection and from Stripe itself, so a tampered cart cannot set its
  * own price. The decision logic lives in @utils/checkoutSession so it can be
  * tested without Astro or a network.
@@ -62,7 +62,7 @@ export const POST: APIRoute = async ({ request, url }) => {
       product.data.variants.map(variant => [
         variant.id,
         {
-          label: `${product.data.shortTitle} — ${variant.name}`,
+          label: `${product.data.shortTitle}, ${variant.name}`,
           tiers: variant.tiers ?? product.data.tiers,
         },
       ])

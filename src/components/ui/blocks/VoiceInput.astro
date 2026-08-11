@@ -3,7 +3,7 @@
  * Dictation for multi-line form fields.
  *
  * Drop this component on any page that has a `<textarea>` and every one of
- * them gets a microphone — there is no per-field markup to add or keep in
+ * them gets a microphone. There is no per-field markup to add or keep in
  * sync, so a field added later is covered automatically. Single-line inputs
  * are deliberately left alone: a name or an email address is faster to type
  * than to speak and correct.
@@ -17,7 +17,7 @@ import Icon from '@components/ui/icons/Icon.astro';
   the icons stay in the registry with every other icon instead of becoming a
   second copy of the same paths inlined in a script.
 
-  Hidden until the script clones it — and if the browser cannot record, it is
+  Hidden until the script clones it, and if the browser cannot record, it is
   never cloned, so no dead control is shown.
 */
 }
@@ -27,7 +27,7 @@ import Icon from '@components/ui/icons/Icon.astro';
     The control sits in the bottom-right corner of the field it fills, so it
     reads as part of the box rather than another button stacked under the
     form. That leaves no room for a caption, so "Speak" moves to the
-    accessible name — the microphone alone is understood, and the label was
+    accessible name, the microphone alone is understood, and the label was
     the widest thing in the row.
   */
   }
@@ -36,7 +36,7 @@ import Icon from '@components/ui/icons/Icon.astro';
     No border and no fill: the control reads as an icon floating inside the
     field rather than a button parked on its edge, which is what the extra
     breathing room between the field's border and the microphone comes from.
-    State is carried by colour alone — a hover or recording background would
+    State is carried by colour alone. A hover or recording background would
     put the edge straight back.
   */
   }
@@ -57,7 +57,7 @@ import Icon from '@components/ui/icons/Icon.astro';
       /*
       Radio-wave rings while recording. Two staggered ping layers so it reads
       as an emanating wave, not a single throb. The keyframes are Tailwind's
-      `ping` but at 2s rather than the 1s default — at the stock speed two
+      `ping` but at 2s rather than the 1s default. At the stock speed two
       offset copies read as flashing rather than as a wave. The full
       `animate-[…]` shorthand is used instead of animate-ping plus a duration
       override so the timing does not depend on utility ordering.
@@ -132,7 +132,7 @@ import Icon from '@components/ui/icons/Icon.astro';
     /*
      * The button is positioned against the field, which means the field needs
      * a positioned parent. Wrapping here rather than in every form keeps the
-     * "add a textarea and it just works" contract — the markup around the
+     * "add a textarea and it just works" contract, the markup around the
      * field stays untouched, and the extra bottom padding stops a long
      * message from running underneath the microphone.
      */
@@ -169,7 +169,7 @@ import Icon from '@components/ui/icons/Icon.astro';
         el.label.textContent = on ? 'Stop' : 'Speak';
         el.button.setAttribute('aria-pressed', String(on));
         /*
-         * No background or border swap while recording — either would put
+         * No background or border swap while recording. Either would put
          * back the edge the idle state deliberately does without. The red
          * comes from the stop icon itself, which carries its own colour, plus
          * the rings below.
@@ -189,7 +189,7 @@ import Icon from '@components/ui/icons/Icon.astro';
   );
 
   /*
-   * Where recording is unavailable the button is simply never created — the
+   * Where recording is unavailable the button is simply never created, the
    * forms are fully usable by typing, so a control that cannot work is worse
    * than no control.
    */
@@ -202,7 +202,7 @@ import Icon from '@components/ui/icons/Icon.astro';
         /*
          * An explicit opt-out, for fields that live outside this page's forms.
          * The chat widget is in the layout and so appears on every page, while
-         * this component is only on two of them — without the opt-out its
+         * this component is only on two of them. Without the opt-out its
          * composer would sprout a Speak button on the contact and wholesale
          * pages and nowhere else, which is worse than not offering it at all.
          */

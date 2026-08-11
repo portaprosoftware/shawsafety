@@ -17,7 +17,7 @@ keywords:
 ---
 
 Free ground shipping is offered on retail orders within the contiguous United
-States — the site banner reads "Free U.S. Shipping On Retail Orders". Freight
+States. The site banner reads "Free U.S. Shipping On Retail Orders". Freight
 quotes are provided separately on pallet-scale wholesale orders; ask for one
 with a bulk quote request.
 

@@ -27,7 +27,7 @@ keywords:
 ## Intermodal container security (domestic)
 
 The 11" fluorescent tie is sized for the door handle geometry of standard
-intermodal containers — 20-foot and 40-foot ISO boxes as well as the domestic
+intermodal containers, 20-foot and 40-foot ISO boxes as well as the domestic
 53-foot containers used in intermodal drayage between rail ramps and
 distribution centers. The tie loops through the right-hand door handle and the
 vertical locking bar keeper so that the doors cannot be opened without cutting
@@ -66,7 +66,7 @@ whether a high-security barrier seal is required.
 ## Yard security and lot moves
 
 Distribution centers, ports, and rail yards use the tie for internal lot
-moves — a spotter driver moves a loaded trailer from a door to a parking spot,
+moves, a spotter driver moves a loaded trailer from a door to a parking spot,
 or from one lot to another, and the tie is applied at the door and cut at the
 receiving door.
 
@@ -84,23 +84,23 @@ This gives every consignee visible confirmation that the load was sealed
 between the previous stop and their door.
 
 Bulk-pricing math works out well for LTL: a route driver going through four to
-eight seals per shift will consume 20–40 packs per week per truck.
+eight seals per shift will consume 20-40 packs per week per truck.
 
 ## Color assignment strategies
 
 The four available colors let fleets encode routing information into the seal
 itself without any electronic system.
 
-- **Color per lane** — one color for the northbound lane, one for the
+- **Color per lane**: one color for the northbound lane, one for the
   southbound, one for the eastbound, one for the westbound. A seal of the wrong
   color at a receiving door is immediately visible.
-- **Color per shift** — day, swing, night, weekend. Broken seals get pinned to
+- **Color per shift**: day, swing, night, weekend. Broken seals get pinned to
   the shift that applied them without a supervisor having to check the manifest.
-- **Color per month** — rotate the four colors quarterly so any tie from the
+- **Color per month**: rotate the four colors quarterly so any tie from the
   previous quarter left on a trailer is caught before the truck leaves the yard.
-- **Color per customer** — a single-tenant fleet can assign a color to each
+- **Color per customer**: a single-tenant fleet can assign a color to each
   large account so drivers cannot cross-load between accounts by mistake.
-- **Color per driver or per team** — smaller fleets use color as an
+- **Color per driver or per team**: smaller fleets use color as an
   accountability signal on high-value or high-risk lanes.
 
 ## Portable sanitation, septic, and roll-off use
@@ -130,7 +130,7 @@ terminal's seal policy before switching from an existing seal.
 
 ## Air cargo ULD sealing
 
-Unit Load Devices (ULDs) — the AKE, AAF, and PMC containers used in air cargo —
+Unit Load Devices (ULDs), the AKE, AAF, and PMC containers used in air cargo,
 are commonly sealed with an indicative plastic tie at build-up and again at
 breakdown. The Shaw Safety tie fits the standard door pin geometry on most ULD
 types. For international air freight moving under a security regime (TSA, CCSF,

@@ -20,7 +20,7 @@ Unopened packs can be returned within **30 days of delivery for a full refund**
 of the purchase price.
 
 If a tie fails to meet its published spec, Shaw Safety replaces the affected
-lot at its own cost — report it and the lot is replaced.
+lot at its own cost. Report it and the lot is replaced.
 
 Return shipping is the buyer's responsibility except where the goods are
 defective or were shipped in error, in which case Shaw Safety covers it.

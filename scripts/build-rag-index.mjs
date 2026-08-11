@@ -5,7 +5,7 @@
  *
  * Reads every chunk in src/content/knowledge/, asks OpenAI for an embedding of
  * each, and writes src/data_files/rag-index.json. That file is the whole
- * retrieval store — there is no vector database, because 30 chunks is small
+ * retrieval store. There is no vector database, because 30 chunks is small
  * enough that a linear scan in the API route costs less than a network hop to
  * one would.
  *
@@ -22,7 +22,7 @@
  * ## This never fails the build
  *
  * No key, or an upstream error, leaves the index unwritten and the assistant
- * switched off — reported loudly, but not fatally. An OpenAI outage should not
+ * switched off, reported loudly, but not fatally. An OpenAI outage should not
  * be able to block a pricing correction from reaching the storefront, which is
  * the same call the checkout tier check makes: loud, not offline.
  *
@@ -69,7 +69,7 @@ const BATCH_SIZE = 32;
  * Frontmatter parser for the subset this corpus uses: quoted scalars and
  * block lists of quoted scalars, one level deep.
  *
- * Astro parses these files properly at build time via the content collection —
+ * Astro parses these files properly at build time via the content collection,
  * this exists only because the script runs outside Astro, and pulling a YAML
  * parser into the dependency tree to read six keys is not a trade worth
  * making. It is intentionally strict: anything it cannot read is reported as a
@@ -128,15 +128,15 @@ function unquote(value) {
  * Split a reference document into one chunk per H2 heading.
  *
  * Two shapes of file live in this corpus. The page-anchored chunks are one
- * topic per file and embed whole. The reference documents are long — a full
- * treatment of compliance, or of shipping — and embedding one of those as a
+ * topic per file and embed whole. The reference documents are long, a full
+ * treatment of compliance, or of shipping, and embedding one of those as a
  * single vector retrieves badly: a two-thousand-word average is close to
  * nothing in particular, and it crowds the context window with fifteen
  * sections to answer a question about one.
  *
  * Splitting on H2 keeps the editable unit a document a person can read top to
- * bottom, while the retrieval unit stays a single section. The alternative —
- * committing the pre-split chunks as their own files — makes the corpus a
+ * bottom, while the retrieval unit stays a single section. The alternative,
+ * committing the pre-split chunks as their own files, makes the corpus a
  * hundred and fifty fragments nobody can review, and lets the split drift from
  * the prose it came from.
  *
@@ -183,7 +183,7 @@ function splitSections(body, file) {
 /**
  * The text that actually gets embedded.
  *
- * Title and questions lead because they carry the buyer's vocabulary — a
+ * Title and questions lead because they carry the buyer's vocabulary, a
  * question phrased the way someone would ask it is the closest thing in the
  * corpus to the query that will be matched against it. Keywords are included
  * for the same reason; the body follows as the substance.
@@ -245,11 +245,11 @@ if (reportOnly) {
   try {
     const built = JSON.parse(await readFile(outFile, 'utf8'));
     console.log(
-      `\nRAG assistant: ON — ${built.chunks.length} chunks, ${built.model} (${built.dimensions}d)\n`
+      `\nRAG assistant: ON, ${built.chunks.length} chunks, ${built.model} (${built.dimensions}d)\n`
     );
   } catch {
     console.log(
-      '\nRAG assistant: OFF — no index was produced, so the chat widget is\n' +
+      '\nRAG assistant: OFF. No index was produced, so the chat widget is\n' +
         '  not rendered. Set OPENAI_API_KEY in the build environment and\n' +
         '  redeploy; look further up this log for the reason.\n'
     );
@@ -262,7 +262,7 @@ const apiKey = process.env.OPENAI_API_KEY;
 /*
  * A missing key is a configuration state, not a failure. It is how every
  * contributor without one builds the site, and how a preview deploy runs when
- * the variable is scoped to production only — neither should be a broken
+ * the variable is scoped to production only, neither should be a broken
  * build. The assistant simply stays off, which the widget already handles by
  * rendering nothing at all.
  */
@@ -276,7 +276,7 @@ if (!apiKey && !dryRun) {
   /*
    * Remove a stale index rather than leaving one behind. Astro reads this file
    * at compile time, so a leftover from an earlier keyed build would ship a
-   * widget that every visitor finds broken — worse than no widget.
+   * widget that every visitor finds broken, worse than no widget.
    */
   await rm(outFile, { force: true });
   process.exit(0);
@@ -300,6 +300,23 @@ for (const file of files.sort()) {
     throw new Error(`${file}: needs a title, a url, and a body`);
   }
 
+  /*
+   * House style, enforced where it cannot be forgotten.
+   *
+   * The site uses no em or en dashes, and the assistant is told not to either,
+   * but it answers in the voice of the passages it is handed: a dash that gets
+   * into the corpus comes back out in an answer. Failing the build is cheaper
+   * than noticing it in a screenshot.
+   */
+  const dash = raw.match(/[\u2014\u2013]/);
+  if (dash) {
+    const line = raw.slice(0, dash.index).split('\n').length;
+    throw new Error(
+      `${file}:${line}: em or en dash in the corpus. Use a comma, a colon, ` +
+        'or a period and a new sentence.'
+    );
+  }
+
   const stem = file.replace(/\.md$/, '');
   const common = {
     topic: data.topic ?? 'company',
@@ -318,7 +335,7 @@ for (const file of files.sort()) {
         id: `${stem}--${String(i).padStart(3, '0')}`,
         documentTitle: data.title,
         heading: section.heading,
-        title: `${data.title} — ${section.heading}`,
+        title: `${data.title}, ${section.heading}`,
         body: section.body,
       });
     });
@@ -345,7 +362,7 @@ if (dryRun) {
       .map(([topic, n]) => `${topic} ${n}`)
       .join(', ')}`
   );
-  console.log('\nDry run — nothing embedded, nothing written.\n');
+  console.log('\nDry run. Nothing embedded, nothing written.\n');
   process.exit(0);
 }
 
@@ -369,13 +386,11 @@ try {
    * an upstream problem hold up a pricing correction. The same call the
    * checkout tier check makes.
    *
-   * The half-built index is discarded rather than written — a partial corpus
+   * The half-built index is discarded rather than written, a partial corpus
    * retrieves confidently from whichever chunks made it, which is a worse
    * failure than the assistant being off.
    */
-  console.error(
-    `\nRAG assistant: FAILED to build the index — ${error.message}`
-  );
+  console.error(`\nRAG assistant: FAILED to build the index, ${error.message}`);
   console.error(
     '  The site will deploy without the chat widget. Fix the key or retry the\n' +
       '  deploy; nothing else on the site is affected.\n'

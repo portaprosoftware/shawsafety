@@ -33,7 +33,7 @@ export function initAddToCart(): void {
 }
 
 /**
- * Swap the label to a confirmation for a beat. Purely cosmetic — the cart
+ * Swap the label to a confirmation for a beat. Purely cosmetic, the cart
  * badge is the authoritative feedback.
  */
 function flashConfirmed(button: HTMLElement): void {

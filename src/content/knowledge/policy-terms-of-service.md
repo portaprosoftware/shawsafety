@@ -1,5 +1,5 @@
 ---
-title: 'Terms of service — orders, pricing, liability'
+title: 'Terms of service: orders, pricing, liability'
 topic: 'policy'
 url: '/terms'
 sourceLabel: 'Terms of Service'

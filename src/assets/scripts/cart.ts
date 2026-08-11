@@ -1,7 +1,7 @@
 /**
  * Client-side cart store.
  *
- * The cart is purely a UI ledger — it is NOT the source of truth for money.
+ * The cart is purely a UI ledger. It is NOT the source of truth for money.
  * Stripe (or Square) reprices everything server-side at checkout; see
  * `checkout.ts`. Persisted to localStorage so a reload or a return visit
  * keeps the basket.
@@ -50,7 +50,7 @@ function isBrowser(): boolean {
 }
 
 /**
- * Read persisted state. Anything malformed is discarded rather than thrown —
+ * Read persisted state. Anything malformed is discarded rather than thrown,
  * a corrupt cart must never take the whole page down.
  */
 function hydrate(): void {
