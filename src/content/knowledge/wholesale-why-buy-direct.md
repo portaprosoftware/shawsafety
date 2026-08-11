@@ -25,7 +25,7 @@ quantity lands in, whether they call or never speak to anyone.
 so a mixed pallet reaches the same tier a single-color one would.
 
 **Dedicated fulfillment.** Wholesale orders route to their own pick queue.
-Order before 5pm and it still leaves the next business day.
+Order before 5pm ET and it still leaves the next business day.
 
 **Net terms available.** Established fleets and terminals can request net 30.
 Send an AP contact along with a quote request to start the process.

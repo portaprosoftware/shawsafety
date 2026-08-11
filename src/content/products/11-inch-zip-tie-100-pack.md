@@ -92,7 +92,7 @@ highlights:
     body: 'Price drops automatically at 100 and 200 packs. No account, no negotiation, no minimum order.'
   - icon: 'truck'
     title: 'Fast Shipping'
-    body: 'Orders placed before 5pm ship the next business day. Seals ship in 24 hours, not weeks.'
+    body: 'Orders placed before 5pm ET ship the next business day. Stock seals ship in 24 hours, not weeks.'
 specs:
   - label: 'Length'
     value: '11 inches (279 mm)'

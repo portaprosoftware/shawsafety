@@ -26,10 +26,12 @@ keywords:
   - 'LTL'
 ---
 
-## Seals ship within 24 hours
+## Stock seals ship within 24 hours
 
 Orders placed before 5pm Eastern on a business day ship the next business day
-from U.S. stock. This is the operating rule that defines the category — most
+from U.S. stock. This covers the four standard tie SKUs and the vests. Custom
+and printed runs ship after production instead, on a lead time confirmed with
+the quote. This is the operating rule that defines the category — most
 competitors in industrial security seals quote multi-week lead times because
 they treat every order as a build-to-order run. Shaw Safety stocks the four
 standard SKUs so a next-day-ship promise is the default, not the exception.

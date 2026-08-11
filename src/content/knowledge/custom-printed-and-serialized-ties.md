@@ -24,5 +24,7 @@ ties, and logos heat-pressed on the back of the hi-vis vests.
 Mixed sizing across a vest pack is handled the same way — note it on the quote
 request.
 
-Custom and printed seals ship within 24 hours rather than the multi-week lead
-times common elsewhere in this category.
+Custom and printed seals ship once production is complete, which is a different
+schedule from the next-business-day dispatch that applies to standard stock. The
+lead time for a specific configuration is confirmed with the quote, before the
+order is committed.

@@ -17,8 +17,12 @@ keywords:
 ---
 
 Orders placed before **5pm ET on a business day ship the next business day**
-from stock. Custom and printed seals ship within 24 hours rather than the
-multi-week lead times common elsewhere in this category.
+from stock.
+
+Custom and printed seals are a different schedule: they ship once production is
+complete, and the lead time for a specific configuration is confirmed with the
+quote before the order is committed. The next-business-day promise covers
+standard stock only.
 
 This holds for wholesale orders too: they route to their own pick queue, and an
 order placed before 5pm still leaves the next business day.
