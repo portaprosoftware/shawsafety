@@ -77,9 +77,14 @@ const suggestions = [
         aria-label="Ask Shaw Safety"
         aria-hidden="true"
         {...{ inert: true }}
-        class="pointer-events-none fixed inset-x-0 bottom-0 z-80 flex h-[85dvh] translate-y-4 flex-col overflow-hidden rounded-t-2xl border border-neutral-200 bg-white opacity-0 shadow-2xl transition duration-200 ease-out sm:inset-x-auto sm:right-6 sm:bottom-24 sm:h-[min(620px,calc(100dvh-9rem))] sm:w-[400px] sm:rounded-2xl"
+        class="pointer-events-none fixed inset-0 z-80 flex translate-y-4 flex-col overflow-hidden bg-white opacity-0 shadow-2xl transition duration-200 ease-out sm:inset-auto sm:right-6 sm:bottom-24 sm:h-[min(620px,calc(100dvh-9rem))] sm:w-[400px] sm:rounded-2xl sm:border sm:border-neutral-200"
       >
-        <header class="from-brand-grad-from to-brand-grad-to flex items-start justify-between gap-4 bg-linear-to-tr px-5 py-4">
+        {/*
+          Full-screen on mobile, so the header runs under the notch or status
+          bar — the safe-area inset keeps the title clear of it. Reset at `sm`,
+          where the panel is a floating card and the inset does not apply.
+        */}
+        <header class="from-brand-grad-from to-brand-grad-to flex items-start justify-between gap-4 bg-linear-to-tr px-5 py-4 pt-[max(1rem,env(safe-area-inset-top))] sm:pt-4">
           <div>
             <h2 class="text-base font-bold tracking-tight text-white">
               Ask Shaw Safety
@@ -102,7 +107,7 @@ const suggestions = [
         */}
         <div
           id="ask-log"
-          class="flex-1 space-y-4 overflow-y-auto px-4 py-4"
+          class="flex-1 space-y-4 overflow-y-auto overscroll-contain px-4 py-4"
           aria-live="polite"
           aria-busy="false"
         />
@@ -195,6 +200,11 @@ const suggestions = [
             </a>
             .
           </p>
+
+          <p class="mt-1 px-1 text-[11px] leading-snug text-neutral-400">
+            This chat stays active for 5 minutes after you close the window,
+            then starts fresh.
+          </p>
         </div>
       </section>
     </div>
@@ -205,10 +215,15 @@ const suggestions = [
   /**
    * Chat client for /api/ask.
    *
-   * The transcript lives in sessionStorage rather than in memory: this is a
-   * multi-page site, so following a cited link — the thing the answers are
-   * built to encourage — would otherwise throw the conversation away on
-   * navigation. It is per-tab and dies with it; nothing is persisted to disk.
+   * The transcript is stored rather than held in memory: this is a multi-page
+   * site, so following a cited link — the thing the answers are built to
+   * encourage — would otherwise throw the conversation away on navigation.
+   *
+   * Storage is localStorage with an explicit five-minute expiry, not
+   * sessionStorage. sessionStorage dies with the tab, which cannot express
+   * "close the window, come back inside five minutes, and the conversation is
+   * still there" — that needs storage outliving the tab, so the lifetime has
+   * to be enforced on read instead of inherited from the session.
    */
   import {
     createDictation,
@@ -236,6 +251,16 @@ const suggestions = [
 
   /** Transcript turns kept in storage. The route only reads the last six. */
   const MAX_STORED = 20;
+
+  /**
+   * How long a transcript outlives the window it was typed in.
+   *
+   * Long enough to survive closing a tab to check something and coming back;
+   * short enough that a shared or borrowed machine is not left holding someone
+   * else's conversation. The composer footer states the same number, because a
+   * chat that remembers is a chat the visitor should know remembers.
+   */
+  const TTL_MS = 5 * 60_000;
 
   const root = document.getElementById('ask-root');
   const launcher = document.getElementById('ask-launcher');
@@ -298,9 +323,22 @@ const suggestions = [
      */
     const load = (): { open: boolean } => {
       try {
-        const raw = sessionStorage.getItem(STORAGE_KEY);
+        const raw = localStorage.getItem(STORAGE_KEY);
         if (!raw) return { open: false };
         const saved = JSON.parse(raw);
+
+        /*
+         * A stamp that is missing, unparseable, or in the future is treated as
+         * expired. A transcript restored against a clock that moved backwards
+         * would outlive its window by however far the clock is wrong, and a
+         * fresh chat is the cheaper mistake.
+         */
+        const age = Date.now() - Number(saved.savedAt);
+        if (!Number.isFinite(age) || age < 0 || age > TTL_MS) {
+          localStorage.removeItem(STORAGE_KEY);
+          return { open: false };
+        }
+
         messages = Array.isArray(saved.messages) ? saved.messages : [];
         return { open: Boolean(saved.open) };
       } catch {
@@ -310,9 +348,13 @@ const suggestions = [
 
     const save = (open: boolean) => {
       try {
-        sessionStorage.setItem(
+        localStorage.setItem(
           STORAGE_KEY,
-          JSON.stringify({ open, messages: messages.slice(-MAX_STORED) })
+          JSON.stringify({
+            open,
+            savedAt: Date.now(),
+            messages: messages.slice(-MAX_STORED),
+          })
         );
       } catch {
         /* Private mode, or a full quota. The conversation still works. */
@@ -320,6 +362,16 @@ const suggestions = [
     };
 
     const isOpen = () => panel.getAttribute('aria-hidden') === 'false';
+
+    /*
+     * Restamp on the way out.
+     *
+     * The five minutes are meant to run from when the visitor leaves, not from
+     * their last message — otherwise reading a long answer and then following a
+     * cited link could lose the conversation mid-use. `pagehide` fires on both
+     * navigation and close, so the clock starts at the moment they actually go.
+     */
+    window.addEventListener('pagehide', () => save(isOpen()));
 
     // ── Rendering ───────────────────────────────────────────────────────
     const escapeHtml = (text: string) =>
@@ -459,6 +511,40 @@ const suggestions = [
     };
 
     // ── Open / close ────────────────────────────────────────────────────
+    /*
+     * Keep the full-screen panel inside the *visual* viewport on mobile.
+     *
+     * The panel is `fixed inset-0`, which resolves against the layout viewport.
+     * On iOS the layout viewport does not shrink when the keyboard opens, so
+     * the composer ends up underneath it — the visitor types into a box they
+     * cannot see. The visual viewport does shrink, so while the panel is open
+     * on a small screen its height and offset are driven from that instead.
+     *
+     * This replaced a `85dvh` bottom sheet, whose other failure was Safari's
+     * collapsing toolbar: every toolbar transition changed `dvh` and resized
+     * the sheet mid-scroll. Pinning to the viewport box sidesteps the unit
+     * entirely.
+     *
+     * Desktop clears the inline styles and keeps the CSS sizing, so the
+     * floating card is unaffected.
+     */
+    const mobile = window.matchMedia('(max-width: 639px)');
+    const viewport = window.visualViewport;
+
+    const syncViewport = () => {
+      if (!viewport || !mobile.matches || !isOpen()) {
+        panel.style.height = '';
+        panel.style.top = '';
+        return;
+      }
+      panel.style.height = `${viewport.height}px`;
+      panel.style.top = `${viewport.offsetTop}px`;
+    };
+
+    viewport?.addEventListener('resize', syncViewport);
+    viewport?.addEventListener('scroll', syncViewport);
+    mobile.addEventListener('change', syncViewport);
+
     const setOpen = (open: boolean, focusInput = true) => {
       panel.setAttribute('aria-hidden', String(!open));
       /*
@@ -480,6 +566,9 @@ const suggestions = [
       launcher
         .querySelector('[data-ask-icon-open]')
         ?.classList.toggle('hidden', !open);
+
+      // After the attribute flips, so the guard inside sees the new state.
+      syncViewport();
 
       if (open && focusInput) input.focus();
       if (!open) {

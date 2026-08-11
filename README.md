@@ -169,7 +169,7 @@ Set in Vercel → Project → Settings → Environment Variables. See `.env.exam
 | Variable         | Required | Purpose                                                                                                    |
 | ---------------- | -------- | ---------------------------------------------------------------------------------------------------------- |
 | `RESEND_API_KEY` | yes      | Authenticates the send. Server-only — never prefix with `PUBLIC_`.                                         |
-| `RESEND_FROM`    | yes      | From address. Must be on `mail.portaprosoftware.com`, the domain verified in Resend — see the note below.   |
+| `RESEND_FROM`    | yes      | From address. Must be on `mail.portaprosoftware.com`, the domain verified in Resend — see the note below.  |
 | `CONTACT_TO`     | no       | Where enquiries are delivered. Comma-separated for several recipients. Defaults to `sales@shawsafety.com`. |
 
 The sending domain verified in Resend is the subdomain
@@ -610,11 +610,25 @@ Behaviour worth knowing:
 - **The closed panel is `inert`, not just `aria-hidden`.** It is only faded and
   translated, so without `inert` its composer stays in the tab order and a
   keyboard visitor tabs from the footer into an invisible chat box.
-- **The transcript lives in `sessionStorage`,** and a panel left open reopens
-  itself after a navigation. Following a cited link is the thing the answers are
-  built to encourage, and on a multi-page site that would otherwise discard the
-  conversation. Per-tab, dies with it, never written to disk. Focus is not
-  stolen on restore.
+- **Full-screen on mobile, a floating card at `sm` and up.** The panel was a
+  `85dvh` bottom sheet, which iOS resized on every Safari toolbar transition
+  because `dvh` changes with it. It is now `fixed inset-0` on small screens,
+  pinned to the viewport box rather than to a unit that moves. Because iOS does
+  not shrink the layout viewport for the keyboard, the open panel is also sized
+  from `visualViewport` — without that the composer sits underneath the keyboard.
+  Desktop clears those inline styles and keeps the CSS sizing.
+- **The transcript lives in `localStorage` with a five-minute expiry,** and a
+  panel left open reopens itself. Following a cited link is the thing the answers
+  are built to encourage, and on a multi-page site that would otherwise discard
+  the conversation. `sessionStorage` cannot express the intended lifetime — it
+  dies with the tab, so closing the window and coming back a minute later would
+  lose everything — so the entry is stamped and every read drops anything older
+  than `TTL_MS`. A stamp that is missing, unparseable, or in the future counts as
+  expired, so a bad clock cannot resurrect a stale conversation. `pagehide`
+  restamps on the way out, which means the five minutes run from when the visitor
+  actually leaves rather than from their last message. The composer footer states
+  the behaviour, because a chat that remembers is a chat the visitor should know
+  remembers. Focus is not stolen on restore.
 - **Citations become links.** `[2]` in an answer is rendered as a superscript
   link to the page that passage came from, and distinct sources are listed as
   chips beneath. Only numbers the API actually returned are linked — a model
