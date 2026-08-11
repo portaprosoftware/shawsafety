@@ -102,14 +102,31 @@ export function createDictation(handlers: DictationHandlers): Dictation {
   let timer: number | undefined;
   let autoStop: number | undefined;
   let startedAt = 0;
+  /** True between the click and the microphone actually opening. */
+  let starting = false;
+  /** Set when `stop` lands during that window, so the stream is closed on arrival. */
+  let cancelStart = false;
 
   const status = (text: string, isError = false) =>
     handlers.onStatus(text, isError);
 
-  /** Drop the mic. Without this the browser keeps showing "recording". */
+  /**
+   * Drop the mic.
+   *
+   * Chrome lights the tab's recording dot for as long as anything holds a live
+   * capture, and it stays lit until every one of them lets go, so ending the
+   * tracks is necessary but not sufficient. Two other references have to go
+   * with them: the MediaRecorder, which keeps its own sink on the track and
+   * would otherwise sit in the closure until the next recording, and the
+   * recorder's copy of the stream, which outlives the local variable on any
+   * path that clears `stream` first.
+   */
   const releaseMic = () => {
-    stream?.getTracks().forEach(track => track.stop());
+    for (const open of [stream, recorder?.stream]) {
+      open?.getTracks().forEach(track => track.stop());
+    }
     stream = null;
+    recorder = null;
     window.clearInterval(timer);
     window.clearTimeout(autoStop);
   };
@@ -174,6 +191,7 @@ export function createDictation(handlers: DictationHandlers): Dictation {
   const stop = () => {
     // `stop()` fires onstop asynchronously; releasing the mic here rather than
     // in the handler kills the recording light immediately.
+    if (starting) cancelStart = true;
     if (recorder?.state === 'recording') recorder.stop();
     releaseMic();
     handlers.onRecordingChange(false);
@@ -181,9 +199,25 @@ export function createDictation(handlers: DictationHandlers): Dictation {
 
   const start = async () => {
     status('Requesting microphone…');
+
+    /*
+     * Opening the microphone is asynchronous, and until it resolves there is
+     * no recorder for `toggle` to see as running, so a second click during
+     * the wait used to open a second stream and overwrite the first, leaving
+     * it live with nothing left holding a reference to stop it. That is the
+     * open microphone that survives pressing stop and only clears on reload.
+     */
+    if (starting) return;
+    starting = true;
+
+    // Anything still open from a previous round goes before a new one starts.
+    releaseMic();
+
+    let opened: MediaStream;
     try {
-      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      opened = await navigator.mediaDevices.getUserMedia({ audio: true });
     } catch (error) {
+      starting = false;
       // Denied, dismissed, or no input device, all land here, and the
       // distinction is what the visitor needs to hear.
       const denied =
@@ -198,24 +232,48 @@ export function createDictation(handlers: DictationHandlers): Dictation {
       return;
     }
 
+    /*
+     * Stopped while the permission prompt was still up. The chat panel does
+     * this when it is dismissed. The stream arrived after the decision to
+     * stop, so close it here rather than opening a recording nobody asked for.
+     */
+    if (cancelStart) {
+      opened.getTracks().forEach(track => track.stop());
+      cancelStart = false;
+      starting = false;
+      return;
+    }
+
+    stream = opened;
     const mimeType = preferredMimeType();
-    recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+    const active = new MediaRecorder(
+      opened,
+      mimeType ? { mimeType } : undefined
+    );
+    recorder = active;
+    starting = false;
     chunks = [];
 
-    recorder.addEventListener('dataavailable', event => {
+    active.addEventListener('dataavailable', event => {
       if (event.data.size > 0) chunks.push(event.data);
     });
 
-    recorder.addEventListener('stop', () => {
-      const blob = new Blob(chunks, {
-        type: recorder?.mimeType || 'audio/webm',
-      });
+    active.addEventListener('stop', () => {
+      /*
+       * `active`, not `recorder`. Stopping releases the mic, which clears
+       * `recorder` before this fires, and by then a later recording may
+       * already own it.
+       */
+      const blob = new Blob(chunks, { type: active.mimeType || 'audio/webm' });
       chunks = [];
+      // Belt and braces: the recorder is the last thing holding the track on
+      // paths that end here without going through `stop`.
+      active.stream.getTracks().forEach(track => track.stop());
       if (blob.size > 0) void transcribe(blob);
       else status('Nothing was recorded. Try again.', true);
     });
 
-    recorder.start();
+    active.start();
     startedAt = Date.now();
     handlers.onRecordingChange(true);
     tick();
@@ -227,11 +285,17 @@ export function createDictation(handlers: DictationHandlers): Dictation {
   };
 
   // Leaving mid-recording must not strand an open microphone.
-  window.addEventListener('pagehide', releaseMic);
+  window.addEventListener('pagehide', () => {
+    if (starting) cancelStart = true;
+    releaseMic();
+  });
 
   return {
     toggle: () => {
-      if (recorder?.state === 'recording') stop();
+      // `starting` counts as on: a second press while the permission prompt is
+      // up reads as "never mind", and letting it fall through to `start` would
+      // silently do nothing.
+      if (starting || recorder?.state === 'recording') stop();
       else void start();
     },
     stop,

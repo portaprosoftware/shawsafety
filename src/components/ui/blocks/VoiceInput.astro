@@ -31,10 +31,19 @@ import Icon from '@components/ui/icons/Icon.astro';
     the widest thing in the row.
   */
   }
+  {
+    /*
+    No border and no fill: the control reads as an icon floating inside the
+    field rather than a button parked on its edge, which is what the extra
+    breathing room between the field's border and the microphone comes from.
+    State is carried by colour alone. A hover or recording background would
+    put the edge straight back.
+  */
+  }
   <button
     type="button"
     data-voice-button
-    class="focus-visible:ring-maroon-700 absolute right-2 bottom-2 inline-flex h-8 w-8 items-center justify-center rounded-lg border border-neutral-300 bg-white text-neutral-600 transition hover:border-neutral-400 hover:bg-neutral-50 hover:text-neutral-900 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-50"
+    class="focus-visible:ring-maroon-700 absolute right-2 bottom-2 inline-flex h-8 w-8 items-center justify-center rounded-lg border-0 bg-transparent text-neutral-400 transition hover:text-neutral-700 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-50"
   >
     <span data-voice-icon-idle class="contents">
       <Icon name="microphone" class="h-4 w-4" strokeWidth={2} />
@@ -46,8 +55,13 @@ import Icon from '@components/ui/icons/Icon.astro';
 
     {
       /*
-      Radio-wave rings while recording. Two staggered animate-ping layers so
-      it reads as an emanating wave, not a single throb. Positioned as
+      Radio-wave rings while recording. Two staggered ping layers so it reads
+      as an emanating wave, not a single throb. The keyframes are Tailwind's
+      `ping` but at 2s rather than the 1s default. At the stock speed two
+      offset copies read as flashing rather than as a wave. The full
+      `animate-[…]` shorthand is used instead of animate-ping plus a duration
+      override so the timing does not depend on utility ordering.
+      Positioned as
       children of the (already position:absolute) button, so `absolute inset-0`
       resolves against the button box and the pulse extends into the space
       around it. aria-hidden and pointer-events:none so nothing interferes
@@ -61,11 +75,11 @@ import Icon from '@components/ui/icons/Icon.astro';
       class="pointer-events-none absolute inset-0 hidden"
     >
       <span
-        class="absolute inset-0 animate-ping rounded-lg ring-2 ring-red-500/60"
+        class="absolute inset-0 animate-[ping_2s_cubic-bezier(0,0,0.2,1)_infinite] rounded-lg ring-2 ring-red-500/60"
       ></span>
       <span
-        class="absolute inset-0 animate-ping rounded-lg ring-2 ring-red-500/40"
-        style="animation-delay:0.6s"></span>
+        class="absolute inset-0 animate-[ping_2s_cubic-bezier(0,0,0.2,1)_infinite] rounded-lg ring-2 ring-red-500/40"
+        style="animation-delay:1.2s"></span>
     </span>
   </button>
 
@@ -154,8 +168,12 @@ import Icon from '@components/ui/icons/Icon.astro';
         el.recording.classList.toggle('hidden', !on);
         el.label.textContent = on ? 'Stop' : 'Speak';
         el.button.setAttribute('aria-pressed', String(on));
-        el.button.classList.toggle('border-red-400', on);
-        el.button.classList.toggle('bg-red-50', on);
+        /*
+         * No background or border swap while recording. Either would put
+         * back the edge the idle state deliberately does without. The red
+         * comes from the stop icon itself, which carries its own colour, plus
+         * the rings below.
+         */
         el.rings.classList.toggle('hidden', !on);
       },
       onBusyChange: busy => {
