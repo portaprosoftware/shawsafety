@@ -1,0 +1,102 @@
+---
+/**
+ * The dictation control, everywhere it appears.
+ *
+ * One microphone, one recording animation, one set of hooks for the script
+ * that drives it. The contact and wholesale forms and the chat composer all
+ * render this. It exists because they used to each own a copy, and the copies
+ * drifted: different borders, different colours, and only one of them grew the
+ * recording rings.
+ *
+ * The look is deliberately edgeless. The button sits inside the field it
+ * dictates into, and a border or a fill of its own would land a second frame a
+ * few pixels inside the field's, which reads as a mistake rather than as a
+ * control. So it is a bare icon in the field's padding, and every state
+ * (hover, recording, disabled) is carried by colour.
+ *
+ * Positioning is the caller's business: this is `absolute`, and the caller
+ * supplies the positioned ancestor. Callers also supply their own display
+ * utility through `class`, which is what lets the chat composer ship the
+ * button as `hidden` and reveal it only where the browser can record.
+ */
+import Icon from '@components/ui/icons/Icon.astro';
+
+interface Props {
+  /** Needed only where a script reaches for this specific button. */
+  id?: string;
+  /**
+   * Appended to the base classes. Must include a display utility:
+   * `inline-flex` to show the button, `hidden` for a script to swap later.
+   */
+  class?: string;
+  /**
+   * Where in the positioned ancestor the button sits. A whole prop rather
+   * than something to override through `class`, because two competing
+   * `bottom-*` utilities are resolved by their order in the stylesheet, not
+   * by the order they are written in, so an override silently loses.
+   */
+  position?: string;
+  /** Accessible name. Name it after the field, so two on a page differ. */
+  label?: string;
+  /** id of the field the transcript lands in. */
+  controls?: string;
+}
+
+const {
+  id,
+  class: extra = 'inline-flex',
+  position = 'right-2 bottom-2',
+  label = 'Speak',
+  controls,
+} = Astro.props;
+---
+
+<button
+  type="button"
+  data-voice-button
+  id={id}
+  aria-pressed="false"
+  aria-label={label}
+  aria-controls={controls}
+  class:list={[
+    'focus-visible:ring-maroon-700 absolute h-8 w-8 items-center justify-center rounded-lg border-0 bg-transparent text-neutral-400 transition hover:text-neutral-700 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-50',
+    position,
+    extra,
+  ]}
+>
+  <span data-voice-icon-idle class="contents">
+    <Icon name="microphone" class="h-4 w-4" strokeWidth={2} />
+  </span>
+  <span data-voice-icon-recording class="contents hidden">
+    <Icon name="stop" class="h-4 w-4 text-red-600" />
+  </span>
+  <span data-voice-label class="sr-only">{label}</span>
+
+  {
+    /*
+    Radio-wave rings while recording. Two staggered ping layers so it reads as
+    an emanating wave, not a single throb. The keyframes are Tailwind's `ping`
+    but at 2s rather than the 1s default. At the stock speed two offset copies
+    read as flashing. The full `animate-[…]` shorthand is used instead of
+    animate-ping plus a duration override so the timing does not depend on
+    utility ordering.
+
+    `absolute inset-0` resolves against the button box, so the pulse extends
+    into the space around it. aria-hidden and pointer-events:none so nothing
+    interferes with focus or the click path; class-hidden when idle so the
+    paint cost is zero the rest of the time.
+  */
+  }
+  <span
+    data-voice-rings
+    aria-hidden="true"
+    class="pointer-events-none absolute inset-0 hidden"
+  >
+    <span
+      class="absolute inset-0 animate-[ping_2s_cubic-bezier(0,0,0.2,1)_infinite] rounded-lg ring-2 ring-red-500/60"
+    ></span>
+    <span
+      class="absolute inset-0 animate-[ping_2s_cubic-bezier(0,0,0.2,1)_infinite] rounded-lg ring-2 ring-red-500/40"
+      style="animation-delay:1.2s"></span>
+  </span>
+</button>

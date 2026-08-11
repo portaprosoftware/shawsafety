@@ -1,13 +1,12 @@
 /**
  * Browser-side dictation: record, normalise, transcribe.
  *
- * Extracted from VoiceInput so the chat composer can dictate too. The two
- * callers want completely different chrome, a microphone tucked into the
- * corner of a tall form field, versus a button in a chat composer's button row
- *, but identical behaviour underneath, and the behaviour is the part with the
- * sharp edges: MediaRecorder's per-browser containers, the WAV normalisation
- * that fixed an opaque upstream 400, the auto-stop that closes a forgotten
- * microphone, and releasing the device on every exit path.
+ * Extracted from VoiceInput so the chat composer can dictate too. Both render
+ * the same MicButton, so the chrome is settled elsewhere; what differs is only
+ * when and where each decides to attach one. The behaviour is the part with
+ * the sharp edges anyway: MediaRecorder's per-browser containers, the WAV
+ * normalisation that fixed an opaque upstream 400, the auto-stop that closes
+ * a forgotten microphone, and releasing the device on every exit path.
  *
  * So this module owns all of that and owns no markup. A caller supplies
  * callbacks and gets back a controller; what it draws in response is its own

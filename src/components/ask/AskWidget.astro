@@ -11,6 +11,7 @@
  * page is self-defeating. Escape and the close button both dismiss it.
  */
 import Icon from '@components/ui/icons/Icon.astro';
+import MicButton from '@components/ui/blocks/MicButton.astro';
 import { readEnv } from '@utils/env';
 import { ragIndex } from '@utils/rag';
 
@@ -144,48 +145,52 @@ const suggestions = [
               pasted in whole.
 
               `data-no-dictation` keeps VoiceInput off this field. That
-              component attaches to every textarea on its page and positions
-              its microphone inside the box, which is right for a tall form
-              field and wrong for a one-line composer, and it is only on two
-              pages, while this widget is on all of them. The composer has its
-              own microphone below instead, sharing the same recording code.
+              component attaches to every textarea on its page, and it is only
+              on two pages while this widget is on all of them, so the composer
+              wires up its own dictation below. It renders the same MicButton
+              in the same place and drives it with the same recording code;
+              only the decision of when to attach differs.
+
+              The field and its microphone share a positioned wrapper, so the
+              field is what stretches to meet the send button and the
+              microphone rides inside it. `pr-11` keeps a long question from
+              running underneath.
             */}
-            <textarea
-              id="ask-input"
-              name="question"
-              rows="1"
-              required
-              maxlength="800"
-              data-no-dictation
-              placeholder="Ask about specs, pricing, shipping…"
-              aria-label="Your question"
-              class="focus:border-maroon-700 focus:ring-maroon-700 max-h-32 min-h-11 flex-1 resize-none rounded-lg border-neutral-300 py-2.5 text-sm"
-            />
-            {
-              /*
-              Rendered only where a key is configured, and unhidden by the
-              script only where the browser can actually record. Both halves
-              matter: without the key every recording comes back as an error,
-              and without the APIs the button does nothing at all.
-            */
-              dictationConfigured && (
-                <button
-                  type="button"
-                  id="ask-mic"
-                  aria-pressed="false"
-                  aria-controls="ask-input"
-                  aria-label="Dictate your question"
-                  class="focus-visible:ring-maroon-700 hidden h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-neutral-300 bg-white text-neutral-600 transition hover:border-neutral-400 hover:text-neutral-900 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  <span data-mic-idle class="contents">
-                    <Icon name="microphone" class="h-4 w-4" strokeWidth={2} />
-                  </span>
-                  <span data-mic-recording class="contents hidden">
-                    <Icon name="stop" class="h-4 w-4 text-red-600" />
-                  </span>
-                </button>
-              )
-            }
+            <div class="relative flex-1">
+              <textarea
+                id="ask-input"
+                name="question"
+                rows="1"
+                required
+                maxlength="800"
+                data-no-dictation
+                placeholder="Ask about specs, pricing, shipping…"
+                aria-label="Your question"
+                class="focus:border-maroon-700 focus:ring-maroon-700 max-h-32 min-h-11 w-full resize-none rounded-lg border-neutral-300 py-2.5 pr-11 text-sm"
+              />
+              {
+                /*
+                Rendered only where a key is configured, and unhidden by the
+                script only where the browser can actually record. Both halves
+                matter: without the key every recording comes back as an error,
+                and without the APIs the button does nothing at all.
+
+                `bottom-1.5` rather than the component's default `bottom-2`:
+                in a one-line composer that centres the 32px button in the 44px
+                field, where the form fields it normally sits in are tall
+                enough that bottom-anchoring is what looks right.
+              */
+                dictationConfigured && (
+                  <MicButton
+                    id="ask-mic"
+                    position="right-1.5 bottom-1.5"
+                    class="hidden"
+                    label="Dictate your question"
+                    controls="ask-input"
+                  />
+                )
+              }
+            </div>
             <button
               type="submit"
               id="ask-send"
@@ -613,17 +618,24 @@ const suggestions = [
           dictating = recording;
           syncSend();
           mic.setAttribute('aria-pressed', String(recording));
-          mic.classList.toggle('border-red-400', recording);
-          mic.classList.toggle('bg-red-50', recording);
           mic.setAttribute(
             'aria-label',
             recording ? 'Stop recording' : 'Dictate your question'
           );
+          /*
+           * Icons and rings only, no background or border swap. The button
+           * has no edge of its own to change, which is the whole point of it
+           * sitting inside the field, so the red comes from the stop icon and
+           * the wave around it.
+           */
           mic
-            .querySelector('[data-mic-idle]')
+            .querySelector('[data-voice-icon-idle]')
             ?.classList.toggle('hidden', recording);
           mic
-            .querySelector('[data-mic-recording]')
+            .querySelector('[data-voice-icon-recording]')
+            ?.classList.toggle('hidden', !recording);
+          mic
+            .querySelector('[data-voice-rings]')
             ?.classList.toggle('hidden', !recording);
         },
         onBusyChange: busy => {
