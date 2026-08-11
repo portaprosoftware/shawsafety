@@ -11,7 +11,7 @@ const {
 } = Astro.props;
 ---
 
-<div class="bg-maroon-800 relative text-white">
+<div class="bg-maroon-800 text-white">
   <div
     class="announcement-banner mx-auto max-w-(--breakpoint-2xl) px-4 py-2.5 text-center text-xs font-bold tracking-[0.18em] uppercase sm:px-6 lg:px-8"
     data-announcement-banner
@@ -35,20 +35,6 @@ const {
       <span data-rotator-text>{messages[0]}</span>
     </div>
   </div>
-  {
-    /*
-     * Mobile-only progress sweep. A darker hairline crosses the banner every
-     * 8s to signal that the message rotates — subtle enough to read as chrome
-     * rather than a live loader. Hidden at `sm` and up, where desktop users
-     * see the joined messages inline and don't need the same cue.
-     */
-  }
-  <span
-    aria-hidden="true"
-    class="banner-sweep-track pointer-events-none absolute right-0 bottom-0 left-0 block overflow-hidden sm:hidden"
-  >
-    <span class="banner-sweep-comet block h-full w-1/3"></span>
-  </span>
 </div>
 
 <style>
@@ -65,36 +51,6 @@ const {
   }
   [hidden] {
     display: none !important;
-  }
-
-  .banner-sweep-track {
-    height: 1.5px;
-  }
-  .banner-sweep-comet {
-    background: linear-gradient(
-      to right,
-      transparent 0%,
-      rgba(255, 255, 255, 0.55) 50%,
-      transparent 100%
-    );
-    animation: banner-sweep 8s linear infinite;
-    will-change: transform;
-  }
-
-  @keyframes banner-sweep {
-    0% {
-      transform: translateX(-100%);
-    }
-    100% {
-      transform: translateX(400%);
-    }
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .banner-sweep-comet {
-      animation: none;
-      opacity: 0;
-    }
   }
 </style>
 
