@@ -63,15 +63,28 @@ const bands = [
   </div>
 
   {
-    /* The key is real text: at phone width the map's own legend is unreadable. */
+    /*
+      The key is real text: at phone width the map's own legend is unreadable.
+
+      Below sm the five bands are laid on a six-column grid — days 1-3 spanning
+      two columns each, days 4-5 spanning three — so the split is always 3 over
+      2. Left to wrap on its own, the narrowest phones push only day 5 onto the
+      second row, which reads as an orphan rather than a key. From sm up the
+      grid gives way to the original single-row flex, so desktop is untouched.
+    */
   }
   <ul
-    class="mt-8 flex flex-wrap items-center justify-center gap-x-5 gap-y-2.5"
+    class="mt-8 grid grid-cols-6 items-center justify-items-center gap-x-3 gap-y-2.5 sm:flex sm:flex-wrap sm:justify-center sm:gap-x-5"
     aria-label="Transit time key"
   >
     {
-      bands.map(band => (
-        <li class="inline-flex items-center gap-2">
+      bands.map((band, i) => (
+        <li
+          class:list={[
+            'inline-flex items-center gap-2 sm:col-span-1',
+            i < 3 ? 'col-span-2' : 'col-span-3',
+          ]}
+        >
           <span
             class="h-3.5 w-3.5 rounded-sm border border-neutral-400/60"
             style={`background:${band.hex}`}
