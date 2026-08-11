@@ -45,11 +45,9 @@ const {
   }
   <span
     aria-hidden="true"
-    class="pointer-events-none absolute right-0 bottom-0 left-0 block h-px overflow-hidden sm:hidden"
+    class="banner-sweep-track pointer-events-none absolute right-0 bottom-0 left-0 block overflow-hidden sm:hidden"
   >
-    <span
-      class="bg-maroon-950/70 block h-full w-1/3 animate-[banner-sweep_8s_linear_infinite] will-change-transform"
-    ></span>
+    <span class="banner-sweep-comet block h-full w-1/3"></span>
   </span>
 </div>
 
@@ -69,6 +67,20 @@ const {
     display: none !important;
   }
 
+  .banner-sweep-track {
+    height: 1.5px;
+  }
+  .banner-sweep-comet {
+    background: linear-gradient(
+      to right,
+      transparent 0%,
+      rgba(255, 255, 255, 0.55) 50%,
+      transparent 100%
+    );
+    animation: banner-sweep 8s linear infinite;
+    will-change: transform;
+  }
+
   @keyframes banner-sweep {
     0% {
       transform: translateX(-100%);
@@ -79,8 +91,9 @@ const {
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .animate-\[banner-sweep_8s_linear_infinite\] {
+    .banner-sweep-comet {
       animation: none;
+      opacity: 0;
     }
   }
 </style>
