@@ -141,8 +141,12 @@ const sliderData = {
               >
                 <span
                   class:list={[
-                    'h-3.5 w-3.5 shrink-0 rounded-full',
-                    active ? '' : 'ring-2 ring-white',
+                    'h-3.5 w-3.5 shrink-0 rounded-full ring-2',
+                    // Ring width matches on both states so the swatch is the
+                    // same size when chosen and when idle. The colour flips:
+                    // black on the white pill, white on the maroon ground,
+                    // whichever contrasts with the surface behind it.
+                    active ? 'ring-neutral-900' : 'ring-white',
                   ]}
                   style={`background:${variant.hex}`}
                 />
@@ -589,13 +593,13 @@ const sliderData = {
           chip.classList.toggle('text-white', !active);
           chip.classList.toggle('hover:bg-white/10', !active);
 
-          // The swatch dot: an inactive chip's dot gets a solid white ring
-          // so the fluorescent pigment holds an edge on the maroon ground.
-          // The active chip drops it because the white pill supplies the
-          // edge already.
+          // The swatch dot keeps the ring width in both states so it never
+          // appears to resize. Only the colour flips: black against the
+          // white pill when chosen, white against the maroon ground when
+          // idle, whichever contrasts with the surface behind it.
           const dot = chip.querySelector<HTMLElement>('span');
           if (dot) {
-            dot.classList.toggle('ring-2', !active);
+            dot.classList.toggle('ring-neutral-900', active);
             dot.classList.toggle('ring-white', !active);
           }
         });
