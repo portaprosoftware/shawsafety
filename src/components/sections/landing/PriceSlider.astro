@@ -522,9 +522,7 @@ const sliderData = {
         '[data-slider-variant]'
       );
       if (!btn) return;
-      const next = data.variants.find(
-        v => v.id === btn.dataset.sliderVariant
-      );
+      const next = data.variants.find(v => v.id === btn.dataset.sliderVariant);
       if (!next) return;
       variant = next;
       lastTierIndex = -1;

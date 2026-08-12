@@ -95,9 +95,7 @@ export const MAX_REORDER_METADATA_CHARS = 490;
 export function buildReorderMetadata(
   lines: { variantId: string; qty: number }[]
 ): string | null {
-  const value = lines
-    .map(line => `${line.variantId}:${line.qty}`)
-    .join(',');
+  const value = lines.map(line => `${line.variantId}:${line.qty}`).join(',');
   return value && value.length <= MAX_REORDER_METADATA_CHARS ? value : null;
 }
 

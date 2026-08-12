@@ -78,16 +78,15 @@ const callouts = CALLOUT_PRIORITY.filter(label => byLabel.has(label))
         'bottom-3 right-3 border-b-2 border-r-2',
       ].map(position => (
         <span
-          class:list={[
-            'border-maroon-700/70 absolute h-5 w-5',
-            position,
-          ]}
+          class:list={['border-maroon-700/70 absolute h-5 w-5', position]}
         />
       ))
     }
 
     {/* Spec callouts, staggered in by the toggle. */}
-    <div class="absolute top-6 left-6 flex max-w-[62%] flex-col items-start gap-1.5">
+    <div
+      class="absolute top-6 left-6 flex max-w-[62%] flex-col items-start gap-1.5"
+    >
       {
         callouts.map((callout, i) => (
           <p
@@ -108,7 +107,10 @@ const callouts = CALLOUT_PRIORITY.filter(label => byLabel.has(label))
     {/* Overall-length dimension line. */}
     {
       length && (
-        <div class="datasheet__chip absolute inset-x-10 bottom-16" style="transition-delay:240ms">
+        <div
+          class="datasheet__chip absolute inset-x-10 bottom-16"
+          style="transition-delay:240ms"
+        >
           <div class="text-maroon-800 flex items-center">
             <span class="bg-maroon-800 h-3 w-px" />
             <span class="bg-maroon-800/70 h-px flex-1" />

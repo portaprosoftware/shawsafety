@@ -78,8 +78,7 @@ function nextBusinessDay(weekday: number): number {
  */
 export function shipCutoffMessage(now: Date = new Date()): string {
   const { weekday, minutes } = etParts(now);
-  const beforeCutoff =
-    weekday >= 1 && weekday <= 5 && minutes < CUTOFF_MINUTES;
+  const beforeCutoff = weekday >= 1 && weekday <= 5 && minutes < CUTOFF_MINUTES;
 
   if (beforeCutoff) {
     const remaining = CUTOFF_MINUTES - minutes;

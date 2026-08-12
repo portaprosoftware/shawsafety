@@ -75,11 +75,11 @@ const CUTOFF_FALLBACK = 'Order by 5pm ET and it ships the next business day';
   function init(container: HTMLElement) {
     const joined = container.querySelector<HTMLElement>('[data-joined]');
     const rotator = container.querySelector<HTMLElement>('[data-rotator]');
-    const rotatorText =
-      container.querySelector<HTMLElement>('[data-rotator-text]');
-    const cutoffSpan = container.querySelector<HTMLElement>(
-      '[data-ship-cutoff]'
+    const rotatorText = container.querySelector<HTMLElement>(
+      '[data-rotator-text]'
     );
+    const cutoffSpan =
+      container.querySelector<HTMLElement>('[data-ship-cutoff]');
     if (!joined || !rotator || !rotatorText) return;
 
     let staticMessages: string[] = [];

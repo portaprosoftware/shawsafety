@@ -70,9 +70,7 @@ const shopActive =
   pathname === '/safety-vests' || pathname.startsWith('/products');
 
 // Non-shop links still render inline next to the dropdown.
-const otherLinks = navigation.navBarLinks.filter(
-  l => l.name === 'Wholesale'
-);
+const otherLinks = navigation.navBarLinks.filter(l => l.name === 'Wholesale');
 ---
 
 <header class="border-b border-neutral-200 bg-white/95 backdrop-blur-md">
@@ -124,8 +122,8 @@ const otherLinks = navigation.navBarLinks.filter(
                       class:list={[
                         'shop-cat-btn flex w-full items-center justify-between gap-2 px-4 py-2.5 text-left text-sm font-semibold transition',
                         i === 0
-                          ? 'bg-neutral-50 text-maroon-700'
-                          : 'text-neutral-700 hover:bg-neutral-50 hover:text-maroon-700',
+                          ? 'text-maroon-700 bg-neutral-50'
+                          : 'hover:text-maroon-700 text-neutral-700 hover:bg-neutral-50',
                       ]}
                       data-category={cat.key}
                       aria-current={i === 0 ? 'true' : undefined}
@@ -220,7 +218,7 @@ const otherLinks = navigation.navBarLinks.filter(
     }
     <a
       href={phone.href}
-      class="text-maroon-700 hover:text-maroon-800 absolute left-1/2 -translate-x-1/2 inline-flex items-center gap-1.5 text-sm font-semibold whitespace-nowrap transition md:static md:translate-x-0"
+      class="text-maroon-700 hover:text-maroon-800 absolute left-1/2 inline-flex -translate-x-1/2 items-center gap-1.5 text-sm font-semibold whitespace-nowrap transition md:static md:translate-x-0"
       aria-label={`Call Shaw Safety at ${phone.display}`}
     >
       <Icon name="phone" class="h-4 w-4" />
@@ -278,7 +276,10 @@ const otherLinks = navigation.navBarLinks.filter(
           aria-controls="mobile-shop-panel"
         >
           Shop Safety Ties &amp; Vests
-          <Icon name="chevronDown" class="h-4 w-4 mobile-shop-chevron transition" />
+          <Icon
+            name="chevronDown"
+            class="mobile-shop-chevron h-4 w-4 transition"
+          />
         </button>
         <div id="mobile-shop-panel" class="hidden pl-2">
           {
@@ -398,8 +399,7 @@ const otherLinks = navigation.navBarLinks.filter(
 
   const catButtons =
     document.querySelectorAll<HTMLButtonElement>('.shop-cat-btn');
-  const catPanels =
-    document.querySelectorAll<HTMLElement>('.shop-cat-panel');
+  const catPanels = document.querySelectorAll<HTMLElement>('.shop-cat-panel');
   const activateCategory = (key: string) => {
     catButtons.forEach(b => {
       const active = b.dataset.category === key;

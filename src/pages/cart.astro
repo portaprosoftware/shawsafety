@@ -257,8 +257,11 @@ const catalog = Object.fromEntries(
 
   // ── One-click reorder ─────────────────────────────────────────────────
   const catalog =
-    (window as unknown as { __shawVariantCatalog?: Record<string, CatalogLine> })
-      .__shawVariantCatalog ?? {};
+    (
+      window as unknown as {
+        __shawVariantCatalog?: Record<string, CatalogLine>;
+      }
+    ).__shawVariantCatalog ?? {};
 
   /** Rebuild cart lines from id+qty pairs; unknown ids are skipped. */
   const addLines = (reorderLines: ReorderLine[]): number => {
@@ -298,7 +301,11 @@ const catalog = Object.fromEntries(
     const added = addLines(requested);
     params.delete('reorder');
     const query = params.toString();
-    history.replaceState({}, '', location.pathname + (query ? `?${query}` : ''));
+    history.replaceState(
+      {},
+      '',
+      location.pathname + (query ? `?${query}` : '')
+    );
     if (added && note) {
       note.textContent = 'Your reorder has been added to the cart.';
       note.classList.remove('hidden');

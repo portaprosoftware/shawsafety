@@ -743,8 +743,13 @@ export const POST: APIRoute = async ({ request }) => {
   console.info(
     `[ask] answered from ${hits
       .map(hit => `${hit.chunk.id}@${hit.score.toFixed(3)}`)
-      .join(', ')}${cart !== null ? ` with a ${(cart as StagedCart).lines.length}-line staged cart` : ''}`
+      .join(
+        ', '
+      )}${cart !== null ? ` with a ${(cart as StagedCart).lines.length}-line staged cart` : ''}`
   );
 
-  return json({ ok: true, answer: clean(answer), ...(cart ? { cart } : {}) }, 200);
+  return json(
+    { ok: true, answer: clean(answer), ...(cart ? { cart } : {}) },
+    200
+  );
 };

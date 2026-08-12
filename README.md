@@ -58,6 +58,27 @@ button, in the search field's submit affordance, or in a labelled chip is part
 of that control's own surface. The rule is about decorative containers whose
 only job is to sit behind an icon.
 
+## The interactive layer
+
+The features that turn the published-price argument into things a visitor can
+touch. Each runs on the same shared math and content as the rest of the site,
+never on copies of it:
+
+| Feature              | Where                                                 | Notes                                                                                                                                                                         |
+| -------------------- | ----------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Price slider         | `landing/PriceSlider.astro`, on `/`                   | Drag a quantity, watch the per-pack price step through the real tiers. Adds to cart via the standard `data-add-to-cart` payload.                                              |
+| Visibility simulator | `products/VisibilitySimulator.astro`, on both PDPs    | A drawn scene scrubbed from daylight to night by one `--night` custom property. Follows the buy box's colour via the `pdp:variant` event. Auto-runs once, reduced-motion off. |
+| Datasheet view       | `ui/blocks/DatasheetOverlay.astro`, on both PDPs      | Draws `specs` frontmatter over the photo as an annotation layer. aria-hidden; the Specifications table stays the accessible copy.                                             |
+| Quote builder        | `wholesale/QuoteBuilder.astro`, at `/wholesale#quote` | Prices stock lines instantly (mixed colors count toward the combined tier), routes add-ons to a human. Send / print / buy-now, all from the same built quote.                 |
+| Dispatch clock       | `@scripts/shipCutoff.ts`, banner + PDP ship line      | Live countdown to the 5pm ET cutoff, computed in Eastern time. The prerendered fallback is the timeless sentence, so no JavaScript means no lie.                              |
+| One-click reorder    | `@scripts/reorder.ts`, `/cart?reorder=`               | A reorder is a URL of ids and quantities; the catalogue reprices on arrival. Offered on the success page, the empty cart, and in the order email via Stripe metadata.         |
+| Cart staging         | `/api/ask` + `AskWidget.astro`                        | The assistant can stage a cart via a tool whose variant ids are a hard enum. Staging renders a review card; only the visitor's click adds to the cart.                        |
+
+The quote builder deliberately prices combined-color quantities deeper than
+online checkout does (checkout is per line; Stripe tiers are per Price). When
+the two disagree the builder says so and routes the buyer to the emailed
+quote, which a person honours at the combined tier.
+
 ## Pricing
 
 All price math lives in `src/assets/scripts/pricing.ts` and is shared between

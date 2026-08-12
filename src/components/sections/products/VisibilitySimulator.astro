@@ -92,17 +92,59 @@ const ribs = Array.from({ length: 15 }, (_, i) => 50 + i * 50);
           {/* Dark workwear, fading with the light. */}
           <g style="opacity:calc(1 - var(--night) * 0.84)">
             <circle cx="300" cy="150" r="20" fill="#565B63" />
-            <rect x="255" y="180" width="90" height="120" rx="14" fill="#3C4048" />
-            <rect x="268" y="300" width="24" height="110" rx="8" fill="#33373E" />
-            <rect x="308" y="300" width="24" height="110" rx="8" fill="#33373E" />
+            <rect
+              x="255"
+              y="180"
+              width="90"
+              height="120"
+              rx="14"
+              fill="#3C4048"
+            />
+            <rect
+              x="268"
+              y="300"
+              width="24"
+              height="110"
+              rx="8"
+              fill="#33373E"
+            />
+            <rect
+              x="308"
+              y="300"
+              width="24"
+              height="110"
+              rx="8"
+              fill="#33373E"
+            />
           </g>
 
           {/* The vest wearer. Silhouette dims a little; the vest does not. */}
           <g style="opacity:calc(1 - var(--night) * 0.45)">
             <circle cx="500" cy="150" r="20" fill="#565B63" />
-            <rect x="455" y="180" width="90" height="120" rx="14" fill="#3C4048" />
-            <rect x="468" y="300" width="24" height="110" rx="8" fill="#33373E" />
-            <rect x="508" y="300" width="24" height="110" rx="8" fill="#33373E" />
+            <rect
+              x="455"
+              y="180"
+              width="90"
+              height="120"
+              rx="14"
+              fill="#3C4048"
+            />
+            <rect
+              x="468"
+              y="300"
+              width="24"
+              height="110"
+              rx="8"
+              fill="#33373E"
+            />
+            <rect
+              x="508"
+              y="300"
+              width="24"
+              height="110"
+              rx="8"
+              fill="#33373E"
+            />
           </g>
           <g data-vis-mark>
             <rect
@@ -160,8 +202,22 @@ const ribs = Array.from({ length: 15 }, (_, i) => 50 + i * 50);
           {[280, 520].map(x => (
             <>
               <rect x={x - 7} y="30" width="14" height="390" fill="#8F959D" />
-              <rect x={x - 16} y="182" width="32" height="12" rx="3" fill="#7A8088" />
-              <rect x={x - 16} y="262" width="32" height="12" rx="3" fill="#7A8088" />
+              <rect
+                x={x - 16}
+                y="182"
+                width="32"
+                height="12"
+                rx="3"
+                fill="#7A8088"
+              />
+              <rect
+                x={x - 16}
+                y="262"
+                width="32"
+                height="12"
+                rx="3"
+                fill="#7A8088"
+              />
             </>
           ))}
 
@@ -190,7 +246,14 @@ const ribs = Array.from({ length: 15 }, (_, i) => 50 + i * 50);
               stroke="#2F3237"
               stroke-width="9"
             />
-            <rect x="284" y="250" width="14" height="14" rx="3" fill="#2F3237" />
+            <rect
+              x="284"
+              y="250"
+              width="14"
+              height="14"
+              rx="3"
+              fill="#2F3237"
+            />
             <path
               d="M 291 262 q 20 28 12 76"
               fill="none"
