@@ -211,16 +211,14 @@ const otherLinks = navigation.navBarLinks.filter(
 
     {
       /*
-       * Phone number lives in the mobile header (centered between logo and
-       * cart) and again on desktop next to the account/contact CTAs. On mobile
-       * `flex-1` claims the whitespace left by removing the search bar; on
-       * desktop the block sits inline. Using `absolute` centering on mobile so
-       * the logo + cart cluster don't push it off-center on narrower phones.
+       * Phone number sits inline next to the account/contact CTAs from `md`
+       * up, where there's room. On phones it collapses into the mobile menu
+       * (below) so the logo doesn't overlap the digits.
        */
     }
     <a
       href={phone.href}
-      class="text-maroon-700 hover:text-maroon-800 absolute left-1/2 -translate-x-1/2 inline-flex items-center gap-1.5 text-sm font-semibold whitespace-nowrap transition md:static md:translate-x-0"
+      class="text-maroon-700 hover:text-maroon-800 hidden items-center gap-1.5 text-sm font-semibold whitespace-nowrap transition md:inline-flex"
       aria-label={`Call Shaw Safety at ${phone.display}`}
     >
       <Icon name="phone" class="h-4 w-4" />
@@ -321,6 +319,16 @@ const otherLinks = navigation.navBarLinks.filter(
         ))
       }
       <li class="pt-1">
+        <a
+          href={phone.href}
+          class="text-maroon-700 hover:bg-maroon-50 flex items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-center text-sm font-semibold transition"
+          aria-label={`Call Shaw Safety at ${phone.display}`}
+        >
+          <Icon name="phone" class="h-4 w-4" />
+          {phone.display}
+        </a>
+      </li>
+      <li>
         <a
           href="https://app.portaprosoftware.com/t/shaw-safety/sign-in"
           target="_blank"
