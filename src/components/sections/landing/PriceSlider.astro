@@ -144,9 +144,10 @@ const sliderData = {
                     'h-3.5 w-3.5 shrink-0 rounded-full ring-2',
                     // Ring width matches on both states so the swatch is the
                     // same size when chosen and when idle. The colour flips:
-                    // black on the white pill, white on the maroon ground,
-                    // whichever contrasts with the surface behind it.
-                    active ? 'ring-neutral-900' : 'ring-white',
+                    // the same medium grey the rest of the site uses for
+                    // secondary text on the white pill, plain white on the
+                    // maroon ground. Both hold an edge without shouting.
+                    active ? 'ring-[#747474]' : 'ring-white',
                   ]}
                   style={`background:${variant.hex}`}
                 />
@@ -594,12 +595,13 @@ const sliderData = {
           chip.classList.toggle('hover:bg-white/10', !active);
 
           // The swatch dot keeps the ring width in both states so it never
-          // appears to resize. Only the colour flips: black against the
-          // white pill when chosen, white against the maroon ground when
-          // idle, whichever contrasts with the surface behind it.
+          // appears to resize. Only the colour flips: the site's medium
+          // secondary-text grey against the white pill when chosen, plain
+          // white against the maroon ground when idle. Both hold an edge
+          // without shouting.
           const dot = chip.querySelector<HTMLElement>('span');
           if (dot) {
-            dot.classList.toggle('ring-neutral-900', active);
+            dot.classList.toggle('ring-[#747474]', active);
             dot.classList.toggle('ring-white', !active);
           }
         });
