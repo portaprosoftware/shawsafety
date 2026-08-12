@@ -4,6 +4,7 @@ import { resolveProductImage } from '@utils/productImages';
 import Icon from '@components/ui/icons/Icon.astro';
 import ImageZoom from '@components/ui/blocks/ImageZoom.astro';
 import DatasheetOverlay from '@components/ui/blocks/DatasheetOverlay.astro';
+import VisibilitySimulator from '@components/sections/products/VisibilitySimulator.astro';
 import { formatMoney, formatUnitPrice, type Tier } from '@scripts/pricing';
 
 interface Props {
@@ -389,6 +390,9 @@ const clientData = {
   </div>
 </div>
 
+{/* ── Visibility simulator ───────────────────────────────────────────── */}
+<VisibilitySimulator product={product} />
+
 {/* ── Highlights ─────────────────────────────────────────────────────── */}
 <section class="border-t border-neutral-200 py-12">
   <h2 class="text-2xl font-bold tracking-tight text-neutral-900">Highlights</h2>
@@ -665,6 +669,15 @@ const clientData = {
       }
       const specVariant = $('spec-variant');
       if (specVariant) specVariant.textContent = variant.name;
+
+      // Anything else on the page that follows the colour selection (the
+      // visibility simulator, today) listens for this rather than reaching
+      // into the buy box's state.
+      window.dispatchEvent(
+        new CustomEvent('pdp:variant', {
+          detail: { id: variant.id, name: variant.name, hex: variant.hex },
+        })
+      );
 
       renderImages();
     };

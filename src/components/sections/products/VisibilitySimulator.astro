@@ -1,0 +1,406 @@
+---
+/**
+ * The visibility simulator on the PDP.
+ *
+ * The product's entire reason to exist is that you can see it when the light
+ * goes, so this section lets the visitor take the light away themselves: a
+ * slider scrubs the scene from full daylight to a dark yard, a standard
+ * product fades into the murk, and the Shaw product stays findable. The
+ * scene is drawn, not photographed: stylized vector art in the site's
+ * engineering-illustration register, using the real variant pigment colors,
+ * so it makes the visibility argument honestly without pretending to be a
+ * photo of the actual product.
+ *
+ * Everything is driven by one CSS custom property (`--night`, 0 to 1) set
+ * from the slider, so the whole effect is a handful of declarative opacity
+ * and glow layers, cheap to render and trivially correct at any position.
+ *
+ * On first scroll into view the scene runs to night once on its own (motion
+ * preference respected), so the point lands even for a visitor who never
+ * touches the slider.
+ */
+import type { CollectionEntry } from 'astro:content';
+
+interface Props {
+  product: CollectionEntry<'products'>;
+}
+
+const { product } = Astro.props;
+const p = product.data;
+const isVest = p.category === 'vests';
+const initial = p.variants[0];
+
+const copy = isVest
+  ? 'Class 2 exists for places where traffic moves faster than 25 mph. Take the light away and watch: dark workwear disappears first, the vest and its tape do not.'
+  : 'A security seal only works if the driver can confirm it from the cab. Take the light away and watch: the standard tie disappears first, the fluorescent one stays findable.';
+
+const standardLabel = isVest ? 'No hi-vis' : 'Standard tie';
+
+const sceneLabel = isVest
+  ? 'Comparison of a worker in dark clothing and a worker in a hi-vis vest as the light fades'
+  : 'Comparison of a standard tie and a fluorescent tie on a container door as the light fades';
+
+/** Corrugation ribs for the container door. */
+const ribs = Array.from({ length: 15 }, (_, i) => 50 + i * 50);
+---
+
+<section class="border-t border-neutral-200 py-12">
+  <h2 class="text-2xl font-bold tracking-tight text-neutral-900">
+    Visible When It Matters
+  </h2>
+  <p class="mt-2 max-w-2xl text-neutral-600">{copy}</p>
+
+  <div
+    data-vis-scene
+    class="mt-7 overflow-hidden rounded-xl border border-neutral-200 bg-white"
+    style={`--night:0;--vis-color:${initial.hex}`}
+  >
+    {
+      isVest ? (
+        <svg
+          viewBox="0 0 800 450"
+          class="block h-auto w-full"
+          role="img"
+          aria-label={sceneLabel}
+        >
+          <defs>
+            <radialGradient id="vis-dock" cx="0.5" cy="0" r="0.95">
+              <stop offset="0" stop-color="#FFF3D6" stop-opacity="0.55" />
+              <stop offset="1" stop-color="#FFF3D6" stop-opacity="0" />
+            </radialGradient>
+          </defs>
+
+          {/* Yard in daylight. */}
+          <rect width="800" height="450" fill="#CBD0D7" />
+          <rect y="330" width="800" height="120" fill="#9BA1A9" />
+          <rect y="326" width="800" height="4" fill="#8A9098" />
+
+          {/* Night falls over the scene, then the dock lamp cuts back in. */}
+          <rect
+            width="800"
+            height="450"
+            fill="#0B1220"
+            style="opacity:calc(var(--night) * 0.87)"
+          />
+          <rect
+            width="800"
+            height="450"
+            fill="url(#vis-dock)"
+            style="opacity:calc(var(--night) * 0.55)"
+          />
+
+          {/* Dark workwear, fading with the light. */}
+          <g style="opacity:calc(1 - var(--night) * 0.84)">
+            <circle cx="300" cy="150" r="20" fill="#565B63" />
+            <rect x="255" y="180" width="90" height="120" rx="14" fill="#3C4048" />
+            <rect x="268" y="300" width="24" height="110" rx="8" fill="#33373E" />
+            <rect x="308" y="300" width="24" height="110" rx="8" fill="#33373E" />
+          </g>
+
+          {/* The vest wearer. Silhouette dims a little; the vest does not. */}
+          <g style="opacity:calc(1 - var(--night) * 0.45)">
+            <circle cx="500" cy="150" r="20" fill="#565B63" />
+            <rect x="455" y="180" width="90" height="120" rx="14" fill="#3C4048" />
+            <rect x="468" y="300" width="24" height="110" rx="8" fill="#33373E" />
+            <rect x="508" y="300" width="24" height="110" rx="8" fill="#33373E" />
+          </g>
+          <g data-vis-mark>
+            <rect
+              x="460"
+              y="185"
+              width="80"
+              height="105"
+              rx="10"
+              style="fill:var(--vis-color)"
+            />
+            <rect x="478" y="185" width="9" height="40" fill="#EDEFF2" />
+            <rect x="513" y="185" width="9" height="40" fill="#EDEFF2" />
+            <rect x="460" y="225" width="80" height="9" fill="#EDEFF2" />
+            <rect x="460" y="255" width="80" height="9" fill="#EDEFF2" />
+          </g>
+          {/* Pigment glow, then the retroreflective tape over it. */}
+          <g style="opacity:var(--night);filter:drop-shadow(0 0 8px var(--vis-color)) drop-shadow(0 0 20px var(--vis-color))">
+            <rect
+              x="460"
+              y="185"
+              width="80"
+              height="105"
+              rx="10"
+              style="fill:var(--vis-color)"
+            />
+          </g>
+          <g style="opacity:var(--night);filter:drop-shadow(0 0 6px #fff) drop-shadow(0 0 14px #fff)">
+            <rect x="478" y="185" width="9" height="40" fill="#F6F8FA" />
+            <rect x="513" y="185" width="9" height="40" fill="#F6F8FA" />
+            <rect x="460" y="225" width="80" height="9" fill="#F6F8FA" />
+            <rect x="460" y="255" width="80" height="9" fill="#F6F8FA" />
+          </g>
+        </svg>
+      ) : (
+        <svg
+          viewBox="0 0 800 450"
+          class="block h-auto w-full"
+          role="img"
+          aria-label={sceneLabel}
+        >
+          <defs>
+            <radialGradient id="vis-dock" cx="0.5" cy="0" r="0.95">
+              <stop offset="0" stop-color="#FFF3D6" stop-opacity="0.55" />
+              <stop offset="1" stop-color="#FFF3D6" stop-opacity="0" />
+            </radialGradient>
+          </defs>
+
+          {/* Container door in daylight. */}
+          <rect width="800" height="450" fill="#C7CCD3" />
+          {ribs.map(x => (
+            <rect x={x} width="3" height="450" fill="#B0B6BE" />
+          ))}
+          <rect y="86" width="800" height="3" fill="#AAB0B8" />
+          <rect y="356" width="800" height="3" fill="#AAB0B8" />
+          {[280, 520].map(x => (
+            <>
+              <rect x={x - 7} y="30" width="14" height="390" fill="#8F959D" />
+              <rect x={x - 16} y="182" width="32" height="12" rx="3" fill="#7A8088" />
+              <rect x={x - 16} y="262" width="32" height="12" rx="3" fill="#7A8088" />
+            </>
+          ))}
+
+          {/* Night falls over the door, then the dock lamp cuts back in. */}
+          <rect
+            width="800"
+            height="450"
+            fill="#0B1220"
+            style="opacity:calc(var(--night) * 0.87)"
+          />
+          <rect
+            width="800"
+            height="450"
+            fill="url(#vis-dock)"
+            style="opacity:calc(var(--night) * 0.55)"
+          />
+
+          {/* The standard tie, fading with the light. */}
+          <g style="opacity:calc(1 - var(--night) * 0.88)">
+            <ellipse
+              cx="280"
+              cy="222"
+              rx="30"
+              ry="36"
+              fill="none"
+              stroke="#2F3237"
+              stroke-width="9"
+            />
+            <rect x="284" y="250" width="14" height="14" rx="3" fill="#2F3237" />
+            <path
+              d="M 291 262 q 20 28 12 76"
+              fill="none"
+              stroke="#2F3237"
+              stroke-width="8"
+              stroke-linecap="round"
+            />
+          </g>
+
+          {/* The Shaw tie, in the variant's actual pigment. */}
+          <g data-vis-mark>
+            <ellipse
+              cx="520"
+              cy="222"
+              rx="30"
+              ry="36"
+              fill="none"
+              style="stroke:var(--vis-color)"
+              stroke-width="9"
+            />
+            <rect
+              x="524"
+              y="250"
+              width="14"
+              height="14"
+              rx="3"
+              style="fill:var(--vis-color)"
+            />
+            <path
+              d="M 531 262 q 20 28 12 76"
+              fill="none"
+              style="stroke:var(--vis-color)"
+              stroke-width="8"
+              stroke-linecap="round"
+            />
+          </g>
+          <g style="opacity:var(--night);filter:drop-shadow(0 0 7px var(--vis-color)) drop-shadow(0 0 18px var(--vis-color))">
+            <ellipse
+              cx="520"
+              cy="222"
+              rx="30"
+              ry="36"
+              fill="none"
+              style="stroke:var(--vis-color)"
+              stroke-width="9"
+            />
+            <path
+              d="M 531 262 q 20 28 12 76"
+              fill="none"
+              style="stroke:var(--vis-color)"
+              stroke-width="8"
+              stroke-linecap="round"
+            />
+          </g>
+        </svg>
+      )
+    }
+
+    <div
+      class="grid grid-cols-2 border-t border-neutral-200 text-center text-sm"
+    >
+      <p class="py-2.5 font-medium text-neutral-500">{standardLabel}</p>
+      <p class="py-2.5 font-semibold text-neutral-900">
+        <span data-vis-name>{initial.name}</span>
+      </p>
+    </div>
+  </div>
+
+  <div class="mt-5 flex items-center gap-4">
+    <span
+      class="text-xs font-bold tracking-wide text-neutral-500 uppercase"
+      aria-hidden="true">Daylight</span
+    >
+    <input
+      data-vis-range
+      type="range"
+      min="0"
+      max="100"
+      value="0"
+      step="1"
+      class="vis__range flex-1"
+      aria-label="Lighting, from daylight to night"
+    />
+    <span
+      class="text-xs font-bold tracking-wide text-neutral-500 uppercase"
+      aria-hidden="true">Night</span
+    >
+  </div>
+  <p class="mt-2 text-sm" aria-live="off">
+    <span data-vis-condition class="font-semibold text-neutral-900"
+      >Full daylight</span
+    >
+    <span class="text-neutral-500">
+      &middot; drag the slider, or watch what the yard sees after dark.</span
+    >
+  </p>
+</section>
+
+<style>
+  .vis__range {
+    appearance: none;
+    -webkit-appearance: none;
+    height: 6px;
+    border-radius: 9999px;
+    background: linear-gradient(
+      to right,
+      var(--color-maroon-700) var(--fill, 0%),
+      var(--color-neutral-200) var(--fill, 0%)
+    );
+    outline: none;
+  }
+  .vis__range::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    height: 22px;
+    width: 22px;
+    border-radius: 9999px;
+    background: #fff;
+    border: 2px solid var(--color-maroon-700);
+    box-shadow: 0 1px 3px rgb(0 0 0 / 0.25);
+    cursor: grab;
+  }
+  .vis__range::-webkit-slider-thumb:active {
+    cursor: grabbing;
+  }
+  .vis__range::-moz-range-thumb {
+    height: 22px;
+    width: 22px;
+    border-radius: 9999px;
+    background: #fff;
+    border: 2px solid var(--color-maroon-700);
+    box-shadow: 0 1px 3px rgb(0 0 0 / 0.25);
+    cursor: grab;
+  }
+  .vis__range:focus-visible {
+    box-shadow: 0 0 0 3px var(--color-maroon-200);
+  }
+</style>
+
+<script>
+  import gsap from 'gsap';
+
+  const scene = document.querySelector<HTMLElement>('[data-vis-scene]');
+  const range = document.querySelector<HTMLInputElement>('[data-vis-range]');
+  const condition = document.querySelector<HTMLElement>('[data-vis-condition]');
+  const name = document.querySelector<HTMLElement>('[data-vis-name]');
+
+  if (scene && range) {
+    const conditionAt = (value: number): string => {
+      if (value < 20) return 'Full daylight';
+      if (value < 45) return 'Overcast';
+      if (value < 70) return 'Dusk';
+      return 'Night, dock lighting';
+    };
+
+    const apply = (value: number) => {
+      const clamped = Math.min(100, Math.max(0, value));
+      scene.style.setProperty('--night', String(clamped / 100));
+      range.style.setProperty('--fill', `${clamped}%`);
+      range.value = String(Math.round(clamped));
+      if (condition) condition.textContent = conditionAt(clamped);
+    };
+
+    let interacted = false;
+    range.addEventListener('input', () => {
+      interacted = true;
+      apply(Number(range.value));
+    });
+
+    /*
+     * The one automatic run: dusk falls the first time the scene scrolls
+     * into view, so the comparison makes its point unprompted, and it
+     * settles at night because night is the state that sells the product.
+     * Skipped entirely under reduced motion and abandoned the moment the
+     * visitor takes the slider themselves.
+     */
+    const reduced = window.matchMedia(
+      '(prefers-reduced-motion: reduce)'
+    ).matches;
+    if (!reduced && 'IntersectionObserver' in window) {
+      const proxy = { value: 0 };
+      const observer = new IntersectionObserver(
+        entries => {
+          if (!entries.some(entry => entry.isIntersecting) || interacted)
+            return;
+          observer.disconnect();
+          gsap.to(proxy, {
+            value: 100,
+            duration: 2.4,
+            delay: 0.4,
+            ease: 'power2.inOut',
+            onUpdate: () => {
+              if (interacted) gsap.killTweensOf(proxy);
+              else apply(proxy.value);
+            },
+          });
+        },
+        { threshold: 0.45 }
+      );
+      observer.observe(scene);
+    }
+
+    // Follow the buy box's colour selection: pigment and label both.
+    window.addEventListener('pdp:variant', event => {
+      const detail = (event as CustomEvent<{ hex?: string; name?: string }>)
+        .detail;
+      if (detail?.hex) scene.style.setProperty('--vis-color', detail.hex);
+      if (detail?.name && name) name.textContent = detail.name;
+    });
+
+    apply(0);
+  }
+</script>
