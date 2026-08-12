@@ -5,21 +5,33 @@
  * The product's entire reason to exist is that you can see it when the light
  * goes, so this section lets the visitor take the light away themselves: a
  * slider scrubs the scene from full daylight to a dark yard, a standard
- * product fades into the murk, and the Shaw product stays findable. The
- * scene is drawn, not photographed: stylized vector art in the site's
- * engineering-illustration register, using the real variant pigment colors,
- * so it makes the visibility argument honestly without pretending to be a
- * photo of the actual product.
+ * product fades into the murk, and the Shaw product stays findable.
  *
- * Everything is driven by one CSS custom property (`--night`, 0 to 1) set
- * from the slider, so the whole effect is a handful of declarative opacity
- * and glow layers, cheap to render and trivially correct at any position.
+ * The scene can render one of two ways per variant, chosen automatically:
+ *
+ *   Photo mode. When a variant has both a daylight and a night photo dropped
+ *   into src/images/products/ under the names below, the two are stacked and
+ *   the slider crossfades between them. Nothing else changes: the label
+ *   swap, the auto-run to night, and the buy-box colour sync all still work.
+ *
+ *   Drawn mode. When the photos are not there yet, the scene is stylized
+ *   vector art in the site's engineering-illustration register, using the
+ *   variant's real pigment colour. The whole visual is driven by one CSS
+ *   custom property (`--night`, 0 to 1) via opacity and glow layers, which
+ *   is why the fallback is cheap to render and correct at any position.
+ *
+ * Photography naming. `hasProductImage` is what decides mode, per variant,
+ * so a partial shoot progressively upgrades the site without a code change:
+ *
+ *   visibility-{variantId}-day.jpg
+ *   visibility-{variantId}-night.jpg
  *
  * On first scroll into view the scene runs to night once on its own (motion
  * preference respected), so the point lands even for a visitor who never
  * touches the slider.
  */
 import type { CollectionEntry } from 'astro:content';
+import { hasProductImage, resolveProductImage } from '@utils/productImages';
 
 interface Props {
   product: CollectionEntry<'products'>;
@@ -29,6 +41,33 @@ const { product } = Astro.props;
 const p = product.data;
 const isVest = p.category === 'vests';
 const initial = p.variants[0];
+
+/*
+ * Resolve every variant's optional photo pair up front. `hasProductImage`
+ * decides availability before `resolveProductImage` is called, so a missing
+ * file never renders as a "PHOTO NEEDED" placeholder in the scene: the
+ * variant just falls back to the drawn version instead.
+ *
+ * Rendered at 1600x900 (16:9), the aspect the container reserves. Shots
+ * outside that ratio still work, they simply cover-crop.
+ */
+const photoEntries = await Promise.all(
+  p.variants.map(async v => {
+    const dayStem = `visibility-${v.id}-day`;
+    const nightStem = `visibility-${v.id}-night`;
+    if (!hasProductImage(dayStem) || !hasProductImage(nightStem)) {
+      return [v.id, null] as const;
+    }
+    const [day, night] = await Promise.all([
+      resolveProductImage(dayStem, 1600, 900),
+      resolveProductImage(nightStem, 1600, 900),
+    ]);
+    return [v.id, { day: day.src, night: night.src }] as const;
+  })
+);
+const photosByVariant: Record<string, { day: string; night: string } | null> =
+  Object.fromEntries(photoEntries);
+const initialPhotos = photosByVariant[initial.id];
 
 const copy = isVest
   ? 'Class 2 exists for places where traffic moves faster than 25 mph. Take the light away and watch: dark workwear disappears first, the vest and its tape do not.'
@@ -52,265 +91,300 @@ const ribs = Array.from({ length: 15 }, (_, i) => 50 + i * 50);
 
   <div
     data-vis-scene
+    data-vis-photos-map={JSON.stringify(photosByVariant)}
     class="mt-7 overflow-hidden rounded-xl border border-neutral-200 bg-white"
     style={`--night:0;--vis-color:${initial.hex}`}
   >
     {
-      isVest ? (
-        <svg
-          viewBox="0 0 800 450"
-          class="block h-auto w-full"
-          role="img"
-          aria-label={sceneLabel}
-        >
-          <defs>
-            <radialGradient id="vis-dock" cx="0.5" cy="0" r="0.95">
-              <stop offset="0" stop-color="#FFF3D6" stop-opacity="0.55" />
-              <stop offset="1" stop-color="#FFF3D6" stop-opacity="0" />
-            </radialGradient>
-          </defs>
+      /*
+      Photo layer. Rendered whenever the initial variant has a photo pair,
+      hidden otherwise, and toggled per-variant by the buy-box event
+      handler below. Sits above the drawn scene so it can hide it without
+      the SVG having to know photos exist.
 
-          {/* Yard in daylight. */}
-          <rect width="800" height="450" fill="#CBD0D7" />
-          <rect y="330" width="800" height="120" fill="#9BA1A9" />
-          <rect y="326" width="800" height="4" fill="#8A9098" />
-
-          {/* Night falls over the scene, then the dock lamp cuts back in. */}
-          <rect
-            width="800"
-            height="450"
-            fill="#0B1220"
-            style="opacity:calc(var(--night) * 0.87)"
-          />
-          <rect
-            width="800"
-            height="450"
-            fill="url(#vis-dock)"
-            style="opacity:calc(var(--night) * 0.55)"
-          />
-
-          {/* Dark workwear, fading with the light. */}
-          <g style="opacity:calc(1 - var(--night) * 0.84)">
-            <circle cx="300" cy="150" r="20" fill="#565B63" />
-            <rect
-              x="255"
-              y="180"
-              width="90"
-              height="120"
-              rx="14"
-              fill="#3C4048"
-            />
-            <rect
-              x="268"
-              y="300"
-              width="24"
-              height="110"
-              rx="8"
-              fill="#33373E"
-            />
-            <rect
-              x="308"
-              y="300"
-              width="24"
-              height="110"
-              rx="8"
-              fill="#33373E"
-            />
-          </g>
-
-          {/* The vest wearer. Silhouette dims a little; the vest does not. */}
-          <g style="opacity:calc(1 - var(--night) * 0.45)">
-            <circle cx="500" cy="150" r="20" fill="#565B63" />
-            <rect
-              x="455"
-              y="180"
-              width="90"
-              height="120"
-              rx="14"
-              fill="#3C4048"
-            />
-            <rect
-              x="468"
-              y="300"
-              width="24"
-              height="110"
-              rx="8"
-              fill="#33373E"
-            />
-            <rect
-              x="508"
-              y="300"
-              width="24"
-              height="110"
-              rx="8"
-              fill="#33373E"
-            />
-          </g>
-          <g data-vis-mark>
-            <rect
-              x="460"
-              y="185"
-              width="80"
-              height="105"
-              rx="10"
-              style="fill:var(--vis-color)"
-            />
-            <rect x="478" y="185" width="9" height="40" fill="#EDEFF2" />
-            <rect x="513" y="185" width="9" height="40" fill="#EDEFF2" />
-            <rect x="460" y="225" width="80" height="9" fill="#EDEFF2" />
-            <rect x="460" y="255" width="80" height="9" fill="#EDEFF2" />
-          </g>
-          {/* Pigment glow, then the retroreflective tape over it. */}
-          <g style="opacity:var(--night);filter:drop-shadow(0 0 8px var(--vis-color)) drop-shadow(0 0 20px var(--vis-color))">
-            <rect
-              x="460"
-              y="185"
-              width="80"
-              height="105"
-              rx="10"
-              style="fill:var(--vis-color)"
-            />
-          </g>
-          <g style="opacity:var(--night);filter:drop-shadow(0 0 6px #fff) drop-shadow(0 0 14px #fff)">
-            <rect x="478" y="185" width="9" height="40" fill="#F6F8FA" />
-            <rect x="513" y="185" width="9" height="40" fill="#F6F8FA" />
-            <rect x="460" y="225" width="80" height="9" fill="#F6F8FA" />
-            <rect x="460" y="255" width="80" height="9" fill="#F6F8FA" />
-          </g>
-        </svg>
-      ) : (
-        <svg
-          viewBox="0 0 800 450"
-          class="block h-auto w-full"
-          role="img"
-          aria-label={sceneLabel}
-        >
-          <defs>
-            <radialGradient id="vis-dock" cx="0.5" cy="0" r="0.95">
-              <stop offset="0" stop-color="#FFF3D6" stop-opacity="0.55" />
-              <stop offset="1" stop-color="#FFF3D6" stop-opacity="0" />
-            </radialGradient>
-          </defs>
-
-          {/* Container door in daylight. */}
-          <rect width="800" height="450" fill="#C7CCD3" />
-          {ribs.map(x => (
-            <rect x={x} width="3" height="450" fill="#B0B6BE" />
-          ))}
-          <rect y="86" width="800" height="3" fill="#AAB0B8" />
-          <rect y="356" width="800" height="3" fill="#AAB0B8" />
-          {[280, 520].map(x => (
-            <>
-              <rect x={x - 7} y="30" width="14" height="390" fill="#8F959D" />
-              <rect
-                x={x - 16}
-                y="182"
-                width="32"
-                height="12"
-                rx="3"
-                fill="#7A8088"
-              />
-              <rect
-                x={x - 16}
-                y="262"
-                width="32"
-                height="12"
-                rx="3"
-                fill="#7A8088"
-              />
-            </>
-          ))}
-
-          {/* Night falls over the door, then the dock lamp cuts back in. */}
-          <rect
-            width="800"
-            height="450"
-            fill="#0B1220"
-            style="opacity:calc(var(--night) * 0.87)"
-          />
-          <rect
-            width="800"
-            height="450"
-            fill="url(#vis-dock)"
-            style="opacity:calc(var(--night) * 0.55)"
-          />
-
-          {/* The standard tie, fading with the light. */}
-          <g style="opacity:calc(1 - var(--night) * 0.88)">
-            <ellipse
-              cx="280"
-              cy="222"
-              rx="30"
-              ry="36"
-              fill="none"
-              stroke="#2F3237"
-              stroke-width="9"
-            />
-            <rect
-              x="284"
-              y="250"
-              width="14"
-              height="14"
-              rx="3"
-              fill="#2F3237"
-            />
-            <path
-              d="M 291 262 q 20 28 12 76"
-              fill="none"
-              stroke="#2F3237"
-              stroke-width="8"
-              stroke-linecap="round"
-            />
-          </g>
-
-          {/* The Shaw tie, in the variant's actual pigment. */}
-          <g data-vis-mark>
-            <ellipse
-              cx="520"
-              cy="222"
-              rx="30"
-              ry="36"
-              fill="none"
-              style="stroke:var(--vis-color)"
-              stroke-width="9"
-            />
-            <rect
-              x="524"
-              y="250"
-              width="14"
-              height="14"
-              rx="3"
-              style="fill:var(--vis-color)"
-            />
-            <path
-              d="M 531 262 q 20 28 12 76"
-              fill="none"
-              style="stroke:var(--vis-color)"
-              stroke-width="8"
-              stroke-linecap="round"
-            />
-          </g>
-          <g style="opacity:var(--night);filter:drop-shadow(0 0 7px var(--vis-color)) drop-shadow(0 0 18px var(--vis-color))">
-            <ellipse
-              cx="520"
-              cy="222"
-              rx="30"
-              ry="36"
-              fill="none"
-              style="stroke:var(--vis-color)"
-              stroke-width="9"
-            />
-            <path
-              d="M 531 262 q 20 28 12 76"
-              fill="none"
-              style="stroke:var(--vis-color)"
-              stroke-width="8"
-              stroke-linecap="round"
-            />
-          </g>
-        </svg>
-      )
+      The two images are stacked; slider drives their opacities to
+      crossfade. `object-cover` handles ratios that are not exactly 16:9
+      by cropping to the container box, so a slightly wider or taller
+      shot still fills without letterboxing.
+    */
     }
+    <div data-vis-photos class="relative aspect-video" hidden={!initialPhotos}>
+      <img
+        data-vis-day
+        src={initialPhotos?.day ?? ''}
+        alt={`${p.shortTitle} in ${initial.name}, in daylight`}
+        loading="lazy"
+        class="absolute inset-0 h-full w-full object-cover"
+        style="opacity:calc(1 - var(--night))"
+      />
+      <img
+        data-vis-night
+        src={initialPhotos?.night ?? ''}
+        alt={`${p.shortTitle} in ${initial.name}, at night`}
+        loading="lazy"
+        class="absolute inset-0 h-full w-full object-cover"
+        style="opacity:var(--night)"
+      />
+    </div>
+
+    <div data-vis-svg hidden={!!initialPhotos}>
+      {
+        isVest ? (
+          <svg
+            viewBox="0 0 800 450"
+            class="block h-auto w-full"
+            role="img"
+            aria-label={sceneLabel}
+          >
+            <defs>
+              <radialGradient id="vis-dock" cx="0.5" cy="0" r="0.95">
+                <stop offset="0" stop-color="#FFF3D6" stop-opacity="0.55" />
+                <stop offset="1" stop-color="#FFF3D6" stop-opacity="0" />
+              </radialGradient>
+            </defs>
+
+            {/* Yard in daylight. */}
+            <rect width="800" height="450" fill="#CBD0D7" />
+            <rect y="330" width="800" height="120" fill="#9BA1A9" />
+            <rect y="326" width="800" height="4" fill="#8A9098" />
+
+            {/* Night falls over the scene, then the dock lamp cuts back in. */}
+            <rect
+              width="800"
+              height="450"
+              fill="#0B1220"
+              style="opacity:calc(var(--night) * 0.87)"
+            />
+            <rect
+              width="800"
+              height="450"
+              fill="url(#vis-dock)"
+              style="opacity:calc(var(--night) * 0.55)"
+            />
+
+            {/* Dark workwear, fading with the light. */}
+            <g style="opacity:calc(1 - var(--night) * 0.84)">
+              <circle cx="300" cy="150" r="20" fill="#565B63" />
+              <rect
+                x="255"
+                y="180"
+                width="90"
+                height="120"
+                rx="14"
+                fill="#3C4048"
+              />
+              <rect
+                x="268"
+                y="300"
+                width="24"
+                height="110"
+                rx="8"
+                fill="#33373E"
+              />
+              <rect
+                x="308"
+                y="300"
+                width="24"
+                height="110"
+                rx="8"
+                fill="#33373E"
+              />
+            </g>
+
+            {/* The vest wearer. Silhouette dims a little; the vest does not. */}
+            <g style="opacity:calc(1 - var(--night) * 0.45)">
+              <circle cx="500" cy="150" r="20" fill="#565B63" />
+              <rect
+                x="455"
+                y="180"
+                width="90"
+                height="120"
+                rx="14"
+                fill="#3C4048"
+              />
+              <rect
+                x="468"
+                y="300"
+                width="24"
+                height="110"
+                rx="8"
+                fill="#33373E"
+              />
+              <rect
+                x="508"
+                y="300"
+                width="24"
+                height="110"
+                rx="8"
+                fill="#33373E"
+              />
+            </g>
+            <g data-vis-mark>
+              <rect
+                x="460"
+                y="185"
+                width="80"
+                height="105"
+                rx="10"
+                style="fill:var(--vis-color)"
+              />
+              <rect x="478" y="185" width="9" height="40" fill="#EDEFF2" />
+              <rect x="513" y="185" width="9" height="40" fill="#EDEFF2" />
+              <rect x="460" y="225" width="80" height="9" fill="#EDEFF2" />
+              <rect x="460" y="255" width="80" height="9" fill="#EDEFF2" />
+            </g>
+            {/* Pigment glow, then the retroreflective tape over it. */}
+            <g style="opacity:var(--night);filter:drop-shadow(0 0 8px var(--vis-color)) drop-shadow(0 0 20px var(--vis-color))">
+              <rect
+                x="460"
+                y="185"
+                width="80"
+                height="105"
+                rx="10"
+                style="fill:var(--vis-color)"
+              />
+            </g>
+            <g style="opacity:var(--night);filter:drop-shadow(0 0 6px #fff) drop-shadow(0 0 14px #fff)">
+              <rect x="478" y="185" width="9" height="40" fill="#F6F8FA" />
+              <rect x="513" y="185" width="9" height="40" fill="#F6F8FA" />
+              <rect x="460" y="225" width="80" height="9" fill="#F6F8FA" />
+              <rect x="460" y="255" width="80" height="9" fill="#F6F8FA" />
+            </g>
+          </svg>
+        ) : (
+          <svg
+            viewBox="0 0 800 450"
+            class="block h-auto w-full"
+            role="img"
+            aria-label={sceneLabel}
+          >
+            <defs>
+              <radialGradient id="vis-dock" cx="0.5" cy="0" r="0.95">
+                <stop offset="0" stop-color="#FFF3D6" stop-opacity="0.55" />
+                <stop offset="1" stop-color="#FFF3D6" stop-opacity="0" />
+              </radialGradient>
+            </defs>
+
+            {/* Container door in daylight. */}
+            <rect width="800" height="450" fill="#C7CCD3" />
+            {ribs.map(x => (
+              <rect x={x} width="3" height="450" fill="#B0B6BE" />
+            ))}
+            <rect y="86" width="800" height="3" fill="#AAB0B8" />
+            <rect y="356" width="800" height="3" fill="#AAB0B8" />
+            {[280, 520].map(x => (
+              <>
+                <rect x={x - 7} y="30" width="14" height="390" fill="#8F959D" />
+                <rect
+                  x={x - 16}
+                  y="182"
+                  width="32"
+                  height="12"
+                  rx="3"
+                  fill="#7A8088"
+                />
+                <rect
+                  x={x - 16}
+                  y="262"
+                  width="32"
+                  height="12"
+                  rx="3"
+                  fill="#7A8088"
+                />
+              </>
+            ))}
+
+            {/* Night falls over the door, then the dock lamp cuts back in. */}
+            <rect
+              width="800"
+              height="450"
+              fill="#0B1220"
+              style="opacity:calc(var(--night) * 0.87)"
+            />
+            <rect
+              width="800"
+              height="450"
+              fill="url(#vis-dock)"
+              style="opacity:calc(var(--night) * 0.55)"
+            />
+
+            {/* The standard tie, fading with the light. */}
+            <g style="opacity:calc(1 - var(--night) * 0.88)">
+              <ellipse
+                cx="280"
+                cy="222"
+                rx="30"
+                ry="36"
+                fill="none"
+                stroke="#2F3237"
+                stroke-width="9"
+              />
+              <rect
+                x="284"
+                y="250"
+                width="14"
+                height="14"
+                rx="3"
+                fill="#2F3237"
+              />
+              <path
+                d="M 291 262 q 20 28 12 76"
+                fill="none"
+                stroke="#2F3237"
+                stroke-width="8"
+                stroke-linecap="round"
+              />
+            </g>
+
+            {/* The Shaw tie, in the variant's actual pigment. */}
+            <g data-vis-mark>
+              <ellipse
+                cx="520"
+                cy="222"
+                rx="30"
+                ry="36"
+                fill="none"
+                style="stroke:var(--vis-color)"
+                stroke-width="9"
+              />
+              <rect
+                x="524"
+                y="250"
+                width="14"
+                height="14"
+                rx="3"
+                style="fill:var(--vis-color)"
+              />
+              <path
+                d="M 531 262 q 20 28 12 76"
+                fill="none"
+                style="stroke:var(--vis-color)"
+                stroke-width="8"
+                stroke-linecap="round"
+              />
+            </g>
+            <g style="opacity:var(--night);filter:drop-shadow(0 0 7px var(--vis-color)) drop-shadow(0 0 18px var(--vis-color))">
+              <ellipse
+                cx="520"
+                cy="222"
+                rx="30"
+                ry="36"
+                fill="none"
+                style="stroke:var(--vis-color)"
+                stroke-width="9"
+              />
+              <path
+                d="M 531 262 q 20 28 12 76"
+                fill="none"
+                style="stroke:var(--vis-color)"
+                stroke-width="8"
+                stroke-linecap="round"
+              />
+            </g>
+          </svg>
+        )
+      }
+    </div>
 
     <div
       class="grid grid-cols-2 border-t border-neutral-200 text-center text-sm"
@@ -400,6 +474,23 @@ const ribs = Array.from({ length: 15 }, (_, i) => 50 + i * 50);
   const range = document.querySelector<HTMLInputElement>('[data-vis-range]');
   const condition = document.querySelector<HTMLElement>('[data-vis-condition]');
   const name = document.querySelector<HTMLElement>('[data-vis-name]');
+  const photosLayer = document.querySelector<HTMLElement>('[data-vis-photos]');
+  const svgLayer = document.querySelector<HTMLElement>('[data-vis-svg]');
+  const dayImg = document.querySelector<HTMLImageElement>('[data-vis-day]');
+  const nightImg = document.querySelector<HTMLImageElement>('[data-vis-night]');
+
+  /**
+   * Which variants have a photo pair. Serialized on the scene container by
+   * the frontmatter, parsed once. A malformed value collapses to an empty
+   * map, which is the same state as no photos at all: the drawn scene
+   * simply stays put for every variant.
+   */
+  let photoMap: Record<string, { day: string; night: string } | null> = {};
+  try {
+    photoMap = JSON.parse(scene?.getAttribute('data-vis-photos-map') ?? '{}');
+  } catch {
+    photoMap = {};
+  }
 
   if (scene && range) {
     const conditionAt = (value: number): string => {
@@ -456,12 +547,30 @@ const ribs = Array.from({ length: 15 }, (_, i) => 50 + i * 50);
       observer.observe(scene);
     }
 
-    // Follow the buy box's colour selection: pigment and label both.
+    // Follow the buy box's colour selection: pigment, label, and, when a
+    // variant has photography, swap the day and night images and hide the
+    // drawn scene. Variants without a photo pair render the SVG.
     window.addEventListener('pdp:variant', event => {
-      const detail = (event as CustomEvent<{ hex?: string; name?: string }>)
-        .detail;
+      const detail = (
+        event as CustomEvent<{ id?: string; hex?: string; name?: string }>
+      ).detail;
       if (detail?.hex) scene.style.setProperty('--vis-color', detail.hex);
       if (detail?.name && name) name.textContent = detail.name;
+
+      const photos = detail?.id ? photoMap[detail.id] : null;
+      if (photos && dayImg && nightImg && photosLayer && svgLayer) {
+        dayImg.src = photos.day;
+        nightImg.src = photos.night;
+        if (detail?.name) {
+          dayImg.alt = `${detail.name}, in daylight`;
+          nightImg.alt = `${detail.name}, at night`;
+        }
+        photosLayer.hidden = false;
+        svgLayer.hidden = true;
+      } else if (photosLayer && svgLayer) {
+        photosLayer.hidden = true;
+        svgLayer.hidden = false;
+      }
     });
 
     apply(0);
