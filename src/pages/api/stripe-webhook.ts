@@ -89,6 +89,20 @@ function formatAddress(address?: Stripe.Address | null): string {
     .join('\n');
 }
 
+/**
+ * The one-click reorder link for this order, from the metadata the checkout
+ * endpoint attached. `null` when the session predates the feature or the
+ * order was too long to annotate; the email simply omits the row.
+ */
+function reorderLink(
+  session: Stripe.Checkout.Session,
+  origin: string
+): string | null {
+  const value = session.metadata?.reorder;
+  if (!value || !/^[a-z0-9-]+:\d+(,[a-z0-9-]+:\d+)*$/.test(value)) return null;
+  return `${origin}/cart?reorder=${encodeURIComponent(value)}`;
+}
+
 export const POST: APIRoute = async ({ request }) => {
   const secretKey = readEnv('STRIPE_SECRET_KEY');
   const webhookSecret = readEnv('STRIPE_CHECKOUT_WEBHOOK_SECRET');
@@ -148,6 +162,7 @@ export const POST: APIRoute = async ({ request }) => {
   const customer = session.customer_details;
   const shipping = readShipping(session);
   const currency = session.currency ?? 'usd';
+  const reorder = reorderLink(session, new URL(request.url).origin);
 
   const rows: [string, string][] = [
     ['Name', customer?.name || shipping?.name || '-'],
@@ -197,6 +212,15 @@ export const POST: APIRoute = async ({ request }) => {
             : '<tr><td style="padding:5px 0;color:#737373">Line items unavailable. See the Stripe dashboard.</td></tr>'
         }
       </table>
+      ${
+        reorder
+          ? `<p style="margin:20px 0 0;font-size:13px;color:#737373">
+               One-click reorder link for this exact order, worth forwarding to
+               the customer:<br />
+               <a href="${escapeHtml(reorder)}" style="color:#A31D2E;font-weight:600;word-break:break-all">${escapeHtml(reorder)}</a>
+             </p>`
+          : ''
+      }
     </div>`;
 
   const text = [
@@ -207,6 +231,7 @@ export const POST: APIRoute = async ({ request }) => {
     ...(itemLines.length
       ? itemLines.map(i => `  ${i.label} x${i.qty}, ${i.amount}`)
       : ['  (unavailable. See the Stripe dashboard)']),
+    ...(reorder ? ['', `Reorder link: ${reorder}`] : []),
   ].join('\n');
 
   const result = await sendEmail({

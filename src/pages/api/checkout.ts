@@ -20,6 +20,7 @@ import { readEnv } from '@utils/env';
 import { PRICE_ENV_BY_VARIANT } from '@utils/stripePrices';
 import {
   auditPrice,
+  buildReorderMetadata,
   buildSessionParams,
   resolveLineItems,
   type CatalogueVariant,
@@ -125,7 +126,13 @@ export const POST: APIRoute = async ({ request, url }) => {
     );
 
     const session = await stripe.checkout.sessions.create(
-      buildSessionParams(resolved.lineItems, url.origin)
+      buildSessionParams(
+        resolved.lineItems,
+        url.origin,
+        // Rides as metadata so the order email can carry a one-click
+        // reorder link that mirrors exactly what was bought.
+        buildReorderMetadata(resolved.accepted)
+      )
     );
 
     if (!session.url) {
