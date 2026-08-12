@@ -1,14 +1,25 @@
 ---
+/**
+ * The announcement strip above the navbar.
+ *
+ * Two messages: the static free-shipping promise, and the live dispatch clock
+ * from @scripts/shipCutoff ("Order within 2h 14m and it ships tomorrow").
+ * The clock counts down to the real 5pm ET cutoff, so the banner states a
+ * deadline that is actually approaching rather than a rule to work out.
+ *
+ * The server renders the timeless form of the promise as a fallback: the pages
+ * are prerendered, so any countdown baked in at build would be stale before it
+ * was ever read. The script replaces it the moment it runs; without JavaScript
+ * the fallback stands and is still true.
+ */
 interface Props {
+  /** Static messages shown ahead of the dispatch clock. */
   messages?: string[];
 }
 
-const {
-  messages = [
-    'Free Shipping On U.S. Orders',
-    'Order by 6pm for same day shipping',
-  ],
-} = Astro.props;
+const { messages = ['Free Shipping On U.S. Orders'] } = Astro.props;
+
+const CUTOFF_FALLBACK = 'Order by 5pm ET and it ships the next business day';
 ---
 
 <div class="bg-maroon-800 text-white">
@@ -30,6 +41,8 @@ const {
           </>
         ))
       }
+      <span class="announcement-banner__dot" aria-hidden="true">&bull;</span>
+      <span data-ship-cutoff>{CUTOFF_FALLBACK}</span>
     </div>
     <div class="announcement-banner__rotator" data-rotator hidden>
       <span data-rotator-text>{messages[0]}</span>
@@ -55,6 +68,8 @@ const {
 </style>
 
 <script>
+  import { onShipCutoffTick, shipCutoffMessage } from '@scripts/shipCutoff';
+
   const ROTATE_MS = 8000;
 
   function init(container: HTMLElement) {
@@ -62,15 +77,24 @@ const {
     const rotator = container.querySelector<HTMLElement>('[data-rotator]');
     const rotatorText =
       container.querySelector<HTMLElement>('[data-rotator-text]');
+    const cutoffSpan = container.querySelector<HTMLElement>(
+      '[data-ship-cutoff]'
+    );
     if (!joined || !rotator || !rotatorText) return;
 
-    let messages: string[] = [];
+    let staticMessages: string[] = [];
     try {
-      messages = JSON.parse(container.dataset.messages || '[]');
+      staticMessages = JSON.parse(container.dataset.messages || '[]');
     } catch {
-      messages = [];
+      staticMessages = [];
     }
-    if (messages.length < 2) return;
+
+    /*
+     * The clock message is recomputed on read rather than cached, so the
+     * rotator never redisplays a countdown from a previous cycle.
+     */
+    const allMessages = () => [...staticMessages, shipCutoffMessage()];
+    const cutoffIndex = staticMessages.length;
 
     let rotating = false;
     let idx = 0;
@@ -82,8 +106,9 @@ const {
       joined!.hidden = true;
       rotator!.hidden = false;
       idx = 0;
-      rotatorText!.textContent = messages[0];
+      rotatorText!.textContent = allMessages()[0];
       timer = window.setInterval(() => {
+        const messages = allMessages();
         idx = (idx + 1) % messages.length;
         rotatorText!.textContent = messages[idx];
       }, ROTATE_MS);
@@ -114,6 +139,13 @@ const {
         stopRotation();
       }
     }
+
+    // Keep both renderings of the clock current: the joined span always, and
+    // the rotator only while it is the message on display.
+    onShipCutoffTick(message => {
+      if (cutoffSpan) cutoffSpan.textContent = message;
+      if (rotating && idx === cutoffIndex) rotatorText!.textContent = message;
+    });
 
     measure();
 

@@ -297,9 +297,18 @@ const clientData = {
     </p>
 
     <div class="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2">
+      {
+        /*
+        The server renders the timeless promise; the script swaps in the live
+        countdown to the actual 5pm ET cutoff ("Order within 2h 14m and it
+        ships tomorrow."). Without JavaScript the static sentence stands.
+      */
+      }
       <p class="flex items-center gap-2 text-sm text-neutral-600">
         <Icon name="truck" class="h-4 w-4 shrink-0 text-neutral-400" />
-        Ships next business day if you order before 5pm ET.
+        <span data-ship-line
+          >Ships next business day if you order before 5pm ET.</span
+        >
       </p>
 
       {/* Hidden for variants with no drawing, e.g. the vests. */}
@@ -451,6 +460,7 @@ const clientData = {
 
 <script>
   import { addItem, openDrawer } from '@scripts/cart';
+  import { onShipCutoffTick } from '@scripts/shipCutoff';
   import {
     formatMoney,
     formatUnitPrice,
@@ -712,6 +722,13 @@ const clientData = {
         closeSpec();
       }
     });
+
+    const shipLine = document.querySelector('[data-ship-line]');
+    if (shipLine) {
+      onShipCutoffTick(message => {
+        shipLine.textContent = `${message}.`;
+      });
+    }
 
     $('pdp-add')?.addEventListener('click', () => {
       addItem(
