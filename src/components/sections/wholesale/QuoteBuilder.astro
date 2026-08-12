@@ -1,0 +1,858 @@
+---
+/**
+ * The thirty-second quote builder on /wholesale.
+ *
+ * The brand's claim is that Shaw Safety removed the quote cycle, yet the old
+ * quote form was a free-text box that started one: describe the order, wait a
+ * business day, get numbers. This replaces it with a configurator that prices
+ * everything the published ladder can price instantly, and reserves the human
+ * round-trip for the things that genuinely need one (printing, serialization,
+ * mixed sizing, freight, terms).
+ *
+ * Three exits, all from the same built quote:
+ *  - Send it: the structured summary is composed into the `message` field and
+ *    posted to /api/contact as a quote, so the sales inbox reads a priced
+ *    order instead of prose, and the backend needed no change.
+ *  - Print it: a print-only sheet renders the same summary as a quote
+ *    document, so "get me something for AP" is the browser's print dialog.
+ *  - Buy the stock portion now: every line lands in the cart through the
+ *    normal add flow, and Stripe reprices at checkout as always.
+ *
+ * Pricing honours the published rule that mixed colors count toward the tier:
+ * a line's unit price comes from the combined quantity of its product across
+ * all lines, which is deeper than the cart's per-line math and is exactly
+ * what the wholesale page promises.
+ */
+import Icon from '@components/ui/icons/Icon.astro';
+import { getVariantCatalog } from '@utils/variantCatalog';
+
+const catalog = await getVariantCatalog();
+
+/** Add-ons that need a human. The label doubles as the summary line. */
+const ADDONS = [
+  {
+    id: 'printed',
+    label: 'Printed ties',
+    detail: 'Your company name or logo on the tie body.',
+    input: 'What should the tie say?',
+  },
+  {
+    id: 'serialized',
+    label: 'Serialized numbering',
+    detail: 'Sequential numbers for chain-of-custody logs.',
+  },
+  {
+    id: 'mixed-sizing',
+    label: 'Mixed vest sizing',
+    detail: 'Size split across a pack, S through 4XL. Note the split below.',
+  },
+  {
+    id: 'freight',
+    label: 'Pallet freight quote',
+    detail: 'For orders beyond parcel, we quote freight to your dock.',
+  },
+  {
+    id: 'net30',
+    label: 'Net 30 terms',
+    detail: 'On approval. Include your AP contact in the notes.',
+  },
+  {
+    id: 'standing',
+    label: 'Standing monthly order',
+    detail: 'Same order, every month, without reordering.',
+  },
+];
+---
+
+<section id="quote" class="scroll-mt-32 pb-20">
+  <div
+    class="from-brand-grad-from to-brand-grad-to rounded-2xl bg-linear-to-tr p-6 sm:p-8 lg:p-12"
+  >
+    <div class="max-w-3xl">
+      <h2 class="text-3xl font-bold tracking-tight text-white sm:text-4xl">
+        Build a Bulk Quote
+      </h2>
+      <p class="mt-4 text-white/85">
+        About thirty seconds, no discovery call. Stock items price themselves
+        instantly off the published ladder. Printing, serialization, mixed
+        sizing, freight, and terms come back priced within one business day.
+      </p>
+    </div>
+
+    <div class="mt-8 grid gap-6 lg:grid-cols-5">
+      {/* ── Configurator ──────────────────────────────────────────────── */}
+      <form
+        id="quote-form"
+        class="space-y-7 rounded-xl bg-white p-6 sm:p-7 lg:col-span-3"
+        method="post"
+        action="/api/contact"
+        novalidate
+      >
+        <input type="hidden" name="formType" value="quote" />
+        {/* Composed by the script from the built quote; what sales reads. */}
+        <input type="hidden" name="message" id="quote-message" value="" />
+        {/* Honeypot: hidden from people, irresistible to bots. */}
+        <div class="hidden" aria-hidden="true">
+          <label for="quote-website">Leave this field empty</label>
+          <input
+            id="quote-website"
+            name="website"
+            type="text"
+            tabindex="-1"
+            autocomplete="off"
+          />
+        </div>
+
+        <fieldset>
+          <legend class="text-sm font-bold text-neutral-900">The order</legend>
+          <p class="mt-1 text-xs text-neutral-500">
+            Mixed colors count toward the volume tier, so a split pallet prices
+            the same as a single-color one.
+          </p>
+          <div id="quote-lines" class="mt-3 space-y-2.5"></div>
+          <button
+            type="button"
+            id="quote-add-line"
+            class="text-maroon-700 hover:text-maroon-800 mt-3 inline-flex items-center gap-1.5 text-sm font-semibold underline underline-offset-4 transition"
+          >
+            <Icon name="plus" class="h-4 w-4" />
+            Add another color
+          </button>
+        </fieldset>
+
+        <fieldset>
+          <legend class="text-sm font-bold text-neutral-900">
+            Anything beyond stock?
+          </legend>
+          <p class="mt-1 text-xs text-neutral-500">
+            Everything here is priced by a person, within one business day.
+            Leave it all unticked and your quote is complete as-is.
+          </p>
+          <div class="mt-3 grid gap-2.5 sm:grid-cols-2">
+            {
+              ADDONS.map(addon => (
+                <label
+                  class="has-checked:border-maroon-700 has-checked:bg-maroon-50 flex cursor-pointer gap-2.5 rounded-lg border border-neutral-200 px-3 py-2.5 transition hover:border-neutral-400"
+                >
+                  <input
+                    type="checkbox"
+                    data-quote-addon={addon.id}
+                    data-label={addon.label}
+                    class="text-maroon-700 focus:ring-maroon-700 mt-0.5 h-4 w-4 rounded border-neutral-300"
+                  />
+                  <span>
+                    <span class="block text-sm font-semibold text-neutral-900">
+                      {addon.label}
+                    </span>
+                    <span class="mt-0.5 block text-xs leading-snug text-neutral-500">
+                      {addon.detail}
+                    </span>
+                  </span>
+                </label>
+              ))
+            }
+          </div>
+          <div id="quote-printed-wrap" class="mt-2.5 hidden">
+            <label
+              for="quote-printed-text"
+              class="block text-sm font-medium text-neutral-700"
+              >What should the tie say?</label
+            >
+            <input
+              id="quote-printed-text"
+              type="text"
+              maxlength="120"
+              placeholder="e.g. ACME INTERMODAL + phone number"
+              class="focus:border-maroon-700 focus:ring-maroon-700 mt-1.5 w-full rounded-lg border-neutral-300 text-sm"
+            />
+          </div>
+        </fieldset>
+
+        <div>
+          <label
+            for="quote-notes"
+            class="block text-sm font-bold text-neutral-900"
+            >Notes <span class="font-normal text-neutral-500">(optional)</span
+            ></label
+          >
+          <textarea
+            id="quote-notes"
+            rows="3"
+            placeholder="Size splits, delivery constraints, target dates, AP contact for net 30…"
+            class="focus:border-maroon-700 focus:ring-maroon-700 mt-1.5 w-full rounded-lg border-neutral-300 text-sm"
+          ></textarea>
+        </div>
+
+        <fieldset>
+          <legend class="text-sm font-bold text-neutral-900">
+            Where the quote goes
+          </legend>
+          <div class="mt-3 grid gap-4 sm:grid-cols-2">
+            <div>
+              <label
+                for="quote-name"
+                class="block text-sm font-medium text-neutral-700">Name</label
+              >
+              <input
+                id="quote-name"
+                name="name"
+                type="text"
+                required
+                class="focus:border-maroon-700 focus:ring-maroon-700 mt-1.5 w-full rounded-lg border-neutral-300 text-sm"
+              />
+            </div>
+            <div>
+              <label
+                for="quote-company"
+                class="block text-sm font-medium text-neutral-700"
+                >Company</label
+              >
+              <input
+                id="quote-company"
+                name="company"
+                type="text"
+                required
+                class="focus:border-maroon-700 focus:ring-maroon-700 mt-1.5 w-full rounded-lg border-neutral-300 text-sm"
+              />
+            </div>
+            <div>
+              <label
+                for="quote-email"
+                class="block text-sm font-medium text-neutral-700">Email</label
+              >
+              <input
+                id="quote-email"
+                name="email"
+                type="email"
+                required
+                class="focus:border-maroon-700 focus:ring-maroon-700 mt-1.5 w-full rounded-lg border-neutral-300 text-sm"
+              />
+            </div>
+            <div>
+              <label
+                for="quote-phone"
+                class="block text-sm font-medium text-neutral-700"
+                >Phone
+                <span class="font-normal text-neutral-500">(optional)</span
+                ></label
+              >
+              <input
+                id="quote-phone"
+                name="phone"
+                type="tel"
+                class="focus:border-maroon-700 focus:ring-maroon-700 mt-1.5 w-full rounded-lg border-neutral-300 text-sm"
+              />
+            </div>
+          </div>
+        </fieldset>
+      </form>
+
+      {/* ── Live quote ────────────────────────────────────────────────── */}
+      <aside class="lg:col-span-2">
+        <div class="rounded-xl bg-white p-6 sm:p-7 lg:sticky lg:top-32">
+          <div class="flex items-baseline justify-between gap-3">
+            <h3 class="text-sm font-bold text-neutral-900">Your quote</h3>
+            <p class="text-xs font-semibold text-neutral-500">
+              Ref <span id="quote-ref" class="text-neutral-800"></span>
+            </p>
+          </div>
+
+          <ul
+            id="quote-summary-lines"
+            class="mt-4 space-y-2 border-t border-neutral-200 pt-4 text-sm"
+          >
+          </ul>
+          <p id="quote-tier-note" class="mt-2 hidden text-xs text-neutral-500">
+          </p>
+
+          <dl class="mt-4 space-y-2 border-t border-neutral-200 pt-4 text-sm">
+            <div class="flex justify-between">
+              <dt class="text-neutral-600">Instant subtotal</dt>
+              <dd
+                id="quote-subtotal"
+                class="font-bold text-neutral-900 tabular-nums"
+              >
+              </dd>
+            </div>
+            <div id="quote-savings-row" class="hidden justify-between">
+              <dt class="text-neutral-600">You save vs list</dt>
+              <dd
+                id="quote-savings"
+                class="font-bold text-green-700 tabular-nums"
+              >
+              </dd>
+            </div>
+            <div class="flex justify-between">
+              <dt class="text-neutral-600">Stock items ship</dt>
+              <dd class="font-semibold text-neutral-900">Next business day</dd>
+            </div>
+          </dl>
+
+          <div id="quote-addon-summary" class="mt-4 hidden">
+            <p class="text-xs font-bold tracking-wide text-neutral-500 uppercase">
+              Priced within one business day
+            </p>
+            <ul
+              id="quote-addon-list"
+              class="mt-1.5 space-y-1 text-sm text-neutral-700"
+            >
+            </ul>
+          </div>
+
+          <div class="mt-5 space-y-2.5 border-t border-neutral-200 pt-5">
+            <button
+              type="submit"
+              form="quote-form"
+              id="quote-submit"
+              class="hover:bg-maroon-800 focus-visible:ring-maroon-700 w-full rounded-lg bg-neutral-900 px-5 py-3 text-sm font-bold text-white transition focus:outline-hidden focus-visible:ring-2 focus-visible:ring-offset-2 disabled:opacity-60"
+            >
+              Send Quote Request
+            </button>
+            <div class="grid grid-cols-2 gap-2.5">
+              <button
+                type="button"
+                id="quote-print"
+                class="rounded-lg border border-neutral-300 px-4 py-2.5 text-sm font-bold text-neutral-800 transition hover:border-neutral-500"
+              >
+                Print Quote
+              </button>
+              <button
+                type="button"
+                id="quote-buy"
+                class="group bg-maroon-700 hover:bg-maroon-800 inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-bold text-white transition"
+              >
+                <span data-label>Buy Stock Now</span>
+                <Icon name="cart" class="h-4 w-4" />
+              </button>
+            </div>
+            <p id="quote-buy-note" class="hidden text-xs text-neutral-500"></p>
+          </div>
+
+          <p
+            id="quote-status"
+            class="bg-maroon-50 text-maroon-900 mt-3 hidden rounded-lg px-3.5 py-2.5 text-sm font-medium"
+            role="status"
+            aria-live="polite"
+          >
+          </p>
+        </div>
+      </aside>
+    </div>
+  </div>
+</section>
+
+{
+  /*
+  The print sheet. Hidden on screen; under `@media print` it becomes the only
+  visible thing on the page, so the print dialog produces a clean one-page
+  quote document rather than a screenshot of the site.
+*/
+}
+<div id="quote-print-sheet" class="quote-print-sheet" aria-hidden="true">
+  <div class="quote-print-sheet__head">
+    <p class="quote-print-sheet__brand">Shaw Safety</p>
+    <p>Wholesale Quote &middot; Ref <span data-print-ref></span></p>
+    <p data-print-date></p>
+  </div>
+  <table class="quote-print-sheet__table">
+    <thead>
+      <tr><th>Item</th><th>Qty</th><th>Unit</th><th>Total</th></tr>
+    </thead>
+    <tbody data-print-lines></tbody>
+    <tfoot>
+      <tr>
+        <td colspan="3">Instant subtotal (stock items)</td>
+        <td data-print-subtotal></td>
+      </tr>
+    </tfoot>
+  </table>
+  <div data-print-addons-wrap hidden>
+    <p class="quote-print-sheet__label">
+      To be priced by Shaw Safety within one business day
+    </p>
+    <ul data-print-addons></ul>
+  </div>
+  <p class="quote-print-sheet__fine">
+    Stock items ship the next business day on orders placed before 5pm ET.
+    Prices follow the published ladder at shaw.portaprosoftware.com/wholesale
+    and are applied automatically at checkout. This sheet is a summary of
+    published pricing, not an invoice.
+  </p>
+</div>
+
+<style>
+  .quote-print-sheet {
+    display: none;
+  }
+  @media print {
+    /*
+      Only the sheet prints. Visibility rather than display so the sheet's
+      layout box still exists to be positioned into the page.
+    */
+    body :global(*) {
+      visibility: hidden;
+    }
+    .quote-print-sheet,
+    .quote-print-sheet * {
+      visibility: visible;
+    }
+    .quote-print-sheet {
+      display: block;
+      position: absolute;
+      inset: 0;
+      padding: 2rem;
+      color: #171717;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+    .quote-print-sheet__head {
+      border-bottom: 2px solid #171717;
+      padding-bottom: 0.75rem;
+    }
+    .quote-print-sheet__brand {
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+    .quote-print-sheet__table {
+      width: 100%;
+      margin-top: 1.25rem;
+      border-collapse: collapse;
+    }
+    .quote-print-sheet__table th,
+    .quote-print-sheet__table td {
+      text-align: left;
+      padding: 6px 8px;
+      border-bottom: 1px solid #d4d4d4;
+    }
+    .quote-print-sheet__table tfoot td {
+      font-weight: 700;
+      border-bottom: none;
+      border-top: 2px solid #171717;
+    }
+    .quote-print-sheet__label {
+      margin-top: 1.25rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      font-size: 11px;
+      letter-spacing: 0.08em;
+    }
+    .quote-print-sheet__fine {
+      margin-top: 1.5rem;
+      color: #525252;
+      font-size: 11px;
+    }
+  }
+</style>
+
+<script is:inline define:vars={{ catalog }}>
+  window.__shawQuoteCatalog = catalog;
+</script>
+
+<script>
+  import { attachFormHandler } from '@scripts/formSubmit';
+  import { addItem, openDrawer } from '@scripts/cart';
+  import {
+    formatMoney,
+    roundMoney,
+    unitPriceAt,
+    savingsPercent,
+  } from '@scripts/pricing';
+  import type { CatalogLine } from '@utils/variantCatalog';
+
+  interface QuoteLine {
+    variantId: string;
+    qty: number;
+  }
+
+  const catalog =
+    (window as unknown as { __shawQuoteCatalog?: CatalogLine[] })
+      .__shawQuoteCatalog ?? [];
+
+  const byId = new Map(catalog.map(line => [line.variantId, line]));
+
+  const $ = (id: string) => document.getElementById(id);
+  const linesEl = $('quote-lines');
+  const form = $('quote-form') as HTMLFormElement | null;
+
+  if (catalog.length && linesEl && form) {
+    /** One reference per built quote, stamped into the email and the sheet. */
+    const now = new Date();
+    const ref = `Q-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(
+      now.getDate()
+    ).padStart(2, '0')}-${String(Math.floor(1000 + Math.random() * 9000))}`;
+
+    const lines: QuoteLine[] = [{ variantId: catalog[0].variantId, qty: 100 }];
+
+    const escapeHtml = (text: string) =>
+      text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+
+    const optionsHtml = (selected: string) =>
+      catalog
+        .map(
+          line =>
+            `<option value="${line.variantId}"${
+              line.variantId === selected ? ' selected' : ''
+            }>${escapeHtml(`${line.shortTitle}, ${line.variantName}`)}</option>`
+        )
+        .join('');
+
+    const renderLines = () => {
+      linesEl.innerHTML = lines
+        .map(
+          (line, i) => `
+          <div class="flex items-center gap-2.5" data-line="${i}">
+            <select data-line-variant aria-label="Product and color"
+              class="focus:border-maroon-700 focus:ring-maroon-700 min-w-0 flex-1 rounded-lg border-neutral-300 text-sm">
+              ${optionsHtml(line.variantId)}
+            </select>
+            <input data-line-qty type="number" min="1" max="9999" value="${line.qty}"
+              aria-label="Quantity in packs"
+              class="focus:border-maroon-700 focus:ring-maroon-700 w-24 rounded-lg border-neutral-300 text-sm" />
+            <button type="button" data-line-remove aria-label="Remove line"
+              class="rounded-lg p-2 text-neutral-400 transition hover:bg-neutral-100 hover:text-red-600 ${
+                lines.length === 1 ? 'invisible' : ''
+              }">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"
+                stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4" aria-hidden="true">
+                <path d="M18 6 6 18" /><path d="m6 6 12 12" />
+              </svg>
+            </button>
+          </div>`
+        )
+        .join('');
+    };
+
+    /** Combined quantity per product: the "mixed colors count" rule. */
+    const productTotals = (): Map<string, number> => {
+      const totals = new Map<string, number>();
+      for (const line of lines) {
+        const entry = byId.get(line.variantId);
+        if (!entry || line.qty < 1) continue;
+        totals.set(
+          entry.productId,
+          (totals.get(entry.productId) ?? 0) + line.qty
+        );
+      }
+      return totals;
+    };
+
+    interface PricedLine {
+      entry: CatalogLine;
+      qty: number;
+      unit: number;
+      total: number;
+    }
+
+    const priceLines = (): PricedLine[] => {
+      const totals = productTotals();
+      return lines
+        .map(line => {
+          const entry = byId.get(line.variantId);
+          if (!entry || line.qty < 1) return null;
+          const combined = totals.get(entry.productId) ?? line.qty;
+          const unit = unitPriceAt(entry.tiers, combined);
+          return { entry, qty: line.qty, unit, total: roundMoney(unit * line.qty) };
+        })
+        .filter((line): line is PricedLine => line !== null);
+    };
+
+    const selectedAddons = (): { id: string; label: string }[] =>
+      Array.from(
+        form.querySelectorAll<HTMLInputElement>('[data-quote-addon]:checked')
+      ).map(input => ({
+        id: input.dataset.quoteAddon ?? '',
+        label: input.dataset.label ?? '',
+      }));
+
+    const addonSummaryText = (addon: { id: string; label: string }): string => {
+      if (addon.id !== 'printed') return addon.label;
+      const text = (
+        $('quote-printed-text') as HTMLInputElement | null
+      )?.value.trim();
+      return text ? `${addon.label}: "${text}"` : addon.label;
+    };
+
+    const render = () => {
+      const priced = priceLines();
+      const addons = selectedAddons();
+      const subtotal = roundMoney(
+        priced.reduce((sum, line) => sum + line.total, 0)
+      );
+      const listSubtotal = roundMoney(
+        priced.reduce(
+          (sum, line) => sum + line.entry.tiers[0].pricePerUnit * line.qty,
+          0
+        )
+      );
+      const savings = roundMoney(Math.max(0, listSubtotal - subtotal));
+
+      const refEl = $('quote-ref');
+      if (refEl) refEl.textContent = ref;
+
+      const summaryEl = $('quote-summary-lines');
+      if (summaryEl) {
+        summaryEl.innerHTML = priced.length
+          ? priced
+              .map(
+                line => `
+                <li class="flex items-baseline justify-between gap-3">
+                  <span class="min-w-0 text-neutral-700">
+                    ${escapeHtml(`${line.entry.shortTitle}, ${line.entry.variantName}`)}
+                    <span class="text-neutral-400">&times;${line.qty.toLocaleString('en-US')}</span>
+                  </span>
+                  <span class="shrink-0 font-semibold text-neutral-900 tabular-nums">
+                    ${formatMoney(line.total)}
+                    ${
+                      savingsPercent(line.entry.tiers, line.unit) > 0
+                        ? `<span class="ml-1 text-xs font-semibold text-green-700">${savingsPercent(line.entry.tiers, line.unit)}% off</span>`
+                        : ''
+                    }
+                  </span>
+                </li>`
+              )
+              .join('')
+          : '<li class="text-neutral-500">Add a line to start the quote.</li>';
+      }
+
+      // Name the tier rule whenever combining is what earned the price.
+      const tierNote = $('quote-tier-note');
+      if (tierNote) {
+        const totals = productTotals();
+        const combinedProduct = Array.from(totals.entries()).find(
+          ([productId, total]) =>
+            priced.filter(line => line.entry.productId === productId).length >
+              1 && total >= (priced[0]?.entry.tiers[1]?.minQty ?? Infinity)
+        );
+        if (combinedProduct) {
+          const [productId, total] = combinedProduct;
+          const unit =
+            priced.find(line => line.entry.productId === productId)?.entry
+              .unit ?? 'pack';
+          tierNote.textContent = `Tier set by ${total.toLocaleString('en-US')} combined ${unit}s across colors.`;
+          tierNote.classList.remove('hidden');
+        } else {
+          tierNote.classList.add('hidden');
+        }
+      }
+
+      const subtotalEl = $('quote-subtotal');
+      if (subtotalEl) subtotalEl.textContent = formatMoney(subtotal);
+      const savingsRow = $('quote-savings-row');
+      const savingsEl = $('quote-savings');
+      if (savingsRow && savingsEl) {
+        savingsRow.classList.toggle('hidden', savings <= 0);
+        savingsRow.classList.toggle('flex', savings > 0);
+        savingsEl.textContent = formatMoney(savings);
+      }
+
+      const addonWrap = $('quote-addon-summary');
+      const addonList = $('quote-addon-list');
+      if (addonWrap && addonList) {
+        addonWrap.classList.toggle('hidden', addons.length === 0);
+        addonList.innerHTML = addons
+          .map(addon => `<li>${escapeHtml(addonSummaryText(addon))}</li>`)
+          .join('');
+      }
+
+      /*
+       * The quote honours the published mixed-colors rule; online checkout
+       * prices each line on its own ladder. When those disagree, buying now
+       * would cost more than the quote shows, and that difference must be
+       * said out loud rather than discovered at Stripe.
+       */
+      const perLineTotal = roundMoney(
+        priced.reduce(
+          (sum, line) =>
+            sum + unitPriceAt(line.entry.tiers, line.qty) * line.qty,
+          0
+        )
+      );
+      const mismatch = perLineTotal > subtotal + 0.004;
+      const buyNote = $('quote-buy-note');
+      if (buyNote) {
+        const notes: string[] = [];
+        if (mismatch) {
+          notes.push(
+            `Online checkout prices each color on its own, ${formatMoney(perLineTotal)} for these lines. Send the quote and we confirm the combined-color price.`
+          );
+        }
+        if (addons.length) {
+          notes.push(
+            'Buying now covers the stock lines; ticked add-ons still go out as a quote request.'
+          );
+        }
+        buyNote.textContent = notes.join(' ');
+        buyNote.classList.toggle('hidden', notes.length === 0);
+      }
+
+      const printedWrap = $('quote-printed-wrap');
+      printedWrap?.classList.toggle(
+        'hidden',
+        !addons.some(addon => addon.id === 'printed')
+      );
+
+      // The message field is what sales actually receives.
+      const message = $('quote-message') as HTMLInputElement | null;
+      if (message) {
+        const notes = (
+          $('quote-notes') as HTMLTextAreaElement | null
+        )?.value.trim();
+        message.value = [
+          `QUOTE ${ref} (built on the site)`,
+          '',
+          'Items, priced off the published ladder:',
+          ...(priced.length
+            ? priced.map(
+                line =>
+                  `- ${line.entry.shortTitle}, ${line.entry.variantName}: ${line.qty} ${line.entry.unit}s at ${formatMoney(line.unit)} = ${formatMoney(line.total)}`
+              )
+            : ['- (none)']),
+          `Instant subtotal: ${formatMoney(subtotal)}${
+            savings > 0 ? ` (saves ${formatMoney(savings)} vs list)` : ''
+          }`,
+          '',
+          'To be priced:',
+          ...(addons.length
+            ? addons.map(addon => `- ${addonSummaryText(addon)}`)
+            : ['- (none, the quote is complete as-is)']),
+          '',
+          `Notes: ${notes || '-'}`,
+        ].join('\n');
+      }
+    };
+
+    // ── Line editing ────────────────────────────────────────────────────
+    linesEl.addEventListener('change', event => {
+      const target = event.target as HTMLElement;
+      const row = target.closest<HTMLElement>('[data-line]');
+      if (!row) return;
+      const index = Number(row.dataset.line);
+      if (!lines[index]) return;
+      if (target.matches('[data-line-variant]')) {
+        lines[index].variantId = (target as HTMLSelectElement).value;
+      }
+      if (target.matches('[data-line-qty]')) {
+        lines[index].qty = Math.max(
+          0,
+          Math.floor(Number((target as HTMLInputElement).value) || 0)
+        );
+      }
+      render();
+    });
+
+    linesEl.addEventListener('click', event => {
+      const remove = (event.target as HTMLElement).closest('[data-line-remove]');
+      const row = (event.target as HTMLElement).closest<HTMLElement>(
+        '[data-line]'
+      );
+      if (!remove || !row) return;
+      lines.splice(Number(row.dataset.line), 1);
+      renderLines();
+      render();
+    });
+
+    $('quote-add-line')?.addEventListener('click', () => {
+      if (lines.length >= 8) return;
+      // Prefer a variant not already on the quote, so "add another color"
+      // does what it says without a manual select.
+      const used = new Set(lines.map(line => line.variantId));
+      const next =
+        catalog.find(line => !used.has(line.variantId)) ?? catalog[0];
+      lines.push({ variantId: next.variantId, qty: 100 });
+      renderLines();
+      render();
+    });
+
+    // Add-ons, printed text, and notes all feed the summary and message.
+    form.addEventListener('change', render);
+    form.addEventListener('input', render);
+
+    // ── Print ───────────────────────────────────────────────────────────
+    $('quote-print')?.addEventListener('click', () => {
+      const priced = priceLines();
+      const addons = selectedAddons();
+      const set = (selector: string, text: string) => {
+        const el = document.querySelector(selector);
+        if (el) el.textContent = text;
+      };
+      set('[data-print-ref]', ref);
+      set(
+        '[data-print-date]',
+        new Date().toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+        })
+      );
+      const linesBody = document.querySelector('[data-print-lines]');
+      if (linesBody) {
+        linesBody.innerHTML = priced
+          .map(
+            line => `
+            <tr>
+              <td>${escapeHtml(`${line.entry.shortTitle}, ${line.entry.variantName}`)}</td>
+              <td>${line.qty.toLocaleString('en-US')}</td>
+              <td>${formatMoney(line.unit)}</td>
+              <td>${formatMoney(line.total)}</td>
+            </tr>`
+          )
+          .join('');
+      }
+      set(
+        '[data-print-subtotal]',
+        formatMoney(
+          roundMoney(priced.reduce((sum, line) => sum + line.total, 0))
+        )
+      );
+      const addonsWrap = document.querySelector('[data-print-addons-wrap]');
+      const addonsList = document.querySelector('[data-print-addons]');
+      if (addonsWrap && addonsList) {
+        addonsWrap.toggleAttribute('hidden', addons.length === 0);
+        addonsList.innerHTML = addons
+          .map(addon => `<li>${escapeHtml(addonSummaryText(addon))}</li>`)
+          .join('');
+      }
+      window.print();
+    });
+
+    // ── Buy the stock portion now ───────────────────────────────────────
+    $('quote-buy')?.addEventListener('click', () => {
+      const priced = priceLines();
+      if (!priced.length) return;
+      for (const line of priced) {
+        addItem(
+          {
+            productId: line.entry.productId,
+            variantId: line.entry.variantId,
+            title: line.entry.title,
+            variantName: line.entry.variantName,
+            hex: line.entry.hex,
+            image: line.entry.image,
+            sku: line.entry.sku,
+            unit: line.entry.unit,
+            tiers: line.entry.tiers,
+            href: line.entry.href,
+          },
+          line.qty
+        );
+      }
+      openDrawer();
+    });
+
+    attachFormHandler({
+      formId: 'quote-form',
+      statusId: 'quote-status',
+      submitId: 'quote-submit',
+      idleLabel: 'Send Quote Request',
+    });
+
+    renderLines();
+    render();
+  }
+</script>
