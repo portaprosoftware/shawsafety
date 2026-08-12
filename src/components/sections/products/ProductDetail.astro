@@ -3,6 +3,8 @@ import type { CollectionEntry } from 'astro:content';
 import { resolveProductImage } from '@utils/productImages';
 import Icon from '@components/ui/icons/Icon.astro';
 import ImageZoom from '@components/ui/blocks/ImageZoom.astro';
+import DatasheetOverlay from '@components/ui/blocks/DatasheetOverlay.astro';
+import VisibilitySimulator from '@components/sections/products/VisibilitySimulator.astro';
 import { formatMoney, formatUnitPrice, type Tier } from '@scripts/pricing';
 
 interface Props {
@@ -79,10 +81,33 @@ const clientData = {
 <div class="grid gap-10 py-8 lg:grid-cols-2 lg:gap-14 lg:py-12">
   {/* ── Gallery ─────────────────────────────────────────────────────── */}
   <div class="lg:sticky lg:top-32 lg:self-start">
-    <ImageZoom
-      src={active.images[0].display}
-      alt={`${p.shortTitle} in ${active.name}`}
-    />
+    <div class="relative">
+      <ImageZoom
+        src={active.images[0].display}
+        alt={`${p.shortTitle} in ${active.name}`}
+      />
+      <DatasheetOverlay specs={p.specs} sku={active.sku} title={p.shortTitle} />
+    </div>
+
+    {
+      /*
+      Datasheet view: draws the published specs over the photo as an
+      engineering annotation layer. A toggle rather than a mode the page
+      decides on, because sometimes you want the photo and sometimes you are
+      checking a number against a terminal's requirement.
+    */
+    }
+    <div class="mx-auto mt-3 flex w-full max-w-[560px] justify-end">
+      <button
+        type="button"
+        data-datasheet-toggle
+        aria-pressed="false"
+        class="text-maroon-700 hover:text-maroon-800 focus-visible:ring-maroon-700 inline-flex items-center gap-1.5 rounded text-sm font-semibold underline underline-offset-4 transition focus:outline-hidden focus-visible:ring-2"
+      >
+        <Icon name="ruler" class="h-4 w-4" />
+        <span data-datasheet-toggle-label>Datasheet view</span>
+      </button>
+    </div>
 
     {
       active.images.length > 1 && (
@@ -297,9 +322,18 @@ const clientData = {
     </p>
 
     <div class="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2">
+      {
+        /*
+        The server renders the timeless promise; the script swaps in the live
+        countdown to the actual 5pm ET cutoff ("Order within 2h 14m and it
+        ships tomorrow."). Without JavaScript the static sentence stands.
+      */
+      }
       <p class="flex items-center gap-2 text-sm text-neutral-600">
         <Icon name="truck" class="h-4 w-4 shrink-0 text-neutral-400" />
-        Ships next business day if you order before 5pm ET.
+        <span data-ship-line
+          >Ships next business day if you order before 5pm ET.</span
+        >
       </p>
 
       {/* Hidden for variants with no drawing, e.g. the vests. */}
@@ -355,6 +389,9 @@ const clientData = {
     </ul>
   </div>
 </div>
+
+{/* ── Visibility simulator ───────────────────────────────────────────── */}
+<VisibilitySimulator product={product} />
 
 {/* ── Highlights ─────────────────────────────────────────────────────── */}
 <section class="border-t border-neutral-200 py-12">
@@ -451,6 +488,7 @@ const clientData = {
 
 <script>
   import { addItem, openDrawer } from '@scripts/cart';
+  import { onShipCutoffTick } from '@scripts/shipCutoff';
   import {
     formatMoney,
     formatUnitPrice,
@@ -594,6 +632,10 @@ const clientData = {
       const skuEl = $('pdp-sku');
       if (skuEl) skuEl.textContent = variant.sku;
 
+      // The datasheet title block shows the SKU of the colour on display.
+      const datasheetSku = document.querySelector('[data-datasheet-sku]');
+      if (datasheetSku) datasheetSku.textContent = variant.sku;
+
       colors?.querySelectorAll<HTMLElement>('[data-variant]').forEach(btn => {
         const isActive = btn.dataset.variant === variant.id;
         btn.setAttribute('aria-pressed', String(isActive));
@@ -627,6 +669,15 @@ const clientData = {
       }
       const specVariant = $('spec-variant');
       if (specVariant) specVariant.textContent = variant.name;
+
+      // Anything else on the page that follows the colour selection (the
+      // visibility simulator, today) listens for this rather than reaching
+      // into the buy box's state.
+      window.dispatchEvent(
+        new CustomEvent('pdp:variant', {
+          detail: { id: variant.id, name: variant.name, hex: variant.hex },
+        })
+      );
 
       renderImages();
     };
@@ -711,6 +762,28 @@ const clientData = {
       ) {
         closeSpec();
       }
+    });
+
+    const shipLine = document.querySelector('[data-ship-line]');
+    if (shipLine) {
+      onShipCutoffTick(message => {
+        shipLine.textContent = `${message}.`;
+      });
+    }
+
+    // ── Datasheet view ────────────────────────────────────────────────
+    const datasheet = document.querySelector('[data-datasheet-overlay]');
+    const datasheetToggle = document.querySelector<HTMLButtonElement>(
+      '[data-datasheet-toggle]'
+    );
+    datasheetToggle?.addEventListener('click', () => {
+      if (!datasheet) return;
+      const active = datasheet.classList.toggle('is-active');
+      datasheetToggle.setAttribute('aria-pressed', String(active));
+      const label = datasheetToggle.querySelector(
+        '[data-datasheet-toggle-label]'
+      );
+      if (label) label.textContent = active ? 'Photo view' : 'Datasheet view';
     });
 
     $('pdp-add')?.addEventListener('click', () => {

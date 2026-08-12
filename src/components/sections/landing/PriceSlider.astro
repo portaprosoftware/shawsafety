@@ -1,0 +1,556 @@
+---
+/**
+ * The interactive price band on the landing page.
+ *
+ * The site's whole argument is that the ladder is published, so this section
+ * makes the visitor feel it in the first screenful: drag a slider to your
+ * monthly volume and watch the per-pack price step down through the real
+ * tiers, computed by the same @scripts/pricing math the PDP and the cart run.
+ * Nothing here is a marketing number; it is the checkout price, shown early.
+ *
+ * The add-to-cart button carries the standard `data-add-to-cart` payload, so
+ * a visitor who finds their number can put the whole quantity in the cart
+ * without visiting the PDP first.
+ */
+import type { CollectionEntry } from 'astro:content';
+import Icon from '@components/ui/icons/Icon.astro';
+import {
+  formatMoney,
+  formatUnitPrice,
+  lineTotal,
+  resolveTier,
+  roundMoney,
+  type Tier,
+} from '@scripts/pricing';
+import { resolveProductImage } from '@utils/productImages';
+
+interface Props {
+  product: CollectionEntry<'products'>;
+}
+
+const { product } = Astro.props;
+const p = product.data;
+
+const variants = await Promise.all(
+  p.variants.map(async variant => ({
+    id: variant.id,
+    name: variant.name,
+    hex: variant.hex,
+    sku: variant.sku,
+    tiers: (variant.tiers ?? p.tiers) as Tier[],
+    thumb: (await resolveProductImage(variant.images[0], 160, 160)).src,
+  }))
+);
+
+/**
+ * Opening position. Sat inside the middle tier rather than at 1, so the first
+ * paint already shows a discount working and the deeper tier within reach.
+ */
+const DEFAULT_QTY = 150;
+
+/** Twice the deepest breakpoint, so the open-ended tier has real track. */
+const SLIDER_MAX = 400;
+
+const lead = variants[0];
+const initialTier = resolveTier(lead.tiers, DEFAULT_QTY);
+const initialTotal = lineTotal(lead.tiers, DEFAULT_QTY);
+const initialSavings = roundMoney(
+  lead.tiers[0].pricePerUnit * DEFAULT_QTY - initialTotal
+);
+
+const sliderData = {
+  productId: product.id,
+  title: p.title,
+  packSize: p.packSize,
+  unit: p.unit,
+  subUnit: p.subUnit ?? null,
+  defaultQty: DEFAULT_QTY,
+  sliderMax: SLIDER_MAX,
+  variants,
+};
+---
+
+<section
+  class="from-brand-grad-from to-brand-grad-to relative overflow-hidden bg-linear-to-tr"
+  aria-labelledby="price-slider-heading"
+>
+  {/* The same fine engineering grid the hero wears, kept subtle. */}
+  <div
+    class="absolute inset-0 opacity-[0.14] mix-blend-overlay"
+    style="background-image:linear-gradient(to right,#fff 1px,transparent 1px),linear-gradient(to bottom,#fff 1px,transparent 1px);background-size:64px 64px"
+    aria-hidden="true"
+  >
+  </div>
+
+  <div
+    class="relative mx-auto grid max-w-(--breakpoint-2xl) gap-10 px-4 py-16 sm:px-6 lg:grid-cols-5 lg:gap-14 lg:px-8 lg:py-20"
+  >
+    {/* ── Slider column ─────────────────────────────────────────────── */}
+    <div class="lg:col-span-3">
+      <p class="text-xs font-bold tracking-[0.22em] text-white/80 uppercase">
+        Published Wholesale Pricing
+      </p>
+      <h2
+        id="price-slider-heading"
+        class="mt-3 text-3xl font-bold tracking-tight text-white sm:text-4xl"
+      >
+        Drag to your volume.<br />That is your price.
+      </h2>
+      <p class="mt-4 max-w-xl text-white/85">
+        No account, no quote, no sales call. The ladder below is the same math
+        the cart runs, and checkout applies the tier automatically.
+      </p>
+
+      {/* Color picker. Product colors, worn by the chips themselves. */}
+      <div
+        id="price-slider-colors"
+        class="mt-8 flex flex-wrap gap-2"
+        role="group"
+        aria-label="Tie color"
+      >
+        {
+          variants.map((variant, i) => (
+            <button
+              type="button"
+              data-slider-variant={variant.id}
+              aria-pressed={i === 0 ? 'true' : 'false'}
+              class:list={[
+                'flex items-center gap-2 rounded-lg border-2 px-3 py-2 text-sm font-medium transition',
+                i === 0
+                  ? 'border-white bg-white/15 text-white'
+                  : 'border-white/30 text-white/80 hover:border-white/60 hover:text-white',
+              ]}
+            >
+              <span
+                class="h-3.5 w-3.5 shrink-0 rounded-full"
+                style={`background:${variant.hex}`}
+              />
+              {variant.name.replace('Fluorescent ', '')}
+            </button>
+          ))
+        }
+      </div>
+
+      {/* The slider itself, with the tier breakpoints marked on the track. */}
+      <div class="mt-8">
+        <div class="flex items-end justify-between gap-4">
+          <label
+            for="price-slider-range"
+            class="text-sm font-semibold text-white"
+          >
+            Quantity
+          </label>
+          <p class="text-sm text-white/80">
+            <span id="price-slider-qty" class="font-bold text-white"
+              >{DEFAULT_QTY} packs</span
+            >
+            <span id="price-slider-units">
+              &middot; {(DEFAULT_QTY * p.packSize).toLocaleString('en-US')}
+              {p.subUnit ? `${p.subUnit}s` : 'units'}</span
+            >
+          </p>
+        </div>
+
+        <div class="relative mt-3">
+          {/* Breakpoint ticks, positioned by the script per variant. */}
+          <div
+            id="price-slider-ticks"
+            class="pointer-events-none absolute inset-x-0 top-1/2 h-3.5 -translate-y-1/2"
+            aria-hidden="true"
+          >
+          </div>
+          <input
+            id="price-slider-range"
+            type="range"
+            min="1"
+            max={SLIDER_MAX}
+            value={DEFAULT_QTY}
+            step="1"
+            class="price-slider__range relative w-full"
+            aria-label="Quantity in packs"
+          />
+        </div>
+
+        {/* The ladder as buttons: tap a tier, land on its breakpoint. */}
+        <div id="price-slider-tiers" class="mt-4 flex flex-wrap gap-2"></div>
+
+        <p class="mt-5 text-sm text-white/70">
+          Need more than {SLIDER_MAX} packs, mixed sizing, or printed ties?
+          <a
+            href="/wholesale#quote"
+            class="font-semibold text-white underline underline-offset-4 hover:text-white/80"
+            >Build a bulk quote</a
+          >, it takes about thirty seconds.
+        </p>
+      </div>
+    </div>
+
+    {/* ── Price card ────────────────────────────────────────────────── */}
+    <div class="lg:col-span-2">
+      <div class="rounded-2xl bg-white p-6 shadow-xl sm:p-8">
+        <p class="text-xs font-bold tracking-wide text-neutral-500 uppercase">
+          Your price per {p.unit}
+        </p>
+        <div class="mt-2 flex items-baseline gap-2">
+          <span
+            id="price-slider-price"
+            class="text-5xl font-bold tracking-tight text-neutral-900 tabular-nums"
+            >{formatMoney(initialTier.pricePerUnit)}</span
+          >
+          <span class="text-lg text-neutral-500">/ {p.unit}</span>
+        </div>
+        {
+          p.subUnit && (
+            <p class="mt-1 text-sm text-neutral-500">
+              <span id="price-slider-subunit">
+                {formatUnitPrice(initialTier.pricePerUnit, p.packSize)}
+              </span>{' '}
+              per {p.subUnit}
+            </p>
+          )
+        }
+
+        <dl class="mt-6 space-y-2.5 border-t border-neutral-200 pt-5 text-sm">
+          <div class="flex justify-between">
+            <dt class="text-neutral-600">Order total</dt>
+            <dd
+              id="price-slider-total"
+              class="font-bold text-neutral-900 tabular-nums"
+            >
+              {formatMoney(initialTotal)}
+            </dd>
+          </div>
+          <div class="flex justify-between">
+            <dt class="text-neutral-600">You save vs list</dt>
+            <dd
+              id="price-slider-savings"
+              class="font-bold text-green-700 tabular-nums"
+            >
+              {initialSavings > 0 ? formatMoney(initialSavings) : '-'}
+            </dd>
+          </div>
+        </dl>
+
+        <p
+          id="price-slider-nudge"
+          class="border-maroon-200 bg-maroon-50 text-maroon-900 mt-5 hidden rounded-lg border px-3.5 py-2.5 text-sm font-medium"
+        >
+        </p>
+
+        <button
+          type="button"
+          id="price-slider-add"
+          data-add-to-cart="{}"
+          class="group bg-maroon-700 hover:bg-maroon-800 focus-visible:ring-maroon-700 mt-5 inline-flex w-full items-center justify-center gap-2 rounded-lg px-5 py-3.5 text-sm font-bold text-white transition focus:outline-hidden focus-visible:ring-2 focus-visible:ring-offset-2"
+        >
+          <span data-label>Add {DEFAULT_QTY} packs to cart</span>
+          <Icon
+            name="cart"
+            class="h-4 w-4 transition group-hover:translate-x-0.5"
+          />
+        </button>
+
+        <p class="mt-3 text-xs text-neutral-500">
+          Free U.S. shipping. Volume discounts apply automatically at checkout.
+          <a
+            href="/wholesale"
+            class="text-maroon-700 font-semibold hover:underline"
+            >See the full ladder</a
+          >.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  /*
+    The range input, restyled to sit on the brand gradient. The filled portion
+    of the track is painted with a background gradient whose stop the script
+    moves via `--fill`, which is the only way to fill a native range track
+    without extra elements.
+  */
+  .price-slider__range {
+    appearance: none;
+    -webkit-appearance: none;
+    height: 6px;
+    border-radius: 9999px;
+    background: linear-gradient(
+      to right,
+      #fff var(--fill, 37%),
+      rgb(255 255 255 / 0.25) var(--fill, 37%)
+    );
+    outline: none;
+  }
+  .price-slider__range::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    height: 22px;
+    width: 22px;
+    border-radius: 9999px;
+    border: none;
+    background: #fff;
+    box-shadow: 0 1px 4px rgb(0 0 0 / 0.35);
+    cursor: grab;
+    transition: transform 0.15s ease;
+  }
+  .price-slider__range::-webkit-slider-thumb:active {
+    cursor: grabbing;
+    transform: scale(1.12);
+  }
+  .price-slider__range::-moz-range-thumb {
+    height: 22px;
+    width: 22px;
+    border-radius: 9999px;
+    border: none;
+    background: #fff;
+    box-shadow: 0 1px 4px rgb(0 0 0 / 0.35);
+    cursor: grab;
+  }
+  .price-slider__range:focus-visible {
+    box-shadow:
+      0 0 0 2px var(--color-maroon-800),
+      0 0 0 4px #fff;
+  }
+
+  /*
+    A small pop when the price crosses a tier breakpoint. The global
+    reduced-motion rule zeroes animation durations, so this never plays for a
+    visitor who asked for stillness.
+  */
+  :global(.price-slider__pop) {
+    animation: price-slider-pop 0.35s ease-out;
+  }
+  @keyframes price-slider-pop {
+    0% {
+      transform: scale(1);
+    }
+    40% {
+      transform: scale(1.06);
+    }
+    100% {
+      transform: scale(1);
+    }
+  }
+</style>
+
+<script is:inline define:vars={{ sliderData }}>
+  window.__shawPriceSlider = sliderData;
+</script>
+
+<script>
+  import {
+    formatMoney,
+    formatUnitPrice,
+    lineTotal,
+    nextTierNudge,
+    resolveTier,
+    roundMoney,
+    savingsPercent,
+    type Tier,
+  } from '@scripts/pricing';
+
+  interface SliderVariant {
+    id: string;
+    name: string;
+    hex: string;
+    sku: string;
+    tiers: Tier[];
+    thumb: string;
+  }
+
+  interface SliderData {
+    productId: string;
+    title: string;
+    packSize: number;
+    unit: string;
+    subUnit: string | null;
+    defaultQty: number;
+    sliderMax: number;
+    variants: SliderVariant[];
+  }
+
+  const data = (window as unknown as { __shawPriceSlider?: SliderData })
+    .__shawPriceSlider;
+
+  if (data) {
+    const $ = (id: string) => document.getElementById(id);
+    const range = $('price-slider-range') as HTMLInputElement | null;
+    const colors = $('price-slider-colors');
+    const ticks = $('price-slider-ticks');
+    const tierChips = $('price-slider-tiers');
+    const addBtn = $('price-slider-add');
+
+    let variant = data.variants[0];
+    let qty = data.defaultQty;
+    let lastTierIndex = -1;
+
+    const renderTicks = () => {
+      if (!ticks) return;
+      ticks.innerHTML = variant.tiers
+        .filter(tier => tier.minQty > 1)
+        .map(tier => {
+          const pct = (tier.minQty / data.sliderMax) * 100;
+          return `<span class="absolute top-0 h-full w-px bg-white/50" style="left:${pct}%"></span>`;
+        })
+        .join('');
+    };
+
+    const renderTierChips = (activeIndex: number) => {
+      if (!tierChips) return;
+      tierChips.innerHTML = variant.tiers
+        .map((tier, i) => {
+          const range_ =
+            tier.maxQty === null
+              ? `${tier.minQty}+`
+              : `${tier.minQty}-${tier.maxQty}`;
+          const saved = savingsPercent(variant.tiers, tier.pricePerUnit);
+          const active = i === activeIndex;
+          return `
+            <button type="button" data-tier-jump="${tier.minQty}"
+              aria-pressed="${active}"
+              class="rounded-lg border px-3 py-1.5 text-xs font-semibold transition ${
+                active
+                  ? 'border-white bg-white text-neutral-900'
+                  : 'border-white/30 text-white/80 hover:border-white/60 hover:text-white'
+              }">
+              ${range_} ${data.unit}s &middot; ${formatMoney(tier.pricePerUnit)}${
+                saved > 0 ? ` &middot; ${saved}% off` : ''
+              }
+            </button>`;
+        })
+        .join('');
+    };
+
+    const render = () => {
+      const tiers = variant.tiers;
+      const tier = resolveTier(tiers, qty);
+      const tierIndex = tiers.indexOf(tier);
+      const total = lineTotal(tiers, qty);
+      const saved = roundMoney(tiers[0].pricePerUnit * qty - total);
+
+      const priceEl = $('price-slider-price');
+      if (priceEl) {
+        priceEl.textContent = formatMoney(tier.pricePerUnit);
+        // Pop only on a tier crossing, not on every dragged pixel.
+        if (lastTierIndex !== -1 && tierIndex !== lastTierIndex) {
+          priceEl.classList.remove('price-slider__pop');
+          // Force a reflow so the same animation can play again.
+          void priceEl.offsetWidth;
+          priceEl.classList.add('price-slider__pop');
+        }
+      }
+      lastTierIndex = tierIndex;
+
+      const subunitEl = $('price-slider-subunit');
+      if (subunitEl)
+        subunitEl.textContent = formatUnitPrice(
+          tier.pricePerUnit,
+          data.packSize
+        );
+
+      const totalEl = $('price-slider-total');
+      if (totalEl) totalEl.textContent = formatMoney(total);
+
+      const savingsEl = $('price-slider-savings');
+      if (savingsEl)
+        savingsEl.textContent = saved > 0 ? formatMoney(saved) : '-';
+
+      const qtyEl = $('price-slider-qty');
+      if (qtyEl)
+        qtyEl.textContent = `${qty.toLocaleString('en-US')} ${data.unit}${qty === 1 ? '' : 's'}`;
+
+      const unitsEl = $('price-slider-units');
+      if (unitsEl)
+        unitsEl.textContent = ` · ${(qty * data.packSize).toLocaleString('en-US')} ${
+          data.subUnit ? `${data.subUnit}s` : 'units'
+        }`;
+
+      const nudgeEl = $('price-slider-nudge');
+      if (nudgeEl) {
+        const nudge = nextTierNudge(tiers, qty);
+        if (nudge && nudge.unitsAway > 0) {
+          nudgeEl.textContent = `Add ${nudge.unitsAway} more ${data.unit}${
+            nudge.unitsAway === 1 ? '' : 's'
+          } and the price drops to ${formatMoney(nudge.pricePerUnit)} per ${data.unit}.`;
+          nudgeEl.classList.remove('hidden');
+        } else {
+          nudgeEl.classList.add('hidden');
+        }
+      }
+
+      if (range) {
+        range.value = String(Math.min(qty, data.sliderMax));
+        const fill = (Math.min(qty, data.sliderMax) / data.sliderMax) * 100;
+        range.style.setProperty('--fill', `${fill}%`);
+        range.setAttribute(
+          'aria-valuetext',
+          `${qty} ${data.unit}s, ${formatMoney(tier.pricePerUnit)} per ${data.unit}`
+        );
+      }
+
+      if (addBtn) {
+        addBtn.dataset.addToCart = JSON.stringify({
+          productId: data.productId,
+          variantId: variant.id,
+          title: data.title,
+          variantName: variant.name,
+          hex: variant.hex,
+          image: variant.thumb,
+          sku: variant.sku,
+          unit: data.unit,
+          tiers: variant.tiers,
+          href: `/products/${data.productId}?color=${variant.id}`,
+          qty,
+        });
+        const label = addBtn.querySelector<HTMLElement>('[data-label]');
+        // Skip while the delegated handler is flashing "Added".
+        if (label && !label.dataset.busy)
+          label.textContent = `Add ${qty.toLocaleString('en-US')} ${data.unit}s to cart`;
+      }
+
+      renderTierChips(tierIndex);
+    };
+
+    range?.addEventListener('input', () => {
+      qty = Math.max(1, Math.floor(Number(range.value) || 1));
+      render();
+    });
+
+    colors?.addEventListener('click', event => {
+      const btn = (event.target as HTMLElement).closest<HTMLElement>(
+        '[data-slider-variant]'
+      );
+      if (!btn) return;
+      const next = data.variants.find(v => v.id === btn.dataset.sliderVariant);
+      if (!next) return;
+      variant = next;
+      lastTierIndex = -1;
+      colors
+        .querySelectorAll<HTMLElement>('[data-slider-variant]')
+        .forEach(chip => {
+          const active = chip === btn;
+          chip.setAttribute('aria-pressed', String(active));
+          chip.classList.toggle('border-white', active);
+          chip.classList.toggle('bg-white/15', active);
+          chip.classList.toggle('text-white', active);
+          chip.classList.toggle('border-white/30', !active);
+          chip.classList.toggle('text-white/80', !active);
+        });
+      renderTicks();
+      render();
+    });
+
+    tierChips?.addEventListener('click', event => {
+      const btn = (event.target as HTMLElement).closest<HTMLElement>(
+        '[data-tier-jump]'
+      );
+      if (!btn) return;
+      qty = Math.max(1, Number(btn.dataset.tierJump) || 1);
+      render();
+    });
+
+    renderTicks();
+    render();
+  }
+</script>

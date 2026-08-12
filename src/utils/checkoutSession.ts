@@ -19,6 +19,8 @@ export interface CatalogueVariant {
 
 export interface ResolvedLines {
   lineItems: { price: string; quantity: number }[];
+  /** The validated lines behind `lineItems`, for the reorder metadata. */
+  accepted: { variantId: string; qty: number }[];
   /** Real products with no Stripe Price configured yet. */
   unavailable: string[];
   /** Variant ids not in the catalogue at all. */
@@ -38,7 +40,12 @@ export function resolveLineItems(
   catalogue: Map<string, CatalogueVariant>,
   lookupEnv: (name: string) => string | undefined
 ): ResolvedLines {
-  const result: ResolvedLines = { lineItems: [], unavailable: [], unknown: [] };
+  const result: ResolvedLines = {
+    lineItems: [],
+    accepted: [],
+    unavailable: [],
+    unknown: [],
+  };
 
   if (!Array.isArray(requested) || requested.length === 0) {
     return { ...result, invalid: 'Your cart is empty.' };
@@ -67,9 +74,29 @@ export function resolveLineItems(
     }
 
     result.lineItems.push({ price: priceId, quantity: qty });
+    result.accepted.push({ variantId, qty });
   }
 
   return result;
+}
+
+/**
+ * Stripe caps each metadata value at 500 characters. An order with more
+ * distinct lines than fits is simply not annotated; the order itself is
+ * unaffected and the webhook email falls back to having no reorder link.
+ */
+export const MAX_REORDER_METADATA_CHARS = 490;
+
+/**
+ * The `reorder` metadata value: `variantId:qty` pairs the webhook turns into
+ * a one-click reorder link in the order email. Built from the same validated
+ * lines the session charges, so the link always mirrors what was bought.
+ */
+export function buildReorderMetadata(
+  lines: { variantId: string; qty: number }[]
+): string | null {
+  const value = lines.map(line => `${line.variantId}:${line.qty}`).join(',');
+  return value && value.length <= MAX_REORDER_METADATA_CHARS ? value : null;
 }
 
 /**
@@ -81,9 +108,11 @@ export function resolveLineItems(
  */
 export function buildSessionParams(
   lineItems: { price: string; quantity: number }[],
-  origin: string
+  origin: string,
+  reorder: string | null = null
 ) {
   return {
+    ...(reorder ? { metadata: { reorder } } : {}),
     mode: 'payment' as const,
     line_items: lineItems,
     shipping_address_collection: { allowed_countries: ['US' as const] },

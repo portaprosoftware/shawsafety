@@ -14,6 +14,7 @@ import Icon from '@components/ui/icons/Icon.astro';
 import MicButton from '@components/ui/blocks/MicButton.astro';
 import { readEnv } from '@utils/env';
 import { ragIndex } from '@utils/rag';
+import { getVariantCatalog } from '@utils/variantCatalog';
 
 /**
  * Never show a control that cannot work, the same rule the dictation button
@@ -48,14 +49,43 @@ const dictationConfigured = Boolean(
 const suggestions = [
   'Are these ties approved for intermodal containers?',
   'What is the price at 200 packs?',
+  'Start a cart: 300 packs of yellow, 100 of orange',
   'Do mixed colors count toward the volume tier?',
   'How long does delivery take to Seattle?',
 ];
+
+/**
+ * The catalogue the staged-cart card adds from, shaped like cart lines. The
+ * assistant's reply names variants by id; everything the cart needs beyond
+ * that (title, swatch, thumbnail, ladder) comes from here, the same data the
+ * PDP would supply, so a staged line and a hand-added line are identical.
+ */
+const cartCatalog = Object.fromEntries(
+  (await getVariantCatalog()).map(line => [
+    line.variantId,
+    {
+      productId: line.productId,
+      variantId: line.variantId,
+      title: line.title,
+      variantName: line.variantName,
+      hex: line.hex,
+      image: line.image,
+      sku: line.sku,
+      unit: line.unit,
+      tiers: line.tiers,
+      href: line.href,
+    },
+  ])
+);
 ---
 
 {
   enabled && (
-    <div id="ask-root" data-suggestions={JSON.stringify(suggestions)}>
+    <div
+      id="ask-root"
+      data-suggestions={JSON.stringify(suggestions)}
+      data-catalog={JSON.stringify(cartCatalog)}
+    >
       <button
         type="button"
         id="ask-launcher"
@@ -239,12 +269,29 @@ const suggestions = [
     isDictationSupported,
     type Dictation,
   } from '@scripts/dictation';
+  import { addItem, openDrawer } from '@scripts/cart';
+  import { formatMoney } from '@scripts/pricing';
+  import type { CartItem } from '@scripts/cart';
+
+  /** A cart the assistant staged: priced lines, awaiting the visitor's click. */
+  interface StagedCart {
+    lines: {
+      variantId: string;
+      qty: number;
+      label: string;
+      unitPrice: number;
+      lineTotal: number;
+    }[];
+    subtotal: number;
+  }
 
   interface Message {
     role: 'user' | 'assistant';
     content: string;
     /** Set on failures, which are shown in the transcript but never sent back. */
     error?: boolean;
+    /** A staged cart to render as a review card under the answer. */
+    cart?: StagedCart;
   }
 
   const STORAGE_KEY = 'shaw:ask';
@@ -276,6 +323,14 @@ const suggestions = [
 
   if (root && launcher && panel && log && form && input && send) {
     const suggestions: string[] = JSON.parse(root.dataset.suggestions ?? '[]');
+
+    /** variantId → ready-to-add cart line data, embedded at build. */
+    let catalog: Record<string, Omit<CartItem, 'key' | 'qty'>> = {};
+    try {
+      catalog = JSON.parse(root.dataset.catalog ?? '{}');
+    } catch {
+      catalog = {};
+    }
 
     let messages: Message[] = [];
     let pending = false;
@@ -422,6 +477,51 @@ const suggestions = [
         .join('');
     };
 
+    /**
+     * The staged-cart card: the assistant's priced lines with one button
+     * that puts them in the real cart. The payload on the button is ids and
+     * quantities only; everything else is resolved against the embedded
+     * catalogue on click, so a stored transcript cannot smuggle a price.
+     */
+    const renderCart = (cart: StagedCart) => {
+      const payload = escapeHtml(
+        JSON.stringify(
+          cart.lines.map(line => ({
+            variantId: line.variantId,
+            qty: line.qty,
+          }))
+        )
+      );
+      return `
+        <div class="mt-2 max-w-[92%] rounded-2xl rounded-bl-sm border border-neutral-200 bg-white px-3.5 py-3">
+          <p class="text-[11px] font-bold tracking-wide text-neutral-500 uppercase">Staged cart</p>
+          <ul class="mt-2 space-y-1.5 text-sm">
+            ${cart.lines
+              .map(
+                line => `
+                <li class="flex items-baseline justify-between gap-3">
+                  <span class="min-w-0 text-neutral-700">${escapeHtml(line.label)}
+                    <span class="text-neutral-400">&times;${line.qty.toLocaleString('en-US')}</span>
+                  </span>
+                  <span class="shrink-0 font-semibold text-neutral-900 tabular-nums">${formatMoney(line.lineTotal)}</span>
+                </li>`
+              )
+              .join('')}
+          </ul>
+          <div class="mt-2.5 flex items-baseline justify-between border-t border-neutral-200 pt-2.5 text-sm">
+            <span class="font-semibold text-neutral-900">Subtotal</span>
+            <span class="font-bold text-neutral-900 tabular-nums">${formatMoney(cart.subtotal)}</span>
+          </div>
+          <button type="button" data-ask-stage="${payload}"
+            class="bg-maroon-700 hover:bg-maroon-800 mt-3 w-full rounded-lg px-4 py-2.5 text-sm font-bold text-white transition">
+            <span data-label>Add to cart</span>
+          </button>
+          <p class="mt-2 text-[11px] leading-snug text-neutral-500">
+            Nothing is purchased yet. Review in the cart; checkout runs through Stripe as usual.
+          </p>
+        </div>`;
+    };
+
     const renderMessage = (message: Message) => {
       if (message.role === 'user') {
         return `
@@ -433,7 +533,7 @@ const suggestions = [
       }
 
       return `
-        <div class="flex justify-start">
+        <div class="flex flex-col items-start">
           <div class="max-w-[92%] rounded-2xl rounded-bl-sm px-3.5 py-2.5 text-sm leading-relaxed ${
             message.error
               ? 'border border-red-200 bg-red-50 text-red-900'
@@ -441,6 +541,7 @@ const suggestions = [
           }">
             <div class="space-y-2">${renderAnswer(message.content)}</div>
           </div>
+          ${message.cart?.lines?.length ? renderCart(message.cart) : ''}
         </div>`;
     };
 
@@ -579,9 +680,35 @@ const suggestions = [
     });
 
     log.addEventListener('click', event => {
-      const button = (event.target as HTMLElement).closest<HTMLElement>(
-        '[data-suggestion]'
-      );
+      const target = event.target as HTMLElement;
+
+      const stage = target.closest<HTMLElement>('[data-ask-stage]');
+      if (stage) {
+        // The card carries ids and quantities only; the catalogue supplies
+        // everything else, so the price added is the price the cart computes.
+        let lines: { variantId: string; qty: number }[] = [];
+        try {
+          lines = JSON.parse(stage.dataset.askStage ?? '[]');
+        } catch {
+          lines = [];
+        }
+        let added = 0;
+        for (const line of lines) {
+          const entry = catalog[line.variantId];
+          const qty = Math.floor(Number(line.qty));
+          if (!entry || !Number.isFinite(qty) || qty < 1) continue;
+          addItem(entry, Math.min(qty, 9999));
+          added += 1;
+        }
+        if (added) {
+          const label = stage.querySelector<HTMLElement>('[data-label]');
+          if (label) label.textContent = 'Added';
+          openDrawer();
+        }
+        return;
+      }
+
+      const button = target.closest<HTMLElement>('[data-suggestion]');
       if (!button) return;
       input.value = button.dataset.suggestion ?? '';
       autosize();
@@ -688,7 +815,12 @@ const suggestions = [
             error: true,
           });
         } else {
-          messages.push({ role: 'assistant', content: payload.answer });
+          messages.push({
+            role: 'assistant',
+            content: payload.answer,
+            // A staged cart rides along when the assistant built one.
+            ...(payload.cart?.lines?.length ? { cart: payload.cart } : {}),
+          });
         }
       } catch {
         // Offline, or the request was cut off in flight.

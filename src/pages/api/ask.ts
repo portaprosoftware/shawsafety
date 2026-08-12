@@ -22,9 +22,11 @@
  * The retrieval index is built separately by `pnpm rag:index` and committed.
  */
 import type { APIRoute } from 'astro';
+import { getCollection } from 'astro:content';
 import { readEnv } from '@utils/env';
 import { formatContext, ragIndex, retrieve } from '@utils/rag';
 import { check, clientKey, type RateLimitRule } from '@utils/rateLimit';
+import { resolveTier, roundMoney, type Tier } from '@scripts/pricing';
 
 export const prerender = false;
 
@@ -92,7 +94,13 @@ Ground rules for facts:
 - Never invent or adjust a price, tier breakpoint, SKU, specification, or compliance mark. Quote them exactly as they appear in the passages.
 - Never cite. No bracketed numbers, no "[1]", no source names, no URLs, no links. The answer is a person talking, and a person does not read footnotes aloud.
 - If the passages genuinely do not cover something, say so as a rep would ("I don't have that at hand") and offer the next step. Never guess a number to fill a gap.
-- You take orders for nobody: if asked to place, change, or cancel an order, or to approve terms or a discount, explain that a person handles that and give the contact.
+
+Staging a cart. You can build a cart for the customer with the stage_cart tool:
+- Call it only when the customer states explicit products and quantities ("300 packs of yellow, 100 orange"). The site then shows them a review card with an Add to cart button, next to your answer.
+- Stage only the quantities the customer actually said. Never guess, pad, or upsell a quantity into the tool. If the colors or the amounts are ambiguous, ask instead of staging.
+- Quantities are in packs. Ties come 100 per pack, vests 10 per pack. If the customer speaks in individual ties or vests, convert to packs, round up to a whole pack, and say the conversion out loud in your answer.
+- Staging purchases nothing. Say the cart is ready to review, and that checkout happens on the site as normal.
+- Everything else stays with a person: payment, cancelling or changing a placed order, terms, and discounts. For those, give the contact rather than the tool.
 
 How to sound:
 - Answer the question first, in one sentence when the answer is one sentence. Detail after, only if it adds something.
@@ -160,6 +168,265 @@ function humanWait(seconds: number): string {
   if (seconds < 90) return `in ${seconds} second${seconds === 1 ? '' : 's'}`;
   const minutes = Math.ceil(seconds / 60);
   return `in ${minutes} minute${minutes === 1 ? '' : 's'}`;
+}
+
+// ── Cart staging ──────────────────────────────────────────────────────────
+
+/** What the model may put in a cart: the real catalogue, ids and ladders. */
+interface AskVariant {
+  variantId: string;
+  label: string;
+  unit: string;
+  packSize: number;
+  tiers: Tier[];
+  inStock: boolean;
+}
+
+/** One line of a staged cart, priced for both the model and the widget. */
+interface StagedLine {
+  variantId: string;
+  qty: number;
+  label: string;
+  unitPrice: number;
+  lineTotal: number;
+}
+
+interface StagedCart {
+  lines: StagedLine[];
+  subtotal: number;
+}
+
+let cataloguePromise: Promise<AskVariant[]> | null = null;
+
+/**
+ * Loaded once per instance. The catalogue is two products; the point of the
+ * cache is not the cost but that a content read failing on one request should
+ * not disable staging for the instance's lifetime, hence the reset on error.
+ */
+function loadCatalogue(): Promise<AskVariant[]> {
+  cataloguePromise ??= getCollection('products')
+    .then(products =>
+      products.flatMap(product =>
+        product.data.variants.map(variant => ({
+          variantId: variant.id,
+          label: `${product.data.shortTitle}, ${variant.name}`,
+          unit: product.data.unit,
+          packSize: product.data.packSize,
+          tiers: (variant.tiers ?? product.data.tiers) as Tier[],
+          inStock: variant.inStock,
+        }))
+      )
+    )
+    .catch(error => {
+      console.error('[ask] could not load the catalogue:', error);
+      cataloguePromise = null;
+      return [];
+    });
+  return cataloguePromise;
+}
+
+/**
+ * The staging tool, with the variant ids as a hard enum so the model cannot
+ * invent a SKU: an unknown id fails schema validation upstream rather than
+ * arriving here looking plausible.
+ */
+function stageCartTool(catalogue: AskVariant[]) {
+  return {
+    type: 'function' as const,
+    function: {
+      name: 'stage_cart',
+      description:
+        'Stage a cart of Shaw Safety products for the customer to review ' +
+        'and add. Use only when the customer states explicit quantities. ' +
+        'Quantities are in packs. Variants: ' +
+        catalogue
+          .map(v => `${v.variantId} = ${v.label}, ${v.packSize} per ${v.unit}`)
+          .join('; '),
+      parameters: {
+        type: 'object',
+        properties: {
+          items: {
+            type: 'array',
+            minItems: 1,
+            items: {
+              type: 'object',
+              properties: {
+                variantId: {
+                  type: 'string',
+                  enum: catalogue.map(v => v.variantId),
+                },
+                qty: {
+                  type: 'integer',
+                  minimum: 1,
+                  maximum: 9999,
+                  description: 'Quantity in packs.',
+                },
+              },
+              required: ['variantId', 'qty'],
+              additionalProperties: false,
+            },
+          },
+        },
+        required: ['items'],
+        additionalProperties: false,
+      },
+    },
+  };
+}
+
+/**
+ * Validate and price a stage_cart call.
+ *
+ * The tool arguments are model output and are treated exactly like a client
+ * request: ids resolved against the catalogue, quantities clamped, duplicates
+ * merged. Pricing is per line on the variant's own ladder, the same math the
+ * cart runs, so the numbers the model then says out loud are the numbers the
+ * cart will show.
+ *
+ * `result` goes back to the model as the tool response; `cart` goes to the
+ * widget. They carry the same lines so neither party can be told a different
+ * price.
+ */
+function stageFromArguments(
+  raw: string,
+  catalogue: AskVariant[]
+): { cart: StagedCart | null; result: Record<string, unknown> } {
+  let parsed: { items?: unknown };
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return {
+      cart: null,
+      result: { staged: false, reason: 'Arguments were not valid JSON.' },
+    };
+  }
+
+  const merged = new Map<string, number>();
+  const rejected: string[] = [];
+  for (const item of Array.isArray(parsed.items) ? parsed.items : []) {
+    const variantId = (item as { variantId?: unknown })?.variantId;
+    const qty = Math.floor(Number((item as { qty?: unknown })?.qty));
+    const entry =
+      typeof variantId === 'string'
+        ? catalogue.find(v => v.variantId === variantId)
+        : undefined;
+    if (!entry || !Number.isFinite(qty) || qty < 1 || qty > 9999) {
+      rejected.push(String(variantId ?? '(missing id)'));
+      continue;
+    }
+    if (!entry.inStock) {
+      rejected.push(`${entry.label} (backordered)`);
+      continue;
+    }
+    merged.set(
+      entry.variantId,
+      Math.min(9999, (merged.get(entry.variantId) ?? 0) + qty)
+    );
+  }
+
+  const lines: StagedLine[] = Array.from(merged.entries()).map(
+    ([variantId, qty]) => {
+      const entry = catalogue.find(v => v.variantId === variantId)!;
+      const unitPrice = resolveTier(entry.tiers, qty).pricePerUnit;
+      return {
+        variantId,
+        qty,
+        label: entry.label,
+        unitPrice,
+        lineTotal: roundMoney(unitPrice * qty),
+      };
+    }
+  );
+
+  if (!lines.length) {
+    return {
+      cart: null,
+      result: {
+        staged: false,
+        reason:
+          'No valid items. Ask the customer for a color and a quantity in packs.',
+        rejected,
+      },
+    };
+  }
+
+  const cart: StagedCart = {
+    lines,
+    subtotal: roundMoney(lines.reduce((sum, line) => sum + line.lineTotal, 0)),
+  };
+  return {
+    cart,
+    result: {
+      staged: true,
+      lines,
+      subtotal: cart.subtotal,
+      ...(rejected.length ? { rejected } : {}),
+      note:
+        'The customer sees this as a review card with an Add to cart button ' +
+        'next to your answer. Nothing has been purchased. Unit prices are ' +
+        'per-line volume pricing, the same math the cart shows.',
+    },
+  };
+}
+
+interface ToolCall {
+  id: string;
+  type?: string;
+  function?: { name?: string; arguments?: string };
+}
+
+interface AssistantMessage {
+  role?: string;
+  content?: unknown;
+  tool_calls?: ToolCall[];
+}
+
+/**
+ * One chat completion. Returns the assistant message, or null on any upstream
+ * failure (which is logged here, once, rather than at every call site).
+ */
+async function chatComplete(
+  apiKey: string,
+  messages: unknown[],
+  tools?: unknown[]
+): Promise<AssistantMessage | null> {
+  const response = await fetch(CHAT_URL, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: readEnv('OPENAI_CHAT_MODEL') || DEFAULT_CHAT_MODEL,
+      messages,
+      // Low but not zero: the answers are factual restatements, and the
+      // wording should not wander between two people asking the same thing.
+      temperature: 0.2,
+      max_tokens: 500,
+      ...(tools?.length ? { tools, tool_choice: 'auto' as const } : {}),
+    }),
+    signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
+  });
+
+  if (!response.ok) {
+    // Logged, not returned: an upstream error body can name the account or
+    // its quota state, which is nothing a visitor should see.
+    console.error(
+      `[ask] chat completions returned ${response.status}`,
+      await response.text().catch(() => '(no body)')
+    );
+    return null;
+  }
+
+  try {
+    const payload = (await response.json()) as {
+      choices?: { message?: AssistantMessage }[];
+    };
+    return payload.choices?.[0]?.message ?? null;
+  } catch (error) {
+    console.error('[ask] unreadable response from OpenAI:', error);
+    return null;
+  }
 }
 
 /**
@@ -381,7 +648,7 @@ export const POST: APIRoute = async ({ request }) => {
     );
   }
 
-  const messages = [
+  const messages: unknown[] = [
     { role: 'system' as const, content: SYSTEM_PROMPT },
     ...history,
     {
@@ -390,49 +657,73 @@ export const POST: APIRoute = async ({ request }) => {
     },
   ];
 
-  let response: Response;
+  const catalogue = await loadCatalogue();
+  const tools = catalogue.length ? [stageCartTool(catalogue)] : undefined;
+
+  let first: AssistantMessage | null;
   try {
-    response = await fetch(CHAT_URL, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: readEnv('OPENAI_CHAT_MODEL') || DEFAULT_CHAT_MODEL,
-        messages,
-        // Low but not zero: the answers are factual restatements, and the
-        // wording should not wander between two people asking the same thing.
-        temperature: 0.2,
-        max_tokens: 500,
-      }),
-      signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
-    });
+    first = await chatComplete(apiKey, messages, tools);
   } catch (error) {
     console.error('[ask] completion request failed:', error);
     return json({ ok: false, error: 'Could not reach the assistant.' }, 502);
   }
 
-  if (!response.ok) {
-    // Logged, not returned: an upstream error body can name the account or its
-    // quota state, which is nothing a visitor should see.
-    console.error(
-      `[ask] chat completions returned ${response.status}`,
-      await response.text().catch(() => '(no body)')
-    );
+  if (!first) {
     return json({ ok: false, error: 'Could not answer that just now.' }, 502);
   }
 
-  let answer: string;
-  try {
-    const payload = (await response.json()) as {
-      choices?: { message?: { content?: unknown } }[];
-    };
-    const content = payload.choices?.[0]?.message?.content;
-    answer = typeof content === 'string' ? content.trim() : '';
-  } catch (error) {
-    console.error('[ask] unreadable response from OpenAI:', error);
-    return json({ ok: false, error: 'Could not answer that just now.' }, 502);
+  let answer = typeof first.content === 'string' ? first.content.trim() : '';
+  let cart: StagedCart | null = null;
+
+  /*
+   * A tool call means the model wants to stage a cart. The call is validated
+   * and priced here, then a second completion runs with the priced lines in
+   * hand so the model can speak the answer with the real numbers. Only the
+   * first stage_cart call is honoured; every call still gets a tool response,
+   * which the API requires.
+   */
+  const toolCalls = first.tool_calls ?? [];
+  if (toolCalls.length) {
+    const toolResults = toolCalls.map(call => {
+      let result: Record<string, unknown> = {
+        staged: false,
+        reason: 'Only one stage_cart call is honoured per answer.',
+      };
+      if (call.function?.name === 'stage_cart' && !cart) {
+        const staged = stageFromArguments(
+          call.function.arguments ?? '',
+          catalogue
+        );
+        cart = staged.cart;
+        result = staged.result;
+      }
+      return {
+        role: 'tool' as const,
+        tool_call_id: call.id,
+        content: JSON.stringify(result),
+      };
+    });
+
+    try {
+      const second = await chatComplete(apiKey, [
+        ...messages,
+        first,
+        ...toolResults,
+      ]);
+      answer =
+        second && typeof second.content === 'string'
+          ? second.content.trim()
+          : '';
+    } catch (error) {
+      console.error('[ask] follow-up completion failed:', error);
+      answer = '';
+    }
+
+    // A staged cart with a lost voice still beats a bare failure.
+    if (!answer && cart) {
+      answer =
+        'Your cart is staged below, ready to review. Nothing is purchased until you check out.';
+    }
   }
 
   if (!answer) {
@@ -440,10 +731,10 @@ export const POST: APIRoute = async ({ request }) => {
   }
 
   /*
-   * The answer ships as text and nothing else. No source list, no citation
-   * numbers, no links: the widget renders a rep talking, and a rep does not
-   * hand over a bibliography. Retrieval is still what the answer is built
-   * from, it just never surfaces.
+   * The answer ships as text, plus the staged cart when there is one. No
+   * source list, no citation numbers, no links: the widget renders a rep
+   * talking, and a rep does not hand over a bibliography. Retrieval is still
+   * what the answer is built from, it just never surfaces.
    *
    * Which passages were used is logged rather than returned, because the
    * scores are the only signal available for tuning the retrieval threshold
@@ -452,8 +743,13 @@ export const POST: APIRoute = async ({ request }) => {
   console.info(
     `[ask] answered from ${hits
       .map(hit => `${hit.chunk.id}@${hit.score.toFixed(3)}`)
-      .join(', ')}`
+      .join(
+        ', '
+      )}${cart !== null ? ` with a ${(cart as StagedCart).lines.length}-line staged cart` : ''}`
   );
 
-  return json({ ok: true, answer: clean(answer) }, 200);
+  return json(
+    { ok: true, answer: clean(answer), ...(cart ? { cart } : {}) },
+    200
+  );
 };

@@ -10,6 +10,7 @@
  */
 
 import type { CartItem } from './cart';
+import { savePendingOrder } from './reorder';
 
 export interface CheckoutResult {
   ok: boolean;
@@ -38,6 +39,12 @@ export async function checkout(items: CartItem[]): Promise<CheckoutResult> {
     const result = await response.json().catch(() => null);
 
     if (response.ok && result?.ok && result.url) {
+      // Snapshot the basket for the one-click reorder link. Held as pending
+      // until /checkout/success confirms the purchase, so backing out of
+      // Stripe does not overwrite a real previous order.
+      savePendingOrder(
+        items.map(item => ({ variantId: item.variantId, qty: item.qty }))
+      );
       // Hand off to Stripe's hosted page. The cart is cleared on return by
       // /checkout/success, not here, abandoning checkout must keep the basket.
       window.location.assign(result.url);

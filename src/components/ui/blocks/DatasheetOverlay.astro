@@ -1,0 +1,173 @@
+---
+/**
+ * Datasheet view for the PDP gallery.
+ *
+ * A toggle draws the product's real specifications over the photo as an
+ * engineering annotation layer: grid, crop marks, a dimension line for the
+ * overall length, spec callouts, and a drawing-style title block with the
+ * SKU. Every number comes from the product's `specs` frontmatter, the same
+ * source the Specifications table renders, so the layer cannot drift from
+ * the published spec.
+ *
+ * The layer is aria-hidden and pointer-transparent: it decorates the photo
+ * for sighted visitors while the Specifications section remains the
+ * accessible copy of the same facts, and the in-place magnifier keeps
+ * working underneath it.
+ */
+
+interface Spec {
+  label: string;
+  value: string;
+}
+
+interface Props {
+  specs: Spec[];
+  /** Initial SKU; the PDP script updates it on variant change. */
+  sku: string;
+  title: string;
+}
+
+const { specs, sku, title } = Astro.props;
+
+const byLabel = new Map(specs.map(spec => [spec.label, spec.value]));
+
+/** The overall length drives the dimension line; absent for the vests. */
+const length = byLabel.get('Length') ?? null;
+
+/**
+ * Which specs earn a callout, in priority order. The tie leads with the
+ * numbers a buyer checks against a terminal's requirement; the vest entries
+ * cover the same role for apparel. Four at most, the square gets crowded.
+ */
+const CALLOUT_PRIORITY = [
+  'Tensile Strength',
+  'Material',
+  'Operating Temperature',
+  'Width',
+  'Standard',
+  'Reflective Tape',
+  'Closure',
+  'Sizes',
+];
+
+const callouts = CALLOUT_PRIORITY.filter(label => byLabel.has(label))
+  .slice(0, 4)
+  .map(label => ({ label, value: byLabel.get(label)! }));
+---
+
+<div
+  data-datasheet-overlay
+  aria-hidden="true"
+  class="datasheet pointer-events-none absolute inset-x-0 top-0 mx-auto w-full max-w-[560px]"
+>
+  <div class="relative aspect-square overflow-hidden rounded-xl">
+    {/* Tracing-paper wash and drawing grid over the photo. */}
+    <div class="absolute inset-0 bg-white/35"></div>
+    <div
+      class="absolute inset-0 opacity-60"
+      style="background-image:linear-gradient(to right,oklch(0.467 0.168 20.8 / 0.14) 1px,transparent 1px),linear-gradient(to bottom,oklch(0.467 0.168 20.8 / 0.14) 1px,transparent 1px);background-size:32px 32px"
+    >
+    </div>
+
+    {/* Crop marks. */}
+    {
+      [
+        'top-3 left-3 border-t-2 border-l-2',
+        'top-3 right-3 border-t-2 border-r-2',
+        'bottom-3 left-3 border-b-2 border-l-2',
+        'bottom-3 right-3 border-b-2 border-r-2',
+      ].map(position => (
+        <span
+          class:list={['border-maroon-700/70 absolute h-5 w-5', position]}
+        />
+      ))
+    }
+
+    {/* Spec callouts, staggered in by the toggle. */}
+    <div
+      class="absolute top-6 left-6 flex max-w-[62%] flex-col items-start gap-1.5"
+    >
+      {
+        callouts.map((callout, i) => (
+          <p
+            class="datasheet__chip border-maroon-200 rounded-md border bg-white/95 px-2.5 py-1.5 text-[11px] leading-tight shadow-sm"
+            style={`transition-delay:${i * 60}ms`}
+          >
+            <span class="text-maroon-700 font-bold tracking-wide uppercase">
+              {callout.label}
+            </span>
+            <span class="mt-0.5 block font-semibold text-neutral-800">
+              {callout.value}
+            </span>
+          </p>
+        ))
+      }
+    </div>
+
+    {/* Overall-length dimension line. */}
+    {
+      length && (
+        <div
+          class="datasheet__chip absolute inset-x-10 bottom-16"
+          style="transition-delay:240ms"
+        >
+          <div class="text-maroon-800 flex items-center">
+            <span class="bg-maroon-800 h-3 w-px" />
+            <span class="bg-maroon-800/70 h-px flex-1" />
+            <span class="px-2.5 text-xs font-bold whitespace-nowrap">
+              {length} overall
+            </span>
+            <span class="bg-maroon-800/70 h-px flex-1" />
+            <span class="bg-maroon-800 h-3 w-px" />
+          </div>
+        </div>
+      )
+    }
+
+    {/* Drawing title block. */}
+    <div
+      class="datasheet__chip border-maroon-300 absolute bottom-3 left-3 rounded-md border bg-white/95 px-3 py-2 shadow-sm"
+      style="transition-delay:300ms"
+    >
+      <p
+        class="text-[10px] font-bold tracking-[0.14em] text-neutral-900 uppercase"
+      >
+        {title}
+      </p>
+      <p class="text-maroon-700 mt-0.5 text-[10px] font-semibold tracking-wide">
+        SKU <span data-datasheet-sku>{sku}</span> &middot; Scale NTS
+      </p>
+    </div>
+  </div>
+</div>
+
+<style>
+  /*
+    The layer fades as a whole; the chips ride in a beat behind it on their
+    own transition-delays. The global reduced-motion rule zeroes every
+    transition, so the toggle becomes an instant switch for anyone who asked
+    for stillness.
+  */
+  .datasheet {
+    opacity: 0;
+    visibility: hidden;
+    transition:
+      opacity 0.3s ease,
+      visibility 0.3s ease;
+  }
+  .datasheet.is-active {
+    opacity: 1;
+    visibility: visible;
+  }
+  .datasheet__chip {
+    opacity: 0;
+    transform: translateY(4px);
+    transition:
+      opacity 0.3s ease,
+      transform 0.3s ease;
+  }
+  .datasheet.is-active .datasheet__chip {
+    opacity: 1;
+    transform: translateY(0);
+  }
+</style>

@@ -2,6 +2,18 @@
 import MainLayout from '@/layouts/MainLayout.astro';
 import Icon from '@components/ui/icons/Icon.astro';
 import { SITE } from '@data/constants';
+import { getVariantCatalog } from '@utils/variantCatalog';
+
+/**
+ * The catalogue, embedded so a `?reorder=` link (from a confirmation page or
+ * an order email) can rebuild real cart lines from bare variant ids. Prices
+ * come from these tiers exactly as a hand-added line's would, and Stripe
+ * reprices everything server-side regardless, so the link itself never
+ * carries money.
+ */
+const catalog = Object.fromEntries(
+  (await getVariantCatalog()).map(line => [line.variantId, line])
+);
 ---
 
 <MainLayout
@@ -19,12 +31,23 @@ import { SITE } from '@data/constants';
       >
         <Icon name="cart" class="h-12 w-12 text-neutral-300" />
         <p class="text-neutral-600">Your cart is empty.</p>
-        <a
-          href="/products"
-          class="bg-maroon-700 hover:bg-maroon-800 rounded-lg px-6 py-3 text-sm font-bold text-white transition"
-        >
-          Browse Products
-        </a>
+        <div class="flex flex-wrap items-center justify-center gap-3">
+          <a
+            href="/products"
+            class="bg-maroon-700 hover:bg-maroon-800 rounded-lg px-6 py-3 text-sm font-bold text-white transition"
+          >
+            Browse Products
+          </a>
+          {/* Unhidden by the script when a previous order is remembered. */}
+          <button
+            type="button"
+            id="page-cart-reorder"
+            class="hidden items-center gap-2 rounded-lg border border-neutral-300 px-6 py-3 text-sm font-bold text-neutral-800 transition hover:border-neutral-500"
+          >
+            <Icon name="refresh" class="h-4 w-4" />
+            <span data-label>Reorder Your Last Order</span>
+          </button>
+        </div>
       </div>
     </div>
 
@@ -98,11 +121,16 @@ import { SITE } from '@data/constants';
   </section>
 </MainLayout>
 
+<script is:inline define:vars={{ catalog }}>
+  window.__shawVariantCatalog = catalog;
+</script>
+
 <script>
   import {
     subscribe,
     updateQty,
     removeItem,
+    addItem,
     clear,
     getItems,
     unitPriceFor,
@@ -111,6 +139,12 @@ import { SITE } from '@data/constants';
   } from '@scripts/cart';
   import { formatMoney, lineTotal, savingsPercent } from '@scripts/pricing';
   import { checkout } from '@scripts/checkout';
+  import {
+    loadLastOrder,
+    parseReorder,
+    type ReorderLine,
+  } from '@scripts/reorder';
+  import type { CatalogLine } from '@utils/variantCatalog';
 
   const lines = document.getElementById('page-cart-lines');
   const content = document.getElementById('page-cart-content');
@@ -220,4 +254,73 @@ import { SITE } from '@data/constants';
       note.classList.remove('hidden');
     }
   });
+
+  // ── One-click reorder ─────────────────────────────────────────────────
+  const catalog =
+    (
+      window as unknown as {
+        __shawVariantCatalog?: Record<string, CatalogLine>;
+      }
+    ).__shawVariantCatalog ?? {};
+
+  /** Rebuild cart lines from id+qty pairs; unknown ids are skipped. */
+  const addLines = (reorderLines: ReorderLine[]): number => {
+    let added = 0;
+    for (const line of reorderLines) {
+      const entry = catalog[line.variantId];
+      if (!entry) continue;
+      addItem(
+        {
+          productId: entry.productId,
+          variantId: entry.variantId,
+          title: entry.title,
+          variantName: entry.variantName,
+          hex: entry.hex,
+          image: entry.image,
+          sku: entry.sku,
+          unit: entry.unit,
+          tiers: entry.tiers,
+          href: entry.href,
+        },
+        line.qty
+      );
+      added += 1;
+    }
+    return added;
+  };
+
+  /*
+   * A `?reorder=` link rebuilds the basket on arrival, then removes itself
+   * from the address bar so a reload does not add everything twice. Lines
+   * accumulate onto whatever is already in the cart, the same rule as adding
+   * the same variant twice by hand.
+   */
+  const params = new URLSearchParams(location.search);
+  const requested = parseReorder(params.get('reorder'));
+  if (requested.length) {
+    const added = addLines(requested);
+    params.delete('reorder');
+    const query = params.toString();
+    history.replaceState(
+      {},
+      '',
+      location.pathname + (query ? `?${query}` : '')
+    );
+    if (added && note) {
+      note.textContent = 'Your reorder has been added to the cart.';
+      note.classList.remove('hidden');
+    }
+  }
+
+  /*
+   * Empty cart, remembered order: offer to rebuild it. The button lives in
+   * the empty state, so it disappears with that state the moment lines land.
+   */
+  const lastOrder = loadLastOrder().filter(line => catalog[line.variantId]);
+  const reorderBtn = document.getElementById('page-cart-reorder');
+  if (lastOrder.length && reorderBtn) {
+    reorderBtn.classList.remove('hidden');
+    reorderBtn.classList.add('inline-flex');
+    reorderBtn.addEventListener('click', () => addLines(lastOrder));
+  }
 </script>
