@@ -70,20 +70,19 @@ const sliderData = {
 };
 ---
 
+{
+  /*
+  No engineering grid here. The hero already wears it directly above, and a
+  second one a screen later stops reading as a motif and starts reading as
+  wallpaper. The flat brand gradient is the ground.
+*/
+}
 <section
-  class="from-brand-grad-from to-brand-grad-to relative overflow-hidden bg-linear-to-tr"
+  class="from-brand-grad-from to-brand-grad-to bg-linear-to-tr"
   aria-labelledby="price-slider-heading"
 >
-  {/* The same fine engineering grid the hero wears, kept subtle. */}
   <div
-    class="absolute inset-0 opacity-[0.14] mix-blend-overlay"
-    style="background-image:linear-gradient(to right,#fff 1px,transparent 1px),linear-gradient(to bottom,#fff 1px,transparent 1px);background-size:64px 64px"
-    aria-hidden="true"
-  >
-  </div>
-
-  <div
-    class="relative mx-auto grid max-w-(--breakpoint-2xl) gap-10 px-4 py-16 sm:px-6 lg:grid-cols-5 lg:gap-14 lg:px-8 lg:py-20"
+    class="mx-auto grid max-w-(--breakpoint-2xl) gap-10 px-4 py-16 sm:px-6 lg:grid-cols-5 lg:gap-14 lg:px-8 lg:py-20"
   >
     {/* ── Slider column ─────────────────────────────────────────────── */}
     <div class="lg:col-span-3">
@@ -101,7 +100,14 @@ const sliderData = {
         the cart runs, and checkout applies the tier automatically.
       </p>
 
-      {/* Color picker. Product colors, worn by the chips themselves. */}
+      {
+        /*
+        Color picker. Solid white pills, matching the tier chips below the
+        slider: a translucent chip on the brand gradient is the hardest thing
+        on this section to read, and the colour each one selects is already
+        carried by its swatch. Selection is the border, not the fill.
+      */
+      }
       <div
         id="price-slider-colors"
         class="mt-8 flex flex-wrap gap-2"
@@ -115,10 +121,10 @@ const sliderData = {
               data-slider-variant={variant.id}
               aria-pressed={i === 0 ? 'true' : 'false'}
               class:list={[
-                'flex items-center gap-2 rounded-lg border-2 px-3 py-2 text-sm font-medium transition',
+                'flex items-center gap-2 rounded-lg border-2 bg-white px-3 py-2 text-sm font-semibold text-neutral-900 transition',
                 i === 0
-                  ? 'border-white bg-white/15 text-white'
-                  : 'border-white/30 text-white/80 hover:border-white/60 hover:text-white',
+                  ? 'border-neutral-900'
+                  : 'border-white hover:border-neutral-400',
               ]}
             >
               <span
@@ -173,15 +179,6 @@ const sliderData = {
 
         {/* The ladder as buttons: tap a tier, land on its breakpoint. */}
         <div id="price-slider-tiers" class="mt-4 flex flex-wrap gap-2"></div>
-
-        <p class="mt-5 text-sm text-white/70">
-          Need more than {SLIDER_MAX} packs, mixed sizing, or printed ties?
-          <a
-            href="/wholesale#quote"
-            class="font-semibold text-white underline underline-offset-4 hover:text-white/80"
-            >Build a bulk quote</a
-          >, it takes about thirty seconds.
-        </p>
       </div>
     </div>
 
@@ -259,6 +256,39 @@ const sliderData = {
           >.
         </p>
       </div>
+    </div>
+  </div>
+
+  {
+    /*
+    The overflow route, for everything the slider cannot price on its own.
+    It sits below both columns rather than under the slider, so it reads as
+    the section's closing move instead of a footnote competing with the tier
+    chips for the same corner.
+  */
+  }
+  <div
+    class="mx-auto max-w-(--breakpoint-2xl) px-4 pb-16 sm:px-6 lg:px-8 lg:pb-20"
+  >
+    <div
+      class="flex flex-col items-center gap-5 border-t border-white/20 pt-10 text-center"
+    >
+      <p class="max-w-lg text-base text-white/85">
+        Need more than {SLIDER_MAX} packs, mixed sizing, or printed ties?
+      </p>
+      <a
+        href="/wholesale#quote"
+        class="text-maroon-800 focus-visible:ring-offset-maroon-800 group inline-flex items-center gap-2 rounded-lg bg-white px-7 py-3.5 text-sm font-bold transition hover:bg-white/90 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2"
+      >
+        Build a Bulk Quote
+        <Icon
+          name="arrowRight"
+          class="h-4 w-4 transition group-hover:translate-x-1"
+        />
+      </a>
+      <p class="text-xs text-white/65">
+        Takes about thirty seconds. No discovery call.
+      </p>
     </div>
   </div>
 </section>
@@ -531,11 +561,10 @@ const sliderData = {
         .forEach(chip => {
           const active = chip === btn;
           chip.setAttribute('aria-pressed', String(active));
-          chip.classList.toggle('border-white', active);
-          chip.classList.toggle('bg-white/15', active);
-          chip.classList.toggle('text-white', active);
-          chip.classList.toggle('border-white/30', !active);
-          chip.classList.toggle('text-white/80', !active);
+          // The chips are always white; only the border says which is chosen.
+          chip.classList.toggle('border-neutral-900', active);
+          chip.classList.toggle('border-white', !active);
+          chip.classList.toggle('hover:border-neutral-400', !active);
         });
       renderTicks();
       render();
