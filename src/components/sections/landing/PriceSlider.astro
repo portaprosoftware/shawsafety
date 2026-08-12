@@ -102,17 +102,20 @@ const sliderData = {
 
       {
         /*
-        Color picker. The chosen chip is solid white with a dark border, so it
-        reads as the current state without any extra affordance. Unselected
-        chips stay transparent with a thin dark outline, which lets the brand
-        gradient carry through them and keeps the selected chip the one
-        obvious focus on the row.
+        Color picker. The chosen chip is solid white with no border at all,
+        so its whiteness carries the whole "this is selected" signal against
+        the brand gradient. Unselected chips stay transparent with a plain
+        white outline, so the row reads as a set of pills the visitor can
+        pick from without any one of them competing with the chosen state.
 
-        The colour swatch on an unselected chip wears its own thin white
-        ring: fluorescent yellow against maroon is what makes that necessary,
-        the pigment is so light it disappears without an edge to hold it.
-        The selected chip drops the ring because the white pill already
-        contains the swatch.
+        The colour swatch on an unselected chip wears a thicker solid-white
+        ring: fluorescent yellow against maroon is what makes that
+        necessary, the pigment is so light it disappears without an edge to
+        hold it. The chosen chip drops the ring because the white pill
+        already supplies the edge.
+
+        `border-2` is on both states so switching selection never resizes
+        the chip; the difference is only the colour.
       */
       }
       <div
@@ -132,14 +135,14 @@ const sliderData = {
                 class:list={[
                   'flex items-center gap-2 rounded-lg border-2 px-3 py-2 text-sm font-semibold transition',
                   active
-                    ? 'border-neutral-900 bg-white text-neutral-900'
-                    : 'border-neutral-900/40 bg-transparent text-white hover:border-neutral-900/70 hover:bg-white/5',
+                    ? 'border-transparent bg-white text-neutral-900'
+                    : 'border-white bg-transparent text-white hover:bg-white/10',
                 ]}
               >
                 <span
                   class:list={[
                     'h-3.5 w-3.5 shrink-0 rounded-full',
-                    active ? '' : 'ring-1 ring-white/70',
+                    active ? '' : 'ring-2 ring-white',
                   ]}
                   style={`background:${variant.hex}`}
                 />
@@ -575,25 +578,25 @@ const sliderData = {
           const active = chip === btn;
           chip.setAttribute('aria-pressed', String(active));
 
-          // The chip: white pill with a dark border when chosen, transparent
-          // with a thin dark outline otherwise. Class toggles mirror the
+          // The chip: white pill with no border when chosen, transparent
+          // with a plain white outline otherwise. Class toggles mirror the
           // server-rendered pair exactly.
-          chip.classList.toggle('border-neutral-900', active);
+          chip.classList.toggle('border-transparent', active);
           chip.classList.toggle('bg-white', active);
           chip.classList.toggle('text-neutral-900', active);
-          chip.classList.toggle('border-neutral-900/40', !active);
+          chip.classList.toggle('border-white', !active);
           chip.classList.toggle('bg-transparent', !active);
           chip.classList.toggle('text-white', !active);
-          chip.classList.toggle('hover:border-neutral-900/70', !active);
-          chip.classList.toggle('hover:bg-white/5', !active);
+          chip.classList.toggle('hover:bg-white/10', !active);
 
-          // The swatch dot: an inactive chip's dot gets a white ring so the
-          // fluorescent pigment holds an edge on the maroon ground. The
-          // active chip drops it because the white pill supplies the edge.
+          // The swatch dot: an inactive chip's dot gets a solid white ring
+          // so the fluorescent pigment holds an edge on the maroon ground.
+          // The active chip drops it because the white pill supplies the
+          // edge already.
           const dot = chip.querySelector<HTMLElement>('span');
           if (dot) {
-            dot.classList.toggle('ring-1', !active);
-            dot.classList.toggle('ring-white/70', !active);
+            dot.classList.toggle('ring-2', !active);
+            dot.classList.toggle('ring-white', !active);
           }
         });
       renderTicks();
