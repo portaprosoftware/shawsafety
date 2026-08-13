@@ -583,6 +583,13 @@ const ADDONS = [
       return text ? `${addon.label}: "${text}"` : addon.label;
     };
 
+    /*
+     * What "Buy Stock Now" would actually charge, kept in sync by render()
+     * so the click handler never has to re-derive it. Non-null only while
+     * checkout would land above the quoted subtotal.
+     */
+    let checkoutOverage: { quoted: number; charged: number } | null = null;
+
     const render = () => {
       const priced = priceLines();
       const addons = selectedAddons();
@@ -679,6 +686,31 @@ const ADDONS = [
         )
       );
       const mismatch = perLineTotal > subtotal + 0.004;
+      checkoutOverage = mismatch
+        ? { quoted: subtotal, charged: perLineTotal }
+        : null;
+
+      /*
+       * Carry the real checkout figure on the button itself. The note below
+       * explains it, but the price a click commits to belongs where the
+       * click happens.
+       */
+      const buyBtn = $('quote-buy');
+      const buyLabel = buyBtn?.querySelector('[data-label]');
+      if (buyBtn && buyLabel) {
+        buyLabel.textContent = mismatch
+          ? `Buy Stock Now, ${formatMoney(perLineTotal)}`
+          : 'Buy Stock Now';
+        if (mismatch) {
+          buyBtn.setAttribute(
+            'title',
+            `Checkout prices each color separately: ${formatMoney(perLineTotal)}, not the ${formatMoney(subtotal)} combined-color subtotal.`
+          );
+        } else {
+          buyBtn.removeAttribute('title');
+        }
+      }
+
       const buyNote = $('quote-buy-note');
       if (buyNote) {
         const notes: string[] = [];
@@ -832,6 +864,19 @@ const ADDONS = [
     $('quote-buy')?.addEventListener('click', () => {
       const priced = priceLines();
       if (!priced.length) return;
+      /*
+       * The cart prices each color on its own ladder, so a subtotal earned
+       * by the mixed-colors rule will read higher once these lines land in
+       * it. Say both numbers out loud and take a yes before adding any.
+       */
+      if (
+        checkoutOverage &&
+        !window.confirm(
+          `The quoted subtotal, ${formatMoney(checkoutOverage.quoted)}, uses the combined-color tier. Online checkout prices each color on its own, so the cart will total ${formatMoney(checkoutOverage.charged)}.\n\nAdd these lines at the checkout price? Send the quote instead and we confirm the combined-color price.`
+        )
+      ) {
+        return;
+      }
       for (const line of priced) {
         addItem(
           {
