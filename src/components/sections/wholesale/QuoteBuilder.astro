@@ -636,10 +636,16 @@ const ADDONS = [
       const tierNote = $('quote-tier-note');
       if (tierNote) {
         const totals = productTotals();
+        // Each product owns its ladder, so the breakpoint has to come from
+        // the product being weighed, not from whichever line sorted first.
         const combinedProduct = Array.from(totals.entries()).find(
-          ([productId, total]) =>
-            priced.filter(line => line.entry.productId === productId).length >
-              1 && total >= (priced[0]?.entry.tiers[1]?.minQty ?? Infinity)
+          ([productId, total]) => {
+            const forProduct = priced.filter(
+              line => line.entry.productId === productId
+            );
+            const nextTier = forProduct[0]?.entry.tiers[1]?.minQty ?? Infinity;
+            return forProduct.length > 1 && total >= nextTier;
+          }
         );
         if (combinedProduct) {
           const [productId, total] = combinedProduct;

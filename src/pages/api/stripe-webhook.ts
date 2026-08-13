@@ -13,6 +13,8 @@
  *   STRIPE_SECRET_KEY               required, to read the session's line items
  *   STRIPE_CHECKOUT_WEBHOOK_SECRET  required, verifies the payload really came
  *                                   from Stripe
+ *   PUBLIC_SITE_URL                 optional, the public origin for the reorder
+ *                                   link. Defaults to `site` in astro.config.mjs
  *   RESEND_API_KEY / RESEND_FROM / CONTACT_TO. See @utils/sendEmail
  */
 import type { APIRoute } from 'astro';
@@ -90,6 +92,31 @@ function formatAddress(address?: Stripe.Address | null): string {
 }
 
 /**
+ * The public origin customer-facing links must use.
+ *
+ * Stripe's request lands on whatever host the runtime sees, which behind a
+ * proxy, an edge rewrite, or a Vercel deployment URL need not be the hostname
+ * customers browse. Prefer PUBLIC_SITE_URL, then the `site` from
+ * astro.config.mjs, and fall back to the request only when neither is set,
+ * because a wrong link mails out to every customer.
+ */
+function publicOrigin(request: Request): string {
+  // `SITE` is empty when astro.config.mjs sets no `site`, hence the truthiness
+  // check rather than `??`.
+  const configured = readEnv('PUBLIC_SITE_URL') || import.meta.env.SITE;
+  if (configured) {
+    try {
+      return new URL(configured).origin;
+    } catch {
+      console.warn(
+        `[stripe-webhook] Ignoring unparseable site origin: ${configured}`
+      );
+    }
+  }
+  return new URL(request.url).origin;
+}
+
+/**
  * The one-click reorder link for this order, from the metadata the checkout
  * endpoint attached. `null` when the session predates the feature or the
  * order was too long to annotate; the email simply omits the row.
@@ -162,7 +189,7 @@ export const POST: APIRoute = async ({ request }) => {
   const customer = session.customer_details;
   const shipping = readShipping(session);
   const currency = session.currency ?? 'usd';
-  const reorder = reorderLink(session, new URL(request.url).origin);
+  const reorder = reorderLink(session, publicOrigin(request));
 
   const rows: [string, string][] = [
     ['Name', customer?.name || shipping?.name || '-'],
