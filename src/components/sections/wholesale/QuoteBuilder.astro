@@ -89,8 +89,35 @@ const ADDONS = [
         novalidate
       >
         <input type="hidden" name="formType" value="quote" />
-        {/* Composed by the script from the built quote; what sales reads. */}
-        <input type="hidden" name="message" id="quote-message" value="" />
+        {
+          /*
+          The order field, and without the configurator the whole form. The
+          inline script at the foot of this file removes it and drops in the
+          hidden input the builder composes, so exactly one `message` ever
+          reaches /api/contact, and a browser that never runs the builder is
+          left with something it can actually fill in and send.
+        */
+        }
+        <div id="quote-fallback">
+          <label
+            for="quote-message"
+            class="block text-sm font-bold text-neutral-900">Your order</label
+          >
+          <p class="mt-1 text-xs text-neutral-500">
+            The instant quote builder needs JavaScript. Type what you need,
+            colors, quantities, and anything printed, and we price it by hand
+            within one business day.
+          </p>
+          <textarea
+            id="quote-message"
+            name="message"
+            rows="5"
+            required
+            maxlength="5000"
+            placeholder="e.g. 400 packs yellow ties, 200 packs orange, printed with ACME INTERMODAL"
+            class="focus:border-maroon-700 focus:ring-maroon-700 mt-2 w-full rounded-lg border-neutral-300 text-sm"
+          ></textarea>
+        </div>
         {/* Honeypot: hidden from people, irresistible to bots. */}
         <div class="hidden" aria-hidden="true">
           <label for="quote-website">Leave this field empty</label>
@@ -448,6 +475,27 @@ const ADDONS = [
 
 <script is:inline define:vars={{ catalog }}>
   window.__shawQuoteCatalog = catalog;
+  /*
+   * Hand the order field over to the configurator: swap the typed fallback
+   * for the hidden input the builder composes. Inline and synchronous, so
+   * the fallback is gone before paint rather than flashing. Skipped when the
+   * catalogue is empty, since the builder bails in that case too and the
+   * typed field is then the only way to send a quote.
+   */
+  {
+    const fallback = catalog.length
+      ? document.getElementById('quote-fallback')
+      : null;
+    const quoteForm = document.getElementById('quote-form');
+    if (fallback && quoteForm) {
+      fallback.remove();
+      const composed = document.createElement('input');
+      composed.type = 'hidden';
+      composed.name = 'message';
+      composed.id = 'quote-message';
+      quoteForm.appendChild(composed);
+    }
+  }
 </script>
 
 <script>
@@ -583,6 +631,31 @@ const ADDONS = [
       return text ? `${addon.label}: "${text}"` : addon.label;
     };
 
+    /**
+     * What the cart would charge for these lines.
+     *
+     * `addItem` keys on product and variant, so two rows of the same color
+     * land on one cart line and share one ladder, while separate colors stay
+     * separate. Mirror that here or the comparison against the quoted
+     * subtotal reads a discount the cart would actually give.
+     */
+    const checkoutTotal = (priced: PricedLine[]): number => {
+      const merged = new Map<string, { entry: CatalogLine; qty: number }>();
+      for (const line of priced) {
+        const key = `${line.entry.productId}::${line.entry.variantId}`;
+        const seen = merged.get(key);
+        if (seen) seen.qty += line.qty;
+        else merged.set(key, { entry: line.entry, qty: line.qty });
+      }
+      return roundMoney(
+        Array.from(merged.values()).reduce(
+          (sum, item) =>
+            sum + unitPriceAt(item.entry.tiers, item.qty) * item.qty,
+          0
+        )
+      );
+    };
+
     /*
      * What "Buy Stock Now" would actually charge, kept in sync by render()
      * so the click handler never has to re-derive it. Non-null only while
@@ -680,17 +753,11 @@ const ADDONS = [
 
       /*
        * The quote honours the published mixed-colors rule; online checkout
-       * prices each line on its own ladder. When those disagree, buying now
+       * prices each color on its own ladder. When those disagree, buying now
        * would cost more than the quote shows, and that difference must be
        * said out loud rather than discovered at Stripe.
        */
-      const perLineTotal = roundMoney(
-        priced.reduce(
-          (sum, line) =>
-            sum + unitPriceAt(line.entry.tiers, line.qty) * line.qty,
-          0
-        )
-      );
+      const perLineTotal = checkoutTotal(priced);
       const mismatch = perLineTotal > subtotal + 0.004;
       checkoutOverage = mismatch
         ? { quoted: subtotal, charged: perLineTotal }
