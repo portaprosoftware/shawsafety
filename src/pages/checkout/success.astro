@@ -1,8 +1,18 @@
 ---
+import Stripe from 'stripe';
 import MainLayout from '@/layouts/MainLayout.astro';
 import Icon from '@components/ui/icons/Icon.astro';
 import { SITE } from '@data/constants';
+import { readEnv } from '@utils/env';
 import { getVariantCatalog } from '@utils/variantCatalog';
+import { parseReorder, type ReorderLine } from '@scripts/reorder';
+
+/*
+ * Rendered per request: the order is confirmed with Stripe here, server-side,
+ * before the page believes in it. Landing on this URL is not payment, and the
+ * browser's own idea of what was in the basket is not evidence of one.
+ */
+export const prerender = false;
 
 /**
  * Labels for the reorder summary, keyed by variant id. Only names ride to the
@@ -14,26 +24,66 @@ const labels = Object.fromEntries(
     `${line.shortTitle}, ${line.variantName}`,
   ])
 );
+
+/*
+ * Confirm the session Stripe redirected here with, and take the order lines
+ * off it. The metadata was written by our own checkout endpoint from the
+ * lines it validated, so it describes what was actually bought.
+ *
+ * `no_payment_required` is a paid order too: promotion codes are enabled, and
+ * one that covers the whole total settles the session without a charge.
+ */
+const sessionId = Astro.url.searchParams.get('session_id');
+const secretKey = readEnv('STRIPE_SECRET_KEY');
+let confirmed = false;
+let orderLines: ReorderLine[] = [];
+
+if (sessionId && /^cs_[A-Za-z0-9_-]+$/.test(sessionId) && secretKey) {
+  try {
+    const session = await new Stripe(secretKey).checkout.sessions.retrieve(
+      sessionId
+    );
+    confirmed =
+      session.status === 'complete' &&
+      (session.payment_status === 'paid' ||
+        session.payment_status === 'no_payment_required');
+    if (confirmed) orderLines = parseReorder(session.metadata?.reorder ?? null);
+  } catch (error) {
+    // Stripe unreachable, or an id from somewhere else. Either way this page
+    // has nothing to confirm, so it says so rather than guessing.
+    console.warn('[checkout/success] Could not verify the session:', error);
+  }
+}
 ---
 
 <MainLayout
-  title={`Order Confirmed | ${SITE.title}`}
-  customDescription="Your Shaw Safety order is confirmed."
+  title={confirmed
+    ? `Order Confirmed | ${SITE.title}`
+    : `Checkout | ${SITE.title}`}
+  customDescription={confirmed
+    ? 'Your Shaw Safety order is confirmed.'
+    : 'Checking a Shaw Safety order.'}
 >
   <section
     class="flex min-h-[60svh] items-center justify-center py-20 text-center"
   >
     <div class="mx-auto max-w-lg">
-      <Icon name="checkCircle" class="text-maroon-700 mx-auto h-14 w-14" />
+      <Icon
+        name={confirmed ? 'checkCircle' : 'clock'}
+        class="text-maroon-700 mx-auto h-14 w-14"
+      />
 
       <h1
         class="mt-6 text-3xl font-bold tracking-tight text-neutral-900 sm:text-4xl"
       >
-        Order confirmed
+        {confirmed ? 'Order confirmed' : 'We could not confirm this order'}
       </h1>
       <p class="mt-3 text-lg text-pretty text-neutral-600">
-        Thanks. We have got it. A receipt is on its way to your email, and your
-        order ships the next business day.
+        {
+          confirmed
+            ? 'Thanks. We have got it. A receipt is on its way to your email, and your order ships the next business day.'
+            : 'This page could not check the order with our payment provider, so nothing here is confirmed and your cart has been left as it was. If you were charged, a receipt is in your email and the order is safe with us.'
+        }
       </p>
 
       {
@@ -110,30 +160,46 @@ const labels = Object.fromEntries(
   </section>
 </MainLayout>
 
-<script is:inline define:vars={{ labels }}>
+<script is:inline define:vars={{ labels, confirmed, orderLines }}>
   window.__shawVariantLabels = labels;
+  window.__shawConfirmedOrder = { confirmed, lines: orderLines };
 </script>
 
 <script>
   import { clear } from '@scripts/cart';
-  import { promotePendingOrder, reorderPath } from '@scripts/reorder';
+  import {
+    promotePendingOrder,
+    rememberOrder,
+    reorderPath,
+    type ReorderLine,
+  } from '@scripts/reorder';
 
-  /*
-   * Emptying the basket happens here rather than at redirect time: a shopper
-   * who reaches Stripe and then backs out must still have their cart. Landing
-   * on this page is the first point at which the order is actually placed.
-   */
-  clear();
-
-  /*
-   * Promote the pending snapshot the checkout adapter saved at handoff into
-   * the remembered last order, then offer it back as a link. Reaching this
-   * page is what proves the order really happened.
-   */
   const labels =
     (window as unknown as { __shawVariantLabels?: Record<string, string> })
       .__shawVariantLabels ?? {};
-  const order = promotePendingOrder();
+  const paid = (
+    window as unknown as {
+      __shawConfirmedOrder?: { confirmed: boolean; lines: ReorderLine[] };
+    }
+  ).__shawConfirmedOrder ?? { confirmed: false, lines: [] };
+
+  /*
+   * Everything below hangs off the server having confirmed the session as
+   * paid. Emptying the basket happens here rather than at redirect time, a
+   * shopper who reaches Stripe and then backs out must still have their cart,
+   * but an unconfirmed visit must not empty it either.
+   *
+   * The remembered order comes from the session's own metadata. The pending
+   * snapshot is the fallback for orders too long for Stripe to carry, and it
+   * is only trusted now that the payment behind it is established.
+   */
+  let order: ReorderLine[] = [];
+  if (paid.confirmed) {
+    clear();
+    order = paid.lines.length
+      ? rememberOrder(paid.lines)
+      : promotePendingOrder();
+  }
   const block = document.getElementById('reorder-block');
   const list = document.getElementById('reorder-items');
   const link = document.getElementById(

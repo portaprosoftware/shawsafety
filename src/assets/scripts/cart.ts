@@ -141,6 +141,33 @@ export function addItem(
   emit();
 }
 
+/**
+ * Replace the whole basket with exactly these lines.
+ *
+ * Rebuilding a known order is not the same act as adding to one: a reorder
+ * link describes a complete basket, so it must land as that basket and not as
+ * a sum with whatever was already there. One assignment, one event, so no
+ * listener ever sees a half-built cart. Same-variant entries are folded
+ * together on the way in, matching how `addItem` keys a line.
+ */
+export function replaceItems(
+  next: (Omit<CartItem, 'key' | 'qty'> & {
+    qty: number;
+  })[]
+): void {
+  hydrate();
+  const rebuilt: CartItem[] = [];
+  for (const item of next) {
+    const key = `${item.productId}::${item.variantId}`;
+    const qty = Math.max(1, Math.floor(item.qty));
+    const existing = rebuilt.find(i => i.key === key);
+    if (existing) existing.qty += qty;
+    else rebuilt.push({ ...item, key, qty });
+  }
+  items = rebuilt;
+  emit();
+}
+
 export function updateQty(key: string, qty: number): void {
   hydrate();
   const next = Math.floor(qty);
