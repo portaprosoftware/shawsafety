@@ -22,11 +22,12 @@ export default defineConfig({
   // CSP directive in vercel.json, missing either one silently blanks them.
   // https://docs.astro.build/en/guides/images/#authorizing-remote-images
   /*
-   * Static by default. Every page is still prerendered to HTML at build time.
-   * The adapter exists only so the routes under src/pages/api/ can opt out with
-   * `export const prerender = false` and run as serverless functions. The form
-   * handlers need a server because the Resend API key must never reach the
-   * client.
+   * Static by default: all but a handful of pages are prerendered to HTML at
+   * build time. The adapter exists so the routes under src/pages/api/, and the
+   * checkout success page, can opt out with `export const prerender = false`
+   * and run as serverless functions. They need a server for secrets that must
+   * never reach the client: the Resend key for the form handlers, the Stripe
+   * key the success page uses to confirm an order really was paid.
    */
   output: 'static',
   adapter: vercel(),

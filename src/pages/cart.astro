@@ -130,7 +130,7 @@ const catalog = Object.fromEntries(
     subscribe,
     updateQty,
     removeItem,
-    addItem,
+    replaceItems,
     clear,
     getItems,
     unitPriceFor,
@@ -263,42 +263,54 @@ const catalog = Object.fromEntries(
       }
     ).__shawVariantCatalog ?? {};
 
-  /** Rebuild cart lines from id+qty pairs; unknown ids are skipped. */
-  const addLines = (reorderLines: ReorderLine[]): number => {
-    let added = 0;
-    for (const line of reorderLines) {
-      const entry = catalog[line.variantId];
-      if (!entry) continue;
-      addItem(
-        {
-          productId: entry.productId,
-          variantId: entry.variantId,
-          title: entry.title,
-          variantName: entry.variantName,
-          hex: entry.hex,
-          image: entry.image,
-          sku: entry.sku,
-          unit: entry.unit,
-          tiers: entry.tiers,
-          href: entry.href,
-        },
-        line.qty
-      );
-      added += 1;
-    }
-    return added;
+  /**
+   * Turn id+qty pairs into cart lines off this page's catalogue. Unknown ids
+   * are skipped: the link carries quantities, the catalogue carries the rest.
+   */
+  const toCartLines = (reorderLines: ReorderLine[]) =>
+    reorderLines
+      .map(line => {
+        const entry = catalog[line.variantId];
+        return entry ? { entry, qty: line.qty } : null;
+      })
+      .filter((line): line is { entry: CatalogLine; qty: number } => !!line)
+      .map(({ entry, qty }) => ({
+        productId: entry.productId,
+        variantId: entry.variantId,
+        title: entry.title,
+        variantName: entry.variantName,
+        hex: entry.hex,
+        image: entry.image,
+        sku: entry.sku,
+        unit: entry.unit,
+        tiers: entry.tiers,
+        href: entry.href,
+        qty,
+      }));
+
+  /**
+   * Rebuild the basket as the order described, in one write.
+   *
+   * A reorder is a whole order, not an addition to one, so it replaces the
+   * cart rather than accumulating onto whatever the browser was already
+   * holding. Returns how many lines landed.
+   */
+  const rebuildCart = (reorderLines: ReorderLine[]): number => {
+    const cartLines = toCartLines(reorderLines);
+    if (!cartLines.length) return 0;
+    replaceItems(cartLines);
+    return cartLines.length;
   };
 
   /*
    * A `?reorder=` link rebuilds the basket on arrival, then removes itself
-   * from the address bar so a reload does not add everything twice. Lines
-   * accumulate onto whatever is already in the cart, the same rule as adding
-   * the same variant twice by hand.
+   * from the address bar so a reload does not replay it.
    */
   const params = new URLSearchParams(location.search);
   const requested = parseReorder(params.get('reorder'));
   if (requested.length) {
-    const added = addLines(requested);
+    const had = getItems().length;
+    const added = rebuildCart(requested);
     params.delete('reorder');
     const query = params.toString();
     history.replaceState(
@@ -307,7 +319,11 @@ const catalog = Object.fromEntries(
       location.pathname + (query ? `?${query}` : '')
     );
     if (added && note) {
-      note.textContent = 'Your reorder has been added to the cart.';
+      // Say so when the link displaced something, rather than letting a
+      // shopper discover the difference at checkout.
+      note.textContent = had
+        ? 'Your cart has been rebuilt from this reorder link, replacing what was in it.'
+        : 'Your reorder is in the cart.';
       note.classList.remove('hidden');
     }
   }
@@ -321,6 +337,6 @@ const catalog = Object.fromEntries(
   if (lastOrder.length && reorderBtn) {
     reorderBtn.classList.remove('hidden');
     reorderBtn.classList.add('inline-flex');
-    reorderBtn.addEventListener('click', () => addLines(lastOrder));
+    reorderBtn.addEventListener('click', () => rebuildCart(lastOrder));
   }
 </script>

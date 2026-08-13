@@ -8,10 +8,12 @@
  * checkout, exactly as if the lines were added by hand. A tampered link can
  * change what lands in the cart, never what it costs.
  *
- * The same encoding rides through checkout: the adapter stashes the basket
- * here as a pending order at handoff, and the success page promotes it to the
- * remembered last order once the purchase actually completes. Abandoning
- * Stripe therefore never overwrites a real previous order.
+ * The same encoding rides through checkout as Stripe session metadata, so the
+ * remembered last order is derived from the paid session itself. The adapter
+ * also stashes the basket here at handoff, but that snapshot is only consulted
+ * for orders too long for Stripe's metadata cap, and only once the session has
+ * been confirmed. Abandoning Stripe therefore never overwrites a real previous
+ * order, and loading the success page proves nothing on its own.
  */
 
 export interface ReorderLine {
@@ -96,20 +98,42 @@ export function savePendingOrder(lines: ReorderLine[]): void {
   if (lines.length) write(PENDING_KEY, lines);
 }
 
+function clearPending(): void {
+  try {
+    localStorage.removeItem(PENDING_KEY);
+  } catch {
+    /* Already best-effort. */
+  }
+}
+
 /**
- * Called by the success page. Moves the pending snapshot into the remembered
- * last order and returns it, or falls back to the previous last order when
- * the page is revisited after the pending key is gone.
+ * Remember an order the server read back off a paid Checkout Session.
+ *
+ * This is the trustworthy path: the lines came from Stripe's own record of
+ * what was bought, not from a browser key that no one has correlated with a
+ * payment. Any pending snapshot is dropped, the order it stood in for is now
+ * confirmed by a better source.
+ */
+export function rememberOrder(lines: ReorderLine[]): ReorderLine[] {
+  const confirmed = parseReorder(serializeReorder(lines));
+  if (!confirmed.length) return read(LAST_KEY);
+  write(LAST_KEY, confirmed);
+  clearPending();
+  return confirmed;
+}
+
+/**
+ * Fall back to the snapshot the checkout adapter saved at handoff, for the
+ * orders Stripe could not carry: metadata is capped, so a long enough order
+ * travels with no `reorder` value on the session. Only call this once the
+ * session itself has been confirmed paid, or an abandoned basket would be
+ * promoted on the strength of having merely loaded the success page.
  */
 export function promotePendingOrder(): ReorderLine[] {
   const pending = read(PENDING_KEY);
   if (pending.length) {
     write(LAST_KEY, pending);
-    try {
-      localStorage.removeItem(PENDING_KEY);
-    } catch {
-      /* Already best-effort. */
-    }
+    clearPending();
     return pending;
   }
   return read(LAST_KEY);
